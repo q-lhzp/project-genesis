@@ -172,6 +172,9 @@ def collect_data(workspace: str) -> dict:
     # Phase 1: Chronos - Lifecycle (Aging)
     lifecycle = load_json(os.path.join(memory_dir, "reality", "lifecycle.json"))
 
+    # Phase 2: Social Fabric
+    social = load_json(os.path.join(memory_dir, "reality", "social.json"))
+
     return {
         "soul_tree": soul_tree,
         "soul_raw": soul_content,
@@ -192,6 +195,7 @@ def collect_data(workspace: str) -> dict:
         "dev_manifest": dev_manifest,
         "cycle": cycle,
         "lifecycle": lifecycle,
+        "social": social,
     }
 
 

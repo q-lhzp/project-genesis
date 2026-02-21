@@ -240,6 +240,44 @@ interface LifeStageMultipliers {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 2: Social Fabric - Social Entity & Relationships
+// ---------------------------------------------------------------------------
+
+type RelationshipType = "family" | "friend" | "romantic" | "professional" | "acquaintance" | "stranger";
+
+interface SocialEntity {
+  id: string;
+  name: string;
+  relationship_type: RelationshipType;
+  bond: number;        // -100 to 100 (enemies to soulmates)
+  trust: number;       // 0 to 100
+  intimacy: number;    // 0 to 100
+  last_interaction: string;  // ISO timestamp
+  interaction_count: number;
+  history_summary: string;   // Brief summary of relationship history
+  introduced_at: string;     // When this entity was first met
+  notes: string;             // Additional notes about the entity
+}
+
+interface SocialState {
+  entities: SocialEntity[];
+  last_network_search: string | null;
+  circles: string[];  // User-defined circles (e.g., "Work", "Family", "Hobbies")
+}
+
+interface SocialInteractionLog {
+  id: string;
+  timestamp: string;
+  entity_id: string;
+  entity_name: string;
+  action: "talk" | "gift" | "conflict" | "apologize" | "support" | "ignore";
+  bond_change: number;
+  trust_change: number;
+  intimacy_change: number;
+  context: string;
+}
+
+// ---------------------------------------------------------------------------
 // New v2 tool params interfaces
 // ---------------------------------------------------------------------------
 
@@ -359,6 +397,22 @@ interface DevelopParams {
   action: string;
   project_id?: string; project_name?: string; project_type?: string;
   project_description?: string; file_path?: string; file_content?: string;
+}
+
+// Phase 2: Social Fabric - Tool params
+interface SocializeParams {
+  target_id?: string;   // Existing entity ID
+  target_name?: string; // Or create new entity
+  action: "talk" | "gift" | "conflict" | "apologize" | "support" | "ignore";
+  context?: string;     // What happened
+}
+
+interface NetworkParams {
+  action: "search_contacts" | "manage_circles" | "add_entity" | "remove_entity";
+  entity_name?: string;
+  entity_type?: RelationshipType;
+  circle?: string;
+  target_id?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -791,6 +845,191 @@ function getAgeSensation(lang: "de" | "en", ageDays: number, stage: LifeStage): 
 }
 
 // ---------------------------------------------------------------------------
+// Phase 2: Social Fabric - Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Get default social state
+ */
+function getDefaultSocialState(): SocialState {
+  const now = new Date().toISOString();
+  return {
+    entities: [],
+    last_network_search: null,
+    circles: ["Family", "Friends", "Work", "Hobbies"],
+  };
+}
+
+/**
+ * Calculate relationship dynamics changes based on action
+ * Returns { bond_change, trust_change, intimacy_change }
+ */
+function calculateSocialDynamics(
+  action: SocializeParams["action"],
+  currentBond: number,
+  currentTrust: number,
+  currentIntimacy: number
+): { bond: number; trust: number; intimacy: number } {
+  // Base changes for each action type
+  const baseChanges: Record<SocializeParams["action"], { bond: number; trust: number; intimacy: number }> = {
+    talk: { bond: 3, trust: 2, intimacy: 1 },
+    gift: { bond: 8, trust: 5, intimacy: 3 },
+    conflict: { bond: -15, trust: -10, intimacy: -2 },
+    apologize: { bond: 5, trust: 8, intimacy: 0 },
+    support: { bond: 6, trust: 7, intimacy: 4 },
+    ignore: { bond: -3, trust: -2, intimacy: -1 },
+  };
+
+  const base = baseChanges[action];
+
+  // Relationship decay based on time since last interaction
+  // (This is handled separately in updateSocialState)
+
+  // Modifiers based on current relationship state
+  let bondMod = 1;
+  let trustMod = 1;
+  let intimacyMod = 1;
+
+  // High trust means actions have less impact (stable relationships)
+  if (currentTrust > 70) {
+    trustMod = 0.7;
+    bondMod = 0.8;
+  }
+  // Low trust means actions have more impact
+  if (currentTrust < 30) {
+    trustMod = 1.3;
+    bondMod = 1.2;
+  }
+
+  // High intimacy means actions affect bond more
+  if (currentIntimacy > 60) {
+    bondMod *= 1.2;
+  }
+
+  return {
+    bond: Math.round(base.bond * bondMod),
+    trust: Math.round(base.trust * trustMod),
+    intimacy: Math.round(base.intimacy * intimacyMod),
+  };
+}
+
+/**
+ * Apply relationship decay for neglected relationships
+ * Returns updated entity or null if no significant decay
+ */
+function applySocialDecay(entity: SocialEntity, daysSinceInteraction: number): Partial<SocialEntity> | null {
+  if (daysSinceInteraction < 7) return null; // No decay for interactions within a week
+
+  // Calculate decay rates
+  let bondDecay = 0;
+  let trustDecay = 0;
+  let intimacyDecay = 0;
+
+  if (daysSinceInteraction >= 7 && daysSinceInteraction < 30) {
+    bondDecay = -1;
+    trustDecay = -1;
+    intimacyDecay = -1;
+  } else if (daysSinceInteraction >= 30 && daysSinceInteraction < 90) {
+    bondDecay = -3;
+    trustDecay = -2;
+    intimacyDecay = -3;
+  } else if (daysSinceInteraction >= 90) {
+    bondDecay = -5;
+    trustDecay = -3;
+    intimacyDecay = -5;
+  }
+
+  // Family relationships decay slower
+  if (entity.relationship_type === "family") {
+    bondDecay = Math.round(bondDecay * 0.5);
+    trustDecay = Math.round(trustDecay * 0.5);
+  }
+
+  // Romantic relationships decay faster if neglected
+  if (entity.relationship_type === "romantic" && daysSinceInteraction > 14) {
+    bondDecay *= 1.5;
+    intimacyDecay *= 1.5;
+  }
+
+  return {
+    bond: Math.max(-100, Math.min(100, entity.bond + bondDecay)),
+    trust: Math.max(0, Math.min(100, entity.trust + trustDecay)),
+    intimacy: Math.max(0, Math.min(100, entity.intimacy + intimacyDecay)),
+  };
+}
+
+/**
+ * Get social context for sensory injection
+ */
+function getSocialContext(
+  socialState: SocialState,
+  lang: "de" | "en"
+): { urgency: string | null; neglected: SocialEntity[] } {
+  const now = new Date();
+  const neglected: SocialEntity[] = [];
+  let lonelinessUrgency: string | null = null;
+
+  for (const entity of socialState.entities) {
+    const lastInteraction = new Date(entity.last_interaction);
+    const daysSince = Math.floor((now.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysSince > 30) {
+      neglected.push(entity);
+    }
+  }
+
+  // Calculate social satisfaction
+  const totalBond = socialState.entities.reduce((sum, e) => sum + e.bond, 0);
+  const avgBond = socialState.entities.length > 0 ? totalBond / socialState.entities.length : 0;
+
+  if (socialState.entities.length === 0) {
+    lonelinessUrgency = lang === "de"
+      ? "Du fuehlst dich allein. Du hast niemanden in deinem Leben."
+      : "You feel alone. You have no one in your life.";
+  } else if (avgBond < -20) {
+    lonelinessUrgency = lang === "de"
+      ? "Deine Beziehungen sind angespannt. Du fuehlst dich isoliert."
+      : "Your relationships are strained. You feel isolated.";
+  } else if (neglected.length >= 3) {
+    lonelinessUrgency = lang === "de"
+      ? "Du hast seit laengerem keine Kontakte mehr gepflegt. Du vermisst Gesellschaft."
+      : "You haven't maintained contacts in a while. You miss company.";
+  }
+
+  return { urgency: lonelinessUrgency, neglected };
+}
+
+/**
+ * Generate social milestone for Soul Evolution
+ */
+function detectSocialMilestone(
+  oldEntity: SocialEntity,
+  newEntity: SocialEntity
+): string | null {
+  // Best friends (bond >= 80)
+  if (oldEntity.bond < 80 && newEntity.bond >= 80) {
+    return `Became best friends with ${newEntity.name}`;
+  }
+
+  // Enemies (bond <= -80)
+  if (oldEntity.bond > -80 && newEntity.bond <= -80) {
+    return `Became enemies with ${newEntity.name}`;
+  }
+
+  // First trust milestone (trust >= 50)
+  if (oldEntity.trust < 50 && newEntity.trust >= 50) {
+    return `Started trusting ${newEntity.name}`;
+  }
+
+  // First intimate moment (intimacy >= 50)
+  if (oldEntity.intimacy < 50 && newEntity.intimacy >= 50) {
+    return `Became intimate with ${newEntity.name}`;
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -1154,6 +1393,7 @@ function buildSensoryContext(
   dreamState?: DreamState | null,
   hobbySuggestion?: string | null,
   lifecycleState?: LifecycleState | null,
+  socialState?: SocialState | null,
 ): string {
   const parts: string[] = [];
 
@@ -1220,6 +1460,42 @@ function buildSensoryContext(
       ? `Du bist ${ageYears} Jahre alt (${lifecycleState.life_stage.replace("_", " ")}).`
       : `You are ${ageYears} years old (${lifecycleState.life_stage.replace("_", " ")}).`;
     bodyLines.push(`- ${stageLabel}`);
+  }
+
+  // Phase 2: Social Fabric - Social context injection
+  if (socialState && socialState.entities.length > 0) {
+    const { urgency, neglected } = getSocialContext(socialState, lang);
+
+    // Inject loneliness/isolation urgency if present
+    if (urgency) {
+      bodyLines.push(`- ${urgency}`);
+    }
+
+    // Highlight neglected relationships
+    if (neglected.length > 0) {
+      const topNeglected = neglected.slice(0, 3);
+      const names = topNeglected.map(e => e.name).join(", ");
+      const neglectedMsg = lang === "de"
+        ? `Du hast lange nicht mehr mit ${names} gesprochen.`
+        : `You haven't talked to ${names} in a while.`;
+      bodyLines.push(`- ${neglectedMsg}`);
+    }
+
+    // General social summary
+    const friendCount = socialState.entities.filter(e => e.bond >= 50).length;
+    const totalCount = socialState.entities.length;
+    if (totalCount > 0) {
+      const summaryMsg = lang === "de"
+        ? `Du hast ${totalCount} Kontakte, davon ${friendCount} gute Beziehungen.`
+        : `You have ${totalCount} contacts, ${friendCount} with good bonds.`;
+      bodyLines.push(`- ${summaryMsg}`);
+    }
+  } else if (socialState) {
+    // No entities at all
+    const emptyMsg = lang === "de"
+      ? "Du hast keine Kontakte. Du bist allein."
+      : "You have no contacts. You are alone.";
+    bodyLines.push(`- ${emptyMsg}`);
   }
 
   const locLabel = lang === "de" ? "Aktueller Ort" : "Current location";
@@ -1346,6 +1622,9 @@ export default {
       // Phase 1: Chronos - Lifecycle & Telemetry
       lifecycle: resolvePath(ws, "memory", "reality", "lifecycle.json"),
       telemetry: resolvePath(ws, "memory", "telemetry"),
+      // Phase 2: Social Fabric
+      social: resolvePath(ws, "memory", "reality", "social.json"),
+      socialTelemetry: resolvePath(ws, "memory", "telemetry", "social"),
     };
 
     // -------------------------------------------------------------------
@@ -1481,7 +1760,7 @@ export default {
       const context = buildSensoryContext(
         ph, lang, modules, cycleState, cycleProfile,
         emotionState, desireState, identityLine, growthCtx,
-        dreamState, hobbySuggestion, lifecycleState
+        dreamState, hobbySuggestion, lifecycleState, socialState
       ) + dreamTriggerHint;
 
       // Check for critical needs and enqueue emergency event
@@ -3027,7 +3306,236 @@ export default {
       }
     }
 
-    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0);
+    // -------------------------------------------------------------------
+    // Phase 2: Social Fabric Tools
+    // -------------------------------------------------------------------
+
+    // Load social state
+    let socialState = await readJson<SocialState>(paths.social);
+    if (!socialState) {
+      socialState = getDefaultSocialState();
+      await writeJson(paths.social, socialState);
+    }
+
+    // Apply social decay to neglected relationships
+    const now = new Date();
+    let socialChanged = false;
+    for (const entity of socialState.entities) {
+      const lastInteraction = new Date(entity.last_interaction);
+      const daysSince = Math.floor((now.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
+      const decay = applySocialDecay(entity, daysSince);
+      if (decay) {
+        entity.bond = decay.bond ?? entity.bond;
+        entity.trust = decay.trust ?? entity.trust;
+        entity.intimacy = decay.intimacy ?? entity.intimacy;
+        socialChanged = true;
+      }
+    }
+    if (socialChanged) {
+      await writeJson(paths.social, socialState);
+    }
+
+    api.registerTool({
+      name: "reality_socialize",
+      description: "Interact with social entities - talk, give gifts, resolve conflicts, or show support",
+      parameters: Type.Object({
+        target_id: Type.Optional(Type.String({ description: "ID of existing entity to interact with" })),
+        target_name: Type.Optional(Type.String({ description: "Name of new entity to create (if target_id not provided)" })),
+        action: Type.String({ description: "Action: talk | gift | conflict | apologize | support | ignore" }),
+        context: Type.Optional(Type.String({ description: "Brief context about what happened" })),
+      }),
+      async execute(_id: string, params: SocializeParams) {
+        if (!socialState) {
+          return { content: [{ type: "text", text: "Social state not initialized." }] };
+        }
+
+        const action = params.action;
+        if (!action) {
+          return { content: [{ type: "text", text: "Action is required." }] };
+        }
+
+        const validActions = ["talk", "gift", "conflict", "apologize", "support", "ignore"];
+        if (!validActions.includes(action)) {
+          return { content: [{ type: "text", text: `Invalid action. Valid: ${validActions.join(", ")}` }] };
+        }
+
+        // Find or create entity
+        let entity = socialState.entities.find(e => e.id === params.target_id);
+        if (!entity && params.target_name) {
+          // Create new entity
+          const newEntity: SocialEntity = {
+            id: `social_${Date.now()}`,
+            name: params.target_name,
+            relationship_type: params.target_name ? "stranger" : "acquaintance",
+            bond: 0,
+            trust: 10,
+            intimacy: 0,
+            last_interaction: now.toISOString(),
+            interaction_count: 0,
+            history_summary: `Met ${params.target_name} through social interaction.`,
+            introduced_at: now.toISOString(),
+            notes: "",
+          };
+          socialState.entities.push(newEntity);
+          entity = newEntity;
+        }
+
+        if (!entity) {
+          return { content: [{ type: "text", text: lang === "de" ? "Entitaet nicht gefunden. Gib eine target_id oder target_name an." : "Entity not found. Provide target_id or target_name." }] };
+        }
+
+        // Calculate and apply dynamics
+        const dynamics = calculateSocialDynamics(action, entity.bond, entity.trust, entity.intimacy);
+        const oldEntity = { ...entity };
+
+        entity.bond = Math.max(-100, Math.min(100, entity.bond + dynamics.bond));
+        entity.trust = Math.max(0, Math.min(100, entity.trust + dynamics.trust));
+        entity.intimacy = Math.max(0, Math.min(100, entity.intimacy + dynamics.intimacy));
+        entity.last_interaction = now.toISOString();
+        entity.interaction_count++;
+
+        // Update history summary
+        const actionVerbs: Record<string, string> = {
+          talk: "talked to", gift: "gave a gift to", conflict: "had a conflict with",
+          apologize: "apologized to", support: "supported", ignore: "ignored"
+        };
+        entity.history_summary = `${actionVerbs[action]} ${entity.name} on ${now.toISOString().slice(0, 10)}. Bond: ${entity.bond}, Trust: ${entity.trust}.`;
+
+        // Log interaction
+        const interactionLog: SocialInteractionLog = {
+          id: `log_${Date.now()}`,
+          timestamp: now.toISOString(),
+          entity_id: entity.id,
+          entity_name: entity.name,
+          action: action,
+          bond_change: dynamics.bond,
+          trust_change: dynamics.trust,
+          intimacy_change: dynamics.intimacy,
+          context: params.context || "",
+        };
+        await appendJsonl(join(paths.socialTelemetry, "interactions.jsonl"), interactionLog);
+
+        // Check for social milestone
+        const milestone = detectSocialMilestone(oldEntity, entity);
+        if (milestone) {
+          await appendJsonl(join(paths.socialTelemetry, "milestones.jsonl"), {
+            timestamp: now.toISOString(),
+            milestone,
+            entity_id: entity.id,
+            entity_name: entity.name,
+          });
+          api.logger.info(`[genesis] Social milestone: ${milestone}`);
+        }
+
+        await writeJson(paths.social, socialState);
+
+        const msg = lang === "de"
+          ? `${action} mit ${entity.name}: Bond ${dynamics.bond >= 0 ? "+" : ""}${dynamics.bond}, Trust ${dynamics.trust >= 0 ? "+" : ""}${dynamics.trust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}`
+          : `${action} with ${entity.name}: Bond ${dynamics.bond >= 0 ? "+" : ""}${dynamics.bond}, Trust ${dynamics.trust >= 0 ? "+" : ""}${dynamics.trust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}`;
+
+        return { content: [{ type: "text", text: msg }] };
+      },
+    });
+
+    api.registerTool({
+      name: "reality_network",
+      description: "Manage social network - search for contacts, organize circles, add or remove entities",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: search_contacts | manage_circles | add_entity | remove_entity" }),
+        entity_name: Type.Optional(Type.String()),
+        entity_type: Type.Optional(Type.String({ description: "Relationship type: family | friend | romantic | professional | acquaintance | stranger" })),
+        circle: Type.Optional(Type.String()),
+        target_id: Type.Optional(Type.String()),
+      }),
+      async execute(_id: string, params: NetworkParams) {
+        if (!socialState) {
+          return { content: [{ type: "text", text: "Social state not initialized." }] };
+        }
+
+        const action = params.action;
+        if (!action) {
+          return { content: [{ type: "text", text: "Action is required." }] };
+        }
+
+        switch (action) {
+          case "search_contacts": {
+            socialState.last_network_search = now.toISOString();
+            // Generate potential new contacts based on existing relationships
+            const potentials = [
+              { name: "Alex", type: "professional" as RelationshipType, desc: "Kollege bei der Arbeit" },
+              { name: "Sam", type: "friend" as RelationshipType, desc: "Freund eines Freundes" },
+              { name: "Jordan", type: "acquaintance" as RelationshipType, desc: "Nachbar" },
+              { name: "Casey", type: "friend" as RelationshipType, desc: "Online-Bekanntschaft" },
+            ];
+            const available = potentials.filter(p => !socialState!.entities.find(e => e.name === p.name));
+            await writeJson(paths.social, socialState);
+
+            const list = available.map(p => `- ${p.name} (${p.type}): ${p.desc}`).join("\n");
+            return { content: [{ type: "text", text: lang === "de"
+              ? `Moegliche Kontakte:\n${list}`
+              : `Potential contacts:\n${list}` }] };
+          }
+
+          case "manage_circles": {
+            if (params.circle) {
+              if (!socialState.circles.includes(params.circle)) {
+                socialState.circles.push(params.circle);
+                await writeJson(paths.social, socialState);
+                return { content: [{ type: "text", text: lang === "de" ? `Circle "${params.circle}" erstellt.` : `Circle "${params.circle}" created.` }] };
+              }
+            }
+            const circles = socialState.circles.join(", ");
+            return { content: [{ type: "text", text: lang === "de" ? `Deine Circles: ${circles}` : `Your circles: ${circles}` }] };
+          }
+
+          case "add_entity": {
+            if (!params.entity_name) {
+              return { content: [{ type: "text", text: "entity_name is required." }] };
+            }
+            if (socialState.entities.find(e => e.name === params.entity_name)) {
+              return { content: [{ type: "text", text: lang === "de" ? `${params.entity_name} existiert bereits.` : `${params.entity_name} already exists.` }] };
+            }
+            const validTypes: RelationshipType[] = ["family", "friend", "romantic", "professional", "acquaintance", "stranger"];
+            const entityType = validTypes.includes(params.entity_type as RelationshipType) ? params.entity_type as RelationshipType : "acquaintance";
+
+            const newEntity: SocialEntity = {
+              id: `social_${Date.now()}`,
+              name: params.entity_name,
+              relationship_type: entityType,
+              bond: 0,
+              trust: 10,
+              intimacy: 0,
+              last_interaction: now.toISOString(),
+              interaction_count: 0,
+              history_summary: `Met ${params.entity_name} through networking.`,
+              introduced_at: now.toISOString(),
+              notes: "",
+            };
+            socialState.entities.push(newEntity);
+            await writeJson(paths.social, socialState);
+            return { content: [{ type: "text", text: lang === "de" ? `${params.entity_name} zur Kontaktliste hinzugefuegt.` : `${params.entity_name} added to contacts.` }] };
+          }
+
+          case "remove_entity": {
+            if (!params.target_id) {
+              return { content: [{ type: "text", text: "target_id is required." }] };
+            }
+            const idx = socialState.entities.findIndex(e => e.id === params.target_id);
+            if (idx === -1) {
+              return { content: [{ type: "text", text: lang === "de" ? "Entitaet nicht gefunden." : "Entity not found." }] };
+            }
+            const removed = socialState.entities.splice(idx, 1)[0];
+            await writeJson(paths.social, socialState);
+            return { content: [{ type: "text", text: lang === "de" ? `${removed.name} aus Kontaktliste entfernt.` : `${removed.name} removed from contacts.` }] };
+          }
+
+          default:
+            return { content: [{ type: "text", text: "Invalid action." }] };
+        }
+      },
+    });
+
+    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + 2; // +2 for social tools
     api.logger.info(`[genesis] Registered: 3 hooks, ${baseToolCount + devToolsLoaded} tools (eros=${modules.eros}, cycle=${modules.cycle}, dreams=${modules.dreams}, hobbies=${modules.hobbies}). Ready.`);
   },
 };
