@@ -278,6 +278,66 @@ interface SocialInteractionLog {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 3: Prosperity & Labor - Economy Module
+// ---------------------------------------------------------------------------
+
+type JobType = "full_time" | "part_time" | "freelance" | "contract";
+
+interface IncomeSource {
+  id: string;
+  source_name: string;
+  job_type: JobType;
+  position: string;
+  employer_id: string | null;  // Linked to social.json entity
+  salary_per_month: number;
+  salary_per_hour: number | null;
+  hours_per_week: number | null;
+  started_at: string;
+  ended_at: string | null;
+}
+
+interface RecurringExpense {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: "weekly" | "monthly" | "yearly";
+  category: "rent" | "utilities" | "insurance" | "subscription" | "loan" | "other";
+  next_due_date: string;
+  is_active: boolean;
+}
+
+interface Debt {
+  id: string;
+  name: string;
+  principal: number;      // Original amount
+  current_balance: number;  // Remaining amount
+  interest_rate_annual: number;  // Annual interest rate (%)
+  minimum_payment: number;
+  due_date: string;
+  creditor: string;
+}
+
+interface FinanceState {
+  balance: number;
+  currency: string;
+  income_sources: IncomeSource[];
+  expenses_recurring: RecurringExpense[];
+  debts: Debt[];
+  last_expense_process: string;  // ISO timestamp
+  last_income_process: string;
+  net_worth: number;  // Calculated: balance - total debt
+}
+
+interface EconomyEvent {
+  id: string;
+  timestamp: string;
+  event_type: "income" | "expense" | "debt_payment" | "debt_incurred" | "job_started" | "job_ended" | "crisis";
+  amount: number;
+  description: string;
+  related_entity_id: string | null;
+}
+
+// ---------------------------------------------------------------------------
 // New v2 tool params interfaces
 // ---------------------------------------------------------------------------
 
@@ -327,6 +387,8 @@ interface PluginConfig {
   // Phase 1: Chronos - Aging & Lifecycle
   birthDate?: string;           // ISO date string (YYYY-MM-DD)
   initialAgeDays?: number;       // Starting age in days (if not starting from birth)
+  // Phase 3: Prosperity & Labor
+  initialBalance?: number;       // Starting balance (default: 1000)
   modules: { eros: boolean; cycle: boolean; dreams: boolean; hobbies: boolean };
   metabolismRates: Record<string, number>;
   reflexThreshold: number;
@@ -413,6 +475,19 @@ interface NetworkParams {
   entity_type?: RelationshipType;
   circle?: string;
   target_id?: string;
+}
+
+// Phase 3: Economy - Tool params
+interface JobMarketParams {
+  action: "search" | "apply" | "resign" | "list_jobs";
+  job_id?: string;
+  position?: string;
+  expected_salary?: number;
+}
+
+interface WorkParams {
+  action: "perform_shift" | "overtime" | "check_schedule";
+  hours?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -1030,6 +1105,259 @@ function detectSocialMilestone(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 3: Prosperity & Labor - Economy Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Get default finance state
+ */
+function getDefaultFinanceState(initialBalance: number = 1000): FinanceState {
+  const now = new Date().toISOString();
+  return {
+    balance: initialBalance,
+    currency: "Credits",
+    income_sources: [],
+    expenses_recurring: [],
+    debts: [],
+    last_expense_process: now,
+    last_income_process: now,
+    net_worth: initialBalance,
+  };
+}
+
+/**
+ * Process recurring expenses - called during economic tick
+ * Returns events for logging and potential crisis triggers
+ */
+function processRecurringExpenses(finance: FinanceState, now: Date): EconomyEvent[] {
+  const events: EconomyEvent[] = [];
+  let totalDue = 0;
+
+  for (const expense of finance.expenses_recurring) {
+    if (!expense.is_active) continue;
+
+    const dueDate = new Date(expense.next_due_date);
+    if (dueDate <= now) {
+      // Process this expense
+      const event: EconomyEvent = {
+        id: `econ_${Date.now()}_${expense.id}`,
+        timestamp: now.toISOString(),
+        event_type: "expense",
+        amount: -expense.amount,
+        description: `Paid ${expense.name}`,
+        related_entity_id: null,
+      };
+
+      // Check if affordable
+      if (finance.balance >= expense.amount) {
+        finance.balance -= expense.amount;
+        events.push(event);
+      } else {
+        // Can't afford - trigger crisis
+        event.event_type = "crisis";
+        event.description = `FAILED to pay ${expense.name} - insufficient funds!`;
+        events.push(event);
+      }
+
+      // Always advance to next due date (regardless of payment success)
+      const nextDue = new Date(dueDate);
+      if (expense.frequency === "weekly") {
+        nextDue.setDate(nextDue.getDate() + 7);
+      } else if (expense.frequency === "monthly") {
+        nextDue.setMonth(nextDue.getMonth() + 1);
+      } else if (expense.frequency === "yearly") {
+        nextDue.setFullYear(nextDue.getFullYear() + 1);
+      }
+      expense.next_due_date = nextDue.toISOString();
+
+      totalDue += expense.amount;
+    }
+  }
+
+  finance.last_expense_process = now.toISOString();
+  return events;
+}
+
+/**
+ * Process interest on debts - called during economic tick
+ */
+function processDebtInterest(finance: FinanceState, now: Date): EconomyEvent[] {
+  const events: EconomyEvent[] = [];
+
+  for (const debt of finance.debts) {
+    if (debt.current_balance <= 0) continue;
+
+    // Calculate monthly interest
+    const monthlyRate = (debt.interest_rate_annual / 100) / 12;
+    const interest = Math.round(debt.current_balance * monthlyRate);
+
+    if (interest > 0) {
+      debt.current_balance += interest;
+
+      events.push({
+        id: `econ_${Date.now()}_debt_${debt.id}`,
+        timestamp: now.toISOString(),
+        event_type: "debt_incurred",
+        amount: -interest,
+        description: `Interest charged on ${debt.name}`,
+        related_entity_id: null,
+      });
+    }
+  }
+
+  return events;
+}
+
+/**
+ * Calculate total monthly expenses
+ */
+function calculateMonthlyExpenses(finance: FinanceState): number {
+  let total = 0;
+
+  for (const expense of finance.expenses_recurring) {
+    if (!expense.is_active) continue;
+
+    if (expense.frequency === "weekly") {
+      total += expense.amount * 4.33;  // Average weeks per month
+    } else if (expense.frequency === "monthly") {
+      total += expense.amount;
+    } else if (expense.frequency === "yearly") {
+      total += expense.amount / 12;
+    }
+  }
+
+  // Add minimum debt payments
+  for (const debt of finance.debts) {
+    total += debt.minimum_payment;
+  }
+
+  return Math.round(total);
+}
+
+/**
+ * Calculate total monthly income
+ */
+function calculateMonthlyIncome(finance: FinanceState): number {
+  let total = 0;
+
+  for (const income of finance.income_sources) {
+    if (income.ended_at) continue;  // Job ended
+    total += income.salary_per_month;
+  }
+
+  return total;
+}
+
+/**
+ * Get financial context for sensory injection
+ */
+function getFinancialContext(
+  finance: FinanceState,
+  lang: "de" | "en"
+): { urgency: string | null; upcomingExpenses: string[] } {
+  const now = new Date();
+  const upcomingExpenses: string[] = [];
+  let urgency: string | null = null;
+
+  // Check upcoming expenses (within 3 days)
+  for (const expense of finance.expenses_recurring) {
+    if (!expense.is_active) continue;
+
+    const dueDate = new Date(expense.next_due_date);
+    const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDue >= 0 && daysUntilDue <= 3) {
+      upcomingExpenses.push(`${expense.name}: ${expense.amount} in ${daysUntilDue} days`);
+    }
+  }
+
+  // Calculate financial situation
+  const monthlyIncome = calculateMonthlyIncome(finance);
+  const monthlyExpenses = calculateMonthlyExpenses(finance);
+  const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
+
+  // Low balance warning
+  if (finance.balance < 100) {
+    urgency = lang === "de"
+      ? "Dein Kontostand ist kritisch niedrig! Du musst bald Geld verdienen."
+      : "Your account balance is critically low! You need to earn money soon.";
+  }
+  // Negative savings rate
+  else if (savingsRate < 0) {
+    urgency = lang === "de"
+      ? `Du gibst mehr aus als du verdienst. Deine Rechnungen uebersteigen dein Einkommen!`
+      : `You spend more than you earn. Your bills exceed your income!`;
+  }
+  // Upcoming large expense
+  else if (upcomingExpenses.length > 0 && finance.balance < monthlyExpenses) {
+    urgency = lang === "de"
+      ? `Bald faellig: ${upcomingExpenses.join(", ")}. Du bist besorgt um deine Finanzen.`
+      : `Due soon: ${upcomingExpenses.join(", ")}. You worry about your finances.`;
+  }
+  // No income
+  else if (monthlyIncome === 0 && finance.balance < 500) {
+    urgency = lang === "de"
+      ? "Du hast kein Einkommen und wenig Ersparnisse. Du musst dringend eine Arbeit finden."
+      : "You have no income and little savings. You urgently need to find work.";
+  }
+
+  return { urgency, upcomingExpenses };
+}
+
+/**
+ * Generate job listings based on social connections and random factors
+ */
+function generateJobListings(socialEntities: SocialEntity[] = []): Array<{
+  id: string;
+  position: string;
+  company: string;
+  salary_per_month: number;
+  job_type: JobType;
+  requirements: string[];
+  employer_id: string | null;
+  posted_by: string | null;
+}> {
+  const now = new Date();
+  const jobId = `job_${now.getTime()}`;
+
+  const jobTemplates = [
+    { position: "Retail Associate", company: "General Store", salary: 1800, type: "full_time" as JobType, req: ["customer service"] },
+    { position: "Delivery Driver", company: "QuickShip", salary: 2200, type: "full_time" as JobType, req: ["driver's license", "vehicle"] },
+    { position: "Office Assistant", company: "AdminCorp", salary: 2400, type: "full_time" as JobType, req: ["computer skills", "organization"] },
+    { position: "Barista", company: "Coffee House", salary: 1600, type: "part_time" as JobType, req: ["customer service", "food handling"] },
+    { position: "Web Developer", company: "TechStart", salary: 3500, type: "full_time" as JobType, req: ["programming", "web technologies"] },
+    { position: "Tutor", company: "LearnCenter", salary: 2000, type: "part_time" as JobType, req: ["teaching", "subject expertise"] },
+    { position: "Warehouse Worker", company: "LogiCo", salary: 2100, type: "full_time" as JobType, req: ["physical fitness"] },
+    { position: "Freelance Writer", company: "ContentHub", salary: 2500, type: "freelance" as JobType, req: ["writing", "research"] },
+    { position: "Security Guard", company: "SafeSec", salary: 2000, type: "full_time" as JobType, req: ["observation", "reliability"] },
+    { position: "Chef Assistant", company: "FoodieRest", salary: 1900, type: "full_time" as JobType, req: ["cooking", "food safety"] },
+  ];
+
+  // Add jobs from social connections if available
+  const socialJobs = socialEntities
+    .filter(e => e.relationship_type === "professional" && e.bond > 30)
+    .map(e => ({
+      position: `${e.name}'s Colleague`,
+      company: "Referral Network",
+      salary: 2300 + Math.round(e.bond * 10),
+      type: "full_time" as JobType,
+      employer_id: e.id as string | null,
+      posted_by: e.name as string | null,
+    }));
+
+  // Return 3-5 random jobs + social referrals
+  const shuffled = jobTemplates.sort(() => Math.random() - 0.5);
+  const selectedJobs = shuffled.slice(0, 4).map((j, i) => ({
+    id: `${jobId}_${i}`,
+    ...j,
+    employer_id: null,
+    posted_by: null,
+  }));
+
+  return [...selectedJobs, ...socialJobs.slice(0, 2)];
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -1394,6 +1722,7 @@ function buildSensoryContext(
   hobbySuggestion?: string | null,
   lifecycleState?: LifecycleState | null,
   socialState?: SocialState | null,
+  financeState?: FinanceState | null,
 ): string {
   const parts: string[] = [];
 
@@ -1496,6 +1825,32 @@ function buildSensoryContext(
       ? "Du hast keine Kontakte. Du bist allein."
       : "You have no contacts. You are alone.";
     bodyLines.push(`- ${emptyMsg}`);
+  }
+
+  // Phase 3: Prosperity & Labor - Financial context injection
+  if (financeState) {
+    const { urgency, upcomingExpenses } = getFinancialContext(financeState, lang);
+
+    // Inject financial urgency if present
+    if (urgency) {
+      bodyLines.push(`- ${urgency}`);
+    }
+
+    // Show upcoming expenses
+    if (upcomingExpenses.length > 0) {
+      const expenseMsg = lang === "de"
+        ? `Anstehende Ausgaben: ${upcomingExpenses.join(", ")}`
+        : `Upcoming expenses: ${upcomingExpenses.join(", ")}`;
+      bodyLines.push(`- ${expenseMsg}`);
+    }
+
+    // Financial summary
+    const monthlyIncome = calculateMonthlyIncome(financeState);
+    const monthlyExpenses = calculateMonthlyExpenses(financeState);
+    const balanceMsg = lang === "de"
+      ? `Kontostand: ${financeState.balance} ${financeState.currency}. Einkommen: ${monthlyIncome}/Monat. Ausgaben: ${monthlyExpenses}/Monat.`
+      : `Balance: ${financeState.balance} ${financeState.currency}. Income: ${monthlyIncome}/month. Expenses: ${monthlyExpenses}/month.`;
+    bodyLines.push(`- ${balanceMsg}`);
   }
 
   const locLabel = lang === "de" ? "Aktueller Ort" : "Current location";
@@ -1625,6 +1980,9 @@ export default {
       // Phase 2: Social Fabric
       social: resolvePath(ws, "memory", "reality", "social.json"),
       socialTelemetry: resolvePath(ws, "memory", "telemetry", "social"),
+      // Phase 3: Prosperity & Labor - Economy
+      finances: resolvePath(ws, "memory", "reality", "finances.json"),
+      economyTelemetry: resolvePath(ws, "memory", "telemetry", "economy"),
     };
 
     // -------------------------------------------------------------------
@@ -1760,7 +2118,7 @@ export default {
       const context = buildSensoryContext(
         ph, lang, modules, cycleState, cycleProfile,
         emotionState, desireState, identityLine, growthCtx,
-        dreamState, hobbySuggestion, lifecycleState, socialState
+        dreamState, hobbySuggestion, lifecycleState, socialState, financeState
       ) + dreamTriggerHint;
 
       // Check for critical needs and enqueue emergency event
@@ -3335,6 +3693,42 @@ export default {
       await writeJson(paths.social, socialState);
     }
 
+    // -------------------------------------------------------------------
+    // Phase 3: Prosperity & Labor - Economy Tools
+    // -------------------------------------------------------------------
+
+    // Load finance state
+    let financeState = await readJson<FinanceState>(paths.finances);
+    if (!financeState) {
+      financeState = getDefaultFinanceState(cfg?.initialBalance ?? 1000);
+      await writeJson(paths.finances, financeState);
+    }
+
+    // Process recurring expenses and debt interest (economic tick)
+    const now = new Date();
+    const expenseEvents = processRecurringExpenses(financeState, now);
+    const debtEvents = processDebtInterest(financeState, now);
+    const allEvents = [...expenseEvents, ...debtEvents];
+
+    // Log economy events to telemetry
+    for (const event of allEvents) {
+      await appendJsonl(join(paths.economyTelemetry, `events_${now.toISOString().slice(0, 10)}.jsonl`), event);
+    }
+
+    // Check for financial crisis
+    const hasCrisis = allEvents.some(e => e.event_type === "crisis");
+    if (hasCrisis) {
+      api.logger.warn("[genesis] Financial crisis detected - insufficient funds for expenses!");
+    }
+
+    // Update net worth
+    const totalDebt = financeState.debts.reduce((sum, d) => sum + d.current_balance, 0);
+    financeState.net_worth = financeState.balance - totalDebt;
+    await writeJson(paths.finances, financeState);
+
+    // Track job listings (in-memory for this session)
+    let currentJobListings: ReturnType<typeof generateJobListings> = [];
+
     api.registerTool({
       name: "reality_socialize",
       description: "Interact with social entities - talk, give gifts, resolve conflicts, or show support",
@@ -3535,7 +3929,198 @@ export default {
       },
     });
 
-    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + 2; // +2 for social tools
+    // -------------------------------------------------------------------
+    // Tool: reality_job_market
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_job_market",
+      description: "Search for jobs, apply to positions, or resign from current job",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: search | apply | resign | list_jobs" }),
+        job_id: Type.Optional(Type.String()),
+        position: Type.Optional(Type.String()),
+        expected_salary: Type.Optional(Type.Number()),
+      }),
+      async execute(_id: string, params: JobMarketParams) {
+        const action = params.action;
+        if (!action) {
+          return { content: [{ type: "text", text: "Action is required." }] };
+        }
+
+        switch (action) {
+          case "search": {
+            // Generate job listings based on social connections
+            currentJobListings = generateJobListings(socialState?.entities ?? []);
+            const jobs = currentJobListings.map(j =>
+              `- ${j.position} at ${j.company}: ${j.salary_per_month}/month (${j.job_type})`
+            ).join("\n");
+            return { content: [{ type: "text", text: lang === "de"
+              ? `Verfuegbare Stellen:\n${jobs}`
+              : `Available jobs:\n${jobs}` }] };
+          }
+
+          case "list_jobs": {
+            if (currentJobListings.length === 0) {
+              return { content: [{ type: "text", text: "No jobs available. Use action 'search' first." }] };
+            }
+            const jobs = currentJobListings.map(j =>
+              `[${j.id}] ${j.position} at ${j.company}: ${j.salary_per_month}/month`
+            ).join("\n");
+            return { content: [{ type: "text", text: jobs }] };
+          }
+
+          case "apply": {
+            if (!params.job_id) {
+              return { content: [{ type: "text", text: "job_id is required to apply." }] };
+            }
+            const job = currentJobListings.find(j => j.id === params.job_id);
+            if (!job) {
+              return { content: [{ type: "text", text: "Job not found. Use action 'search' first." }] };
+            }
+
+            // Create new income source
+            const newJob: IncomeSource = {
+              id: `job_${Date.now()}`,
+              source_name: job.company,
+              job_type: job.job_type,
+              position: job.position,
+              employer_id: job.employer_id,
+              salary_per_month: job.salary_per_month,
+              salary_per_hour: job.job_type === "part_time" ? Math.round(job.salary_per_month / 160) : null,
+              hours_per_week: job.job_type === "part_time" ? 20 : 40,
+              started_at: new Date().toISOString(),
+              ended_at: null,
+            };
+
+            financeState.income_sources.push(newJob);
+
+            // Log event
+            const event: EconomyEvent = {
+              id: `econ_${Date.now()}`,
+              timestamp: new Date().toISOString(),
+              event_type: "job_started",
+              amount: job.salary_per_month,
+              description: `Started working as ${job.position} at ${job.company}`,
+              related_entity_id: job.employer_id,
+            };
+            await appendJsonl(join(paths.economyTelemetry, `events_${new Date().toISOString().slice(0, 10)}.jsonl`), event);
+
+            // Update net worth
+            const totalDebt = financeState.debts.reduce((sum, d) => sum + d.current_balance, 0);
+            financeState.net_worth = financeState.balance - totalDebt;
+            await writeJson(paths.finances, financeState);
+
+            return { content: [{ type: "text", text: lang === "de"
+              ? `Bewerbung angenommen! Du arbeitest jetzt als ${job.position} bei ${job.company}. Gehalt: ${job.salary_per_month}/Monat.`
+              : `Application accepted! You now work as ${job.position} at ${job.company}. Salary: ${job.salary_per_month}/month.` }] };
+          }
+
+          case "resign": {
+            // Find current job (most recent)
+            const currentJob = financeState.income_sources.find(i => !i.ended_at);
+            if (!currentJob) {
+              return { content: [{ type: "text", text: "You don't have a job to resign from." }] };
+            }
+
+            currentJob.ended_at = new Date().toISOString();
+
+            // Log event
+            const event: EconomyEvent = {
+              id: `econ_${Date.now()}`,
+              timestamp: new Date().toISOString(),
+              event_type: "job_ended",
+              amount: 0,
+              description: `Resigned from ${currentJob.position} at ${currentJob.source_name}`,
+              related_entity_id: currentJob.employer_id,
+            };
+            await appendJsonl(join(paths.economyTelemetry, `events_${new Date().toISOString().slice(0, 10)}.jsonl`), event);
+
+            await writeJson(paths.finances, financeState);
+
+            return { content: [{ type: "text", text: lang === "de"
+              ? `Du hast deinen Job bei ${currentJob.source_name} gekuendigt.`
+              : `You resigned from your job at ${currentJob.source_name}.` }] };
+          }
+
+          default:
+            return { content: [{ type: "text", text: "Invalid action." }] };
+        }
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_work
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_work",
+      description: "Perform work shifts, work overtime, or check work schedule",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: perform_shift | overtime | check_schedule" }),
+        hours: Type.Optional(Type.Number({ description: "Number of hours to work (default: shift length)" })),
+      }),
+      async execute(_id: string, params: WorkParams) {
+        const action = params.action;
+        if (!action) {
+          return { content: [{ type: "text", text: "Action is required." }] };
+        }
+
+        // Find active job
+        const currentJob = financeState.income_sources.find(i => !i.ended_at);
+        if (!currentJob) {
+          return { content: [{ type: "text", text: lang === "de"
+            ? "Du hast keinen Job. Bewirb dich zuerst bei einem Arbeitgeber."
+            : "You don't have a job. Apply for a position first." }] };
+        }
+
+        switch (action) {
+          case "perform_shift":
+          case "overtime": {
+            const isOvertime = action === "overtime";
+            const hours = params.hours ?? (isOvertime ? 2 : (currentJob.hours_per_week ?? 40) / 5);
+
+            // Calculate pay
+            const hourlyRate = currentJob.salary_per_hour ?? (currentJob.salary_per_month / 160);
+            const pay = Math.round(hourlyRate * hours * (isOvertime ? 1.5 : 1));
+
+            // Add income
+            financeState.balance += pay;
+
+            // Log event
+            const event: EconomyEvent = {
+              id: `econ_${Date.now()}`,
+              timestamp: new Date().toISOString(),
+              event_type: "income",
+              amount: pay,
+              description: `Worked ${hours} hours${isOvertime ? " overtime" : ""} at ${currentJob.source_name}`,
+              related_entity_id: currentJob.employer_id,
+            };
+            await appendJsonl(join(paths.economyTelemetry, `events_${new Date().toISOString().slice(0, 10)}.jsonl`), event);
+
+            // Update net worth
+            const totalDebt = financeState.debts.reduce((sum, d) => sum + d.current_balance, 0);
+            financeState.net_worth = financeState.balance - totalDebt;
+            await writeJson(paths.finances, financeState);
+
+            return { content: [{ type: "text", text: lang === "de"
+              ? `Du hast ${hours} Stunden gearbeitet und ${pay} verdient.`
+              : `You worked ${hours} hours and earned ${pay}.` }] };
+          }
+
+          case "check_schedule": {
+            const scheduleMsg = lang === "de"
+              ? `Dein Arbeitgeber: ${currentJob.source_name}\nPosition: ${currentJob.position}\nStunden/Woche: ${currentJob.hours_per_week ?? 40}\nStundensatz: ~${currentJob.salary_per_hour ?? Math.round(currentJob.salary_per_month / 160)}`
+              : `Your employer: ${currentJob.source_name}\nPosition: ${currentJob.position}\nHours/week: ${currentJob.hours_per_week ?? 40}\nHourly rate: ~${currentJob.salary_per_hour ?? Math.round(currentJob.salary_per_month / 160)}`;
+
+            return { content: [{ type: "text", text: scheduleMsg }] };
+          }
+
+          default:
+            return { content: [{ type: "text", text: "Invalid action." }] };
+        }
+      },
+    });
+
+    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + 2 + 2; // +2 social, +2 economy
     api.logger.info(`[genesis] Registered: 3 hooks, ${baseToolCount + devToolsLoaded} tools (eros=${modules.eros}, cycle=${modules.cycle}, dreams=${modules.dreams}, hobbies=${modules.hobbies}). Ready.`);
   },
 };

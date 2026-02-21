@@ -12,6 +12,7 @@
       "language": { "type": "string", "enum": ["de", "en"], "default": "de" },
       "birthDate": { "type": "string", "format": "date", "description": "The simulated birthday of the human entity (YYYY-MM-DD)" },
       "initialAgeDays": { "type": "number", "default": 0, "description": "Start aging from this many days if not starting from birth" },
+      "initialBalance": { "type": "number", "default": 1000, "description": "Starting balance in Credits" },
       "modules": {
         "type": "object",
         "additionalProperties": false,
@@ -106,6 +107,11 @@
       "label": "Initial Age (Days)",
       "placeholder": "0",
       "help": "Starting age in days. Use this to start at a specific age instead of birth (e.g., 6570 for 18 years)."
+    },
+    "initialBalance": {
+      "label": "Initial Balance",
+      "placeholder": "1000",
+      "help": "Starting balance in Credits for the economy simulation."
     },
     "modules.eros": {
       "label": "Eros Engine",

@@ -175,6 +175,9 @@ def collect_data(workspace: str) -> dict:
     # Phase 2: Social Fabric
     social = load_json(os.path.join(memory_dir, "reality", "social.json"))
 
+    # Phase 3: Prosperity & Labor - Economy
+    finances = load_json(os.path.join(memory_dir, "reality", "finances.json"))
+
     return {
         "soul_tree": soul_tree,
         "soul_raw": soul_content,
@@ -196,6 +199,7 @@ def collect_data(workspace: str) -> dict:
         "cycle": cycle,
         "lifecycle": lifecycle,
         "social": social,
+        "finances": finances,
     }
 
 
