@@ -1,0 +1,19 @@
+{
+  "name": "project_genesis",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Project Genesis: The Human Lifecycle — Full biological, social, and economic human simulation for research and education.",
+  "license": "MIT",
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  },
+  "dependencies": {
+    "@sinclair/typebox": "0.34.48"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.1.26"
+  },
+  "devDependencies": {
+    "openclaw": "*"
+  }
+}

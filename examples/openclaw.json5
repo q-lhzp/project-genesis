@@ -1,0 +1,182 @@
+// =============================================================================
+// openclaw.json5 — Example Configuration for Bios Engine + Soul Evolution
+// =============================================================================
+// Copy relevant sections into your ~/.openclaw/openclaw.json
+// Adapt paths, models, channels, and timings to your setup.
+// =============================================================================
+
+{
+  // ---------------------------------------------------------------------------
+  // 1. MODEL CATALOG
+  // ---------------------------------------------------------------------------
+  // Define aliases for quick reference. These are available to all agents.
+
+  agents: {
+    defaults: {
+      userTimezone: "Europe/Berlin",
+      models: {
+        "anthropic/claude-opus-4-6":   { alias: "opus" },
+        "anthropic/claude-sonnet-4-6": { alias: "sonnet" },
+        "anthropic/claude-haiku-4-5":  { alias: "haiku" },
+        "minimax/MiniMax-M2.5":        { alias: "minimax" },
+      },
+
+      // Default model for all agents (can be overridden per-agent)
+      model: {
+        primary: "anthropic/claude-opus-4-6",
+        fallbacks: ["minimax/MiniMax-M2.5"],
+      },
+
+      // Default heartbeat (applies unless per-agent heartbeat is set)
+      heartbeat: {
+        every: "5m",
+        target: "last",
+        activeHours: {
+          start: "08:00",
+          end: "02:00",
+          timezone: "Europe/Berlin",
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // 2. AGENT DEFINITIONS
+    // -------------------------------------------------------------------------
+    list: [
+      // --- Main Agent (the "face") ---
+      // This is the conversational agent. It handles all direct interactions.
+      // The bios-engine plugin injects biological state into its system prompt.
+      {
+        id: "Q",
+        default: true,
+        name: "Q",
+        workspace: "/home/leo/Schreibtisch",
+
+        // Best model for conversation, emotions, personality
+        model: "anthropic/claude-opus-4-6",
+
+        identity: {
+          name: "Q",
+          emoji: "💜",
+        },
+
+        // Heartbeat: runs Soul Evolution pipeline + living tasks from HEARTBEAT.md
+        // In lightweight mode (without Reflector cron), Q runs the full pipeline.
+        // With Reflector cron enabled, Q only does the "Living" section.
+        heartbeat: {
+          every: "5m",
+          model: "anthropic/claude-opus-4-6",
+          target: "last",
+          activeHours: {
+            start: "08:00",
+            end: "02:00",
+            timezone: "Europe/Berlin",
+          },
+        },
+
+        tools: {
+          profile: "coding",
+          allow: [
+            "openclaw-bios-engine",  // all plugin tools (reality_*, evolution_debug)
+            "browser",
+          ],
+        },
+
+        sandbox: { mode: "off" },
+      },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  // 3. REFLECTOR CRON JOB (Sub-Agent Concept)
+  // ---------------------------------------------------------------------------
+  // The Reflector runs the heavy Soul Evolution pipeline (INGEST, REFLECT, PROPOSE,
+  // GOVERN, APPLY) in an isolated session so it doesn't pollute Q's chat
+  // context. It uses a cheaper model since it does analytical/structured work.
+  //
+  // HOW IT WORKS:
+  // - Runs every hour in Q's workspace (same files, same SOUL.md)
+  // - Uses an isolated session (separate context window)
+  // - Reads experiences, reflects, writes proposals
+  // - Q only sees the result: "Reflexion abgeschlossen."
+  //
+  // MODEL CHOICE:
+  // - Sonnet 4.6 is recommended: fast, cheap, excellent at structured JSON output
+  // - Opus 4.6 works too but costs more for the same analytical result
+  // - Haiku 4.5 is too small for deep philosophical reflection
+  //
+  // To enable, add this cron job via CLI:
+  //
+  //   openclaw cron add \
+  //     --name "soul-reflector" \
+  //     --cron "0 * * * *" \
+  //     --tz "Europe/Berlin" \
+  //     --session isolated \
+  //     --agent Q \
+  //     --model "anthropic/claude-sonnet-4-6" \
+  //     --thinking low \
+  //     --message "You are the Reflector. Run the full Soul Evolution pipeline from HEARTBEAT.md Section A. Do NOT run Section B (Living). Write all files. Validate with validators. Report results." \
+  //     --announce \
+  //     --channel telegram \
+  //     --to "<chat_id>"
+
+  cron: {
+    enabled: true,
+    maxConcurrentRuns: 1,
+  },
+
+  // ---------------------------------------------------------------------------
+  // 4. PLUGIN CONFIGURATION
+  // ---------------------------------------------------------------------------
+  plugins: {
+    enabled: true,
+    allow: ["openclaw-bios-engine"],
+    load: {
+      paths: ["/home/leo/Schreibtisch/openclaw-bios-engine"],
+    },
+    entries: {
+      "openclaw-bios-engine": {
+        enabled: true,
+        config: {
+          workspacePath: "/home/leo/Schreibtisch",
+          language: "de",
+          modules: {
+            eros: true,
+            cycle: false,
+          },
+          metabolismRates: {
+            hunger: 6,
+            thirst: 10,
+            energy: 4,
+            bladder: 8,
+            bowel: 3,
+            hygiene: 2,
+            stress: 3,
+            arousal: 5,
+          },
+          reflexThreshold: 95,
+        },
+      },
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // 5. SOUL FILES
+  // ---------------------------------------------------------------------------
+  // OpenClaw natively loads SOUL.md into the agent's system prompt.
+  // No plugin involvement needed for this.
+
+  soul: {
+    files: ["SOUL.md"],
+  },
+
+  // ---------------------------------------------------------------------------
+  // 6. SESSION
+  // ---------------------------------------------------------------------------
+  session: {
+    reset: {
+      mode: "daily",
+      atHour: 4,
+    },
+  },
+}

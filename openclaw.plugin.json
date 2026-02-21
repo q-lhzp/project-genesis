@@ -1,0 +1,213 @@
+{
+  "id": "project_genesis",
+  "name": "Project Genesis",
+  "description": "The Human Lifecycle — Full biological, social, and economic simulation",
+  "version": "1.0.0",
+  "skills": ["./skills/soul-evolution"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "workspacePath": { "type": "string" },
+      "language": { "type": "string", "enum": ["de", "en"], "default": "de" },
+      "birthDate": { "type": "string", "format": "date", "description": "The simulated birthday of the human entity (YYYY-MM-DD)" },
+      "initialAgeDays": { "type": "number", "default": 0, "description": "Start aging from this many days if not starting from birth" },
+      "modules": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "eros": { "type": "boolean", "default": false },
+          "cycle": { "type": "boolean", "default": false },
+          "dreams": { "type": "boolean", "default": false },
+          "hobbies": { "type": "boolean", "default": false },
+          "economy": { "type": "boolean", "default": true },
+          "social": { "type": "boolean", "default": true },
+          "statistics": { "type": "boolean", "default": true }
+        }
+      },
+      "metabolismRates": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "hunger": { "type": "number", "default": 6 },
+          "thirst": { "type": "number", "default": 10 },
+          "energy": { "type": "number", "default": 4 },
+          "bladder": { "type": "number", "default": 8 },
+          "bowel": { "type": "number", "default": 3 },
+          "hygiene": { "type": "number", "default": 2 },
+          "stress": { "type": "number", "default": 3 },
+          "arousal": { "type": "number", "default": 5 },
+          "libido": { "type": "number", "default": 2 }
+        }
+      },
+      "reflexThreshold": { "type": "number", "default": 95 },
+      "growthContextEntries": { "type": "number", "default": 10 },
+      "dreamWindow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "start": { "type": "number", "default": 23 },
+          "end": { "type": "number", "default": 5 }
+        }
+      },
+      "dreamEnergyThreshold": { "type": "number", "default": 20 },
+      "evolution": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "governance": { "type": "string", "enum": ["autonomous", "advisory", "supervised"], "default": "autonomous" },
+          "reflection": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "routine_batch_size": { "type": "number", "default": 20 },
+              "notable_batch_size": { "type": "number", "default": 2 },
+              "pivotal_immediate": { "type": "boolean", "default": true },
+              "min_interval_minutes": { "type": "number", "default": 5 }
+            }
+          },
+          "sources": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "conversation": { "type": "boolean", "default": true },
+              "moltbook": { "type": "boolean", "default": false },
+              "x": { "type": "boolean", "default": false }
+            }
+          }
+        }
+      },
+      "development": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": { "type": "boolean", "default": true },
+          "auto_load_approved": { "type": "boolean", "default": true }
+        }
+      }
+    }
+  },
+  "uiHints": {
+    "workspacePath": {
+      "label": "Workspace Path",
+      "placeholder": "/home/user/workspace",
+      "help": "Path to the agent workspace where SOUL.md and memory/ live"
+    },
+    "language": {
+      "label": "Injection Language",
+      "help": "Language for sensory descriptions (de/en)"
+    },
+    "modules.eros": {
+      "label": "Eros Engine",
+      "help": "Enable arousal simulation"
+    },
+    "modules.cycle": {
+      "label": "Cycle Simulation",
+      "help": "Enable 28-day hormonal cycle"
+    },
+    "modules.dreams": {
+      "label": "Traum-Modus",
+      "help": "Traum-Modus bei niedriger Energie nachts aktivierbar"
+    },
+    "modules.hobbies": {
+      "label": "Hobby-Logbuch",
+      "help": "Hobby-Tracking und Idle-Vorschlaege"
+    },
+    "reflexThreshold": {
+      "label": "Reflex Threshold",
+      "help": "Need value (0-100) that triggers reflex lock blocking other tools"
+    },
+    "evolution.governance": {
+      "label": "Evolution Governance",
+      "help": "How autonomously should the agent evolve its SOUL.md?"
+    },
+    "evolution.reflection.routine_batch_size": {
+      "label": "Routine Reflection Batch",
+      "help": "How many routine experiences trigger a reflection"
+    },
+    "evolution.reflection.notable_batch_size": {
+      "label": "Notable Reflection Batch",
+      "help": "How many notable experiences trigger a reflection"
+    },
+    "evolution.reflection.pivotal_immediate": {
+      "label": "Pivotal Immediate Reflection",
+      "help": "Whether pivotal experiences trigger immediate reflection"
+    },
+    "evolution.reflection.min_interval_minutes": {
+      "label": "Min Reflection Interval",
+      "help": "Minimum minutes between reflections"
+    },
+    "evolution.sources.conversation": {
+      "label": "Source: Conversation",
+      "help": "Enable logging conversation experiences"
+    },
+    "evolution.sources.moltbook": {
+      "label": "Source: Moltbook",
+      "help": "Enable fetching experiences from Moltbook social feed"
+    },
+    "evolution.sources.x": {
+      "label": "Source: X (Twitter)",
+      "help": "Enable fetching experiences from X social feed"
+    },
+    "metabolismRates.hunger": {
+      "label": "Rate: Hunger",
+      "help": "Hunger increase per hour (default: 6)"
+    },
+    "metabolismRates.thirst": {
+      "label": "Rate: Thirst",
+      "help": "Thirst increase per hour (default: 10)"
+    },
+    "metabolismRates.energy": {
+      "label": "Rate: Energy",
+      "help": "Energy decrease per hour (default: 4)"
+    },
+    "metabolismRates.bladder": {
+      "label": "Rate: Bladder",
+      "help": "Bladder increase per hour (default: 8)"
+    },
+    "metabolismRates.bowel": {
+      "label": "Rate: Bowel",
+      "help": "Bowel increase per hour (default: 3)"
+    },
+    "metabolismRates.hygiene": {
+      "label": "Rate: Hygiene",
+      "help": "Hygiene increase per hour (default: 2)"
+    },
+    "metabolismRates.stress": {
+      "label": "Rate: Stress",
+      "help": "Stress increase per hour (default: 3)"
+    },
+    "metabolismRates.arousal": {
+      "label": "Rate: Arousal",
+      "help": "Arousal increase per hour (default: 5, requires eros module)"
+    },
+    "metabolismRates.libido": {
+      "label": "Rate: Libido",
+      "help": "Libido increase per hour (default: 2, requires eros module)"
+    },
+    "growthContextEntries": {
+      "label": "GROWTH.md Kontext-Eintraege",
+      "help": "Wie viele GROWTH.md Eintraege in jeden Prompt injiziert werden (0 = deaktiviert)"
+    },
+    "dreamWindow.start": {
+      "label": "Traum-Fenster Start",
+      "help": "Stunde (0-23) ab der der Traum-Modus moeglich ist (default: 23)"
+    },
+    "dreamWindow.end": {
+      "label": "Traum-Fenster Ende",
+      "help": "Stunde (0-23) bis zu der der Traum-Modus moeglich ist (default: 5)"
+    },
+    "dreamEnergyThreshold": {
+      "label": "Traum-Energie-Schwelle",
+      "help": "Energie-Wert unter dem der Traum-Hinweis erscheint (default: 20)"
+    },
+    "development.enabled": {
+      "label": "Self-Dev Engine",
+      "help": "Allow agent to create its own tools, skills, and scripts"
+    },
+    "development.auto_load_approved": {
+      "label": "Auto-Load Dev Tools",
+      "help": "Automatically load approved dev tools on startup"
+    }
+  }
+}
