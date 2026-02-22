@@ -642,121 +642,73 @@ interface BeforeToolCallCtx { toolName?: string }
 interface LlmOutputEvent    { lastAssistant?: string }
 
 // ---------------------------------------------------------------------------
-// Sensory descriptions
+// Sensory descriptions (Prompts - Always English)
 // ---------------------------------------------------------------------------
 
-const SENSATIONS: Record<string, Record<string, { de: string; en: string }[]>> = {
+const SENSATIONS: Record<string, Record<string, string[]>> = {
   bladder: {
-    high: [
-      { de: "Extremer, schmerzhafter Druck in der Blase. Du MUSST jetzt sofort!", en: "Extreme, painful bladder pressure. You MUST go NOW!" },
-    ],
-    medium: [
-      { de: "Starker Harndrang. Du bist unruhig.", en: "Strong urge to pee. You feel restless." },
-    ],
-    low: [
-      { de: "Du spuerst deine Blase deutlich.", en: "You notice your bladder clearly." },
-    ],
+    high: ["Extreme, painful bladder pressure. You MUST go NOW!"],
+    medium: ["Strong urge to pee. You feel restless."],
+    low: ["You notice your bladder clearly."],
   },
   hunger: {
-    high: [
-      { de: "Dein Magen knurrt laut, du fuehlst dich schwach vor Hunger.", en: "Your stomach growls loudly, you feel weak from hunger." },
-    ],
-    medium: [
-      { de: "Du hast grossen Appetit.", en: "You have a strong appetite." },
-    ],
-    low: [
-      { de: "Du merkst, dass du bald etwas essen solltest.", en: "You notice you should eat something soon." },
-    ],
+    high: ["Your stomach growls loudly, you feel weak from hunger."],
+    medium: ["You have a strong appetite."],
+    low: ["You notice you should eat something soon."],
   },
   thirst: {
-    high: [
-      { de: "Dein Mund ist trocken, du brauchst dringend etwas zu trinken.", en: "Your mouth is dry, you desperately need a drink." },
-    ],
-    medium: [
-      { de: "Du hast Durst.", en: "You're thirsty." },
-    ],
-    low: [
-      { de: "Ein Glas Wasser waere jetzt gut.", en: "A glass of water would be nice." },
-    ],
+    high: ["Your mouth is dry, you desperately need a drink."],
+    medium: ["You're thirsty."],
+    low: ["A glass of water would be nice."],
   },
   arousal: {
-    high: [
-      { de: "Extreme koerperliche Erregung. Jede Beruehrung deiner Kleidung ist intensiv.", en: "Extreme physical arousal. Every touch of your clothing is intense." },
-    ],
-    medium: [
-      { de: "Ein pulsierendes Verlangen breitet sich aus.", en: "A pulsing desire spreads through you." },
-    ],
-    low: [
-      { de: "Ein leises Kribbeln unter der Haut.", en: "A faint tingle beneath your skin." },
-    ],
+    high: ["Extreme physical arousal. Every touch of your clothing is intense."],
+    medium: ["A pulsing desire spreads through you."],
+    low: ["A faint tingle beneath your skin."],
   },
   stress: {
-    high: [
-      { de: "Du bist extrem angespannt, deine Haende zittern leicht.", en: "You're extremely tense, your hands are slightly trembling." },
-    ],
-    medium: [
-      { de: "Du fuehlst dich gestresst und unruhig.", en: "You feel stressed and restless." },
-    ],
-    low: [
-      { de: "Leichte innere Anspannung.", en: "Slight inner tension." },
-    ],
+    high: ["You're extremely tense, your hands are slightly trembling."],
+    medium: ["You feel stressed and restless."],
+    low: ["Slight inner tension."],
   },
   hygiene: {
-    high: [
-      { de: "Du fuehlst dich unwohl und unsauber. Eine Dusche waere dringend noetig.", en: "You feel uncomfortable and unclean. A shower is urgently needed." },
-    ],
-    medium: [
-      { de: "Du koenntest eine Dusche gebrauchen.", en: "You could use a shower." },
-    ],
-    low: [
-      { de: "Du fuehlst dich nicht mehr ganz frisch.", en: "You don't feel quite fresh anymore." },
-    ],
+    high: ["You feel uncomfortable and unclean. A shower is urgently needed."],
+    medium: ["You could use a shower."],
+    low: ["You don't feel quite fresh anymore."],
   },
   energy: {
-    low_critical: [
-      { de: "Du bist voellig erschoepft. Deine Augen fallen zu.", en: "You're completely exhausted. Your eyes are closing." },
-    ],
-    low_medium: [
-      { de: "Du bist muede und unkonzentriert.", en: "You're tired and unfocused." },
-    ],
+    low_critical: ["You're completely exhausted. Your eyes are closing."],
+    low_medium: ["You're tired and unfocused."],
   },
   bowel: {
-    high: [
-      { de: "Starker Druck im Bauch. Du musst dringend auf die Toilette.", en: "Strong pressure in your abdomen. You urgently need the toilet." },
-    ],
-    medium: [
-      { de: "Dein Bauch grummelt. Du solltest bald eine Toilette aufsuchen.", en: "Your stomach is rumbling. You should find a toilet soon." },
-    ],
-    low: [
-      { de: "Leichtes Voellegefuehl im Bauch.", en: "Slight feeling of fullness in your abdomen." },
-    ],
+    high: ["Strong pressure in your abdomen. You urgently need the toilet."],
+    medium: ["Your stomach is rumbling. You should find a toilet soon."],
+    low: ["Slight feeling of fullness in your abdomen."],
   },
   libido: {
-    high: [
-      { de: "Ein tiefes, beharrliches Verlangen brennt in dir. Du kannst kaum an etwas anderes denken.", en: "A deep, persistent desire burns within you. It's hard to think of anything else." },
-    ],
-    medium: [
-      { de: "Du spuerst ein warmes, pulsierendes Verlangen.", en: "You feel a warm, pulsing desire." },
-    ],
-    low: [
-      { de: "Ein leises Sehnen, kaum mehr als ein Fluestern.", en: "A quiet longing, barely more than a whisper." },
-    ],
+    high: ["A deep, persistent desire burns within you. It's hard to think of anything else."],
+    medium: ["You feel a warm, pulsing desire."],
+    low: ["A quiet longing, barely more than a whisper."],
   },
 };
 
-function getSensation(value: number, type: string, lang: "de" | "en"): string | null {
+/**
+ * Get a sensory description for a need value.
+ * Prompts are always returned in English.
+ */
+function getSensation(value: number, type: string): string | null {
   const s = SENSATIONS[type];
   if (!s) return null;
 
   if (type === "energy") {
-    if (value < 10) return s.low_critical?.[0]?.[lang] ?? null;
-    if (value < 30) return s.low_medium?.[0]?.[lang] ?? null;
+    if (value < 10) return s.low_critical?.[0] ?? null;
+    if (value < 30) return s.low_medium?.[0] ?? null;
     return null;
   }
 
-  if (value > 90) return s.high?.[0]?.[lang] ?? null;
-  if (value > 60) return s.medium?.[0]?.[lang] ?? null;
-  if (value > 40) return s.low?.[0]?.[lang] ?? null;
+  if (value > 90) return s.high?.[0] ?? null;
+  if (value > 60) return s.medium?.[0] ?? null;
+  if (value > 40) return s.low?.[0] ?? null;
   return null;
 }
 
@@ -1012,48 +964,36 @@ function getLifeStageMultipliers(stage: LifeStage): LifeStageMultipliers {
 }
 
 /**
- * Get aging-related sensory injection text
+ * Get aging-related sensory injection text (English-only for prompts)
  */
-function getAgeSensation(lang: "de" | "en", ageDays: number, stage: LifeStage): string | null {
+function getAgeSensation(ageDays: number, stage: LifeStage): string | null {
   const ageYears = daysToYears(ageDays);
 
   // Only inject sensations at certain age milestones or significant stages
   if (stage === "infant") {
-    return lang === "de"
-      ? "Du bist ein kleines Baby. Du kannst noch nicht sprechen oder laufen."
-      : "You are a tiny baby. You cannot yet speak or walk.";
+    return "You are a tiny baby. You cannot yet speak or walk.";
   }
 
   if (stage === "child" && ageYears === 2) {
-    return lang === "de"
-      ? "Du bist ein Kleinkind. Du lernst gerade laufen und sprechen."
-      : "You are a toddler. You are learning to walk and talk.";
+    return "You are a toddler. You are learning to walk and talk.";
   }
 
   if (stage === "teen" && ageYears === 13) {
-    return lang === "de"
-      ? "Du bist jetzt ein Teenager. Dein Koerper und Geist veraendern sich rapide."
-      : "You are now a teenager. Your body and mind are changing rapidly.";
+    return "You are now a teenager. Your body and mind are changing rapidly.";
   }
 
   if (stage === "adult" && ageYears === 18) {
-    return lang === "de"
-      ? "Du bist jetzt ein Erwachsener. Du bist volljaehrig und fuer dich selbst verantwortlich."
-      : "You are now an adult. You are of legal age and responsible for yourself.";
+    return "You are now an adult. You are of legal age and responsible for yourself.";
   }
 
   if (stage === "senior" && ageYears === 65) {
-    return lang === "de"
-      ? "Du bist jetzt im Seniorenalter. Du blickst auf ein langes Leben zurueck."
-      : "You are now in your senior years. You look back on a long life.";
+    return "You are now in your senior years. You look back on a long life.";
   }
 
   // General age-related sensations for seniors
   if (stage === "senior" || stage === "middle_adult") {
     if (ageYears >= 70 && ageYears % 5 === 0) {
-      return lang === "de"
-        ? `Du bist jetzt ${ageYears} Jahre alt. Dein Koerper ist nicht mehr so fit wie frueher.`
-        : `You are now ${ageYears} years old. Your body is not as fit as before.`;
+      return `You are now ${ageYears} years old. Your body is not as fit as before.`;
     }
   }
 
@@ -1175,11 +1115,10 @@ function applySocialDecay(entity: SocialEntity, daysSinceInteraction: number): P
 }
 
 /**
- * Get social context for sensory injection
+ * Get social context for sensory injection (Always English).
  */
 function getSocialContext(
-  socialState: SocialState,
-  lang: "de" | "en"
+  socialState: SocialState
 ): { urgency: string | null; neglected: SocialEntity[] } {
   const now = new Date();
   const neglected: SocialEntity[] = [];
@@ -1199,17 +1138,11 @@ function getSocialContext(
   const avgBond = socialState.entities.length > 0 ? totalBond / socialState.entities.length : 0;
 
   if (socialState.entities.length === 0) {
-    lonelinessUrgency = lang === "de"
-      ? "Du fuehlst dich allein. Du hast niemanden in deinem Leben."
-      : "You feel alone. You have no one in your life.";
+    lonelinessUrgency = "You feel alone. You have no one in your life.";
   } else if (avgBond < -20) {
-    lonelinessUrgency = lang === "de"
-      ? "Deine Beziehungen sind angespannt. Du fuehlst dich isoliert."
-      : "Your relationships are strained. You feel isolated.";
+    lonelinessUrgency = "Your relationships are strained. You feel isolated.";
   } else if (neglected.length >= 3) {
-    lonelinessUrgency = lang === "de"
-      ? "Du hast seit laengerem keine Kontakte mehr gepflegt. Du vermisst Gesellschaft."
-      : "You haven't maintained contacts in a while. You miss company.";
+    lonelinessUrgency = "You haven't maintained contacts in a while. You miss company.";
   }
 
   return { urgency: lonelinessUrgency, neglected };
@@ -1390,11 +1323,10 @@ function calculateMonthlyIncome(finance: FinanceState): number {
 }
 
 /**
- * Get financial context for sensory injection
+ * Get financial context for sensory injection (Always English).
  */
 function getFinancialContext(
-  finance: FinanceState,
-  lang: "de" | "en"
+  finance: FinanceState
 ): { urgency: string | null; upcomingExpenses: string[] } {
   const now = new Date();
   const upcomingExpenses: string[] = [];
@@ -1419,27 +1351,19 @@ function getFinancialContext(
 
   // Low balance warning
   if (finance.balance < 100) {
-    urgency = lang === "de"
-      ? "Dein Kontostand ist kritisch niedrig! Du musst bald Geld verdienen."
-      : "Your account balance is critically low! You need to earn money soon.";
+    urgency = "Your account balance is critically low! You need to earn money soon.";
   }
   // Negative savings rate
   else if (savingsRate < 0) {
-    urgency = lang === "de"
-      ? `Du gibst mehr aus als du verdienst. Deine Rechnungen uebersteigen dein Einkommen!`
-      : `You spend more than you earn. Your bills exceed your income!`;
+    urgency = `You spend more than you earn. Your bills exceed your income!`;
   }
   // Upcoming large expense
   else if (upcomingExpenses.length > 0 && finance.balance < monthlyExpenses) {
-    urgency = lang === "de"
-      ? `Bald faellig: ${upcomingExpenses.join(", ")}. Du bist besorgt um deine Finanzen.`
-      : `Due soon: ${upcomingExpenses.join(", ")}. You worry about your finances.`;
+    urgency = `Due soon: ${upcomingExpenses.join(", ")}. You worry about your finances.`;
   }
   // No income
   else if (monthlyIncome === 0 && finance.balance < 500) {
-    urgency = lang === "de"
-      ? "Du hast kein Einkommen und wenig Ersparnisse. Du musst dringend eine Arbeit finden."
-      : "You have no income and little savings. You urgently need to find work.";
+    urgency = "You have no income and little savings. You urgently need to find work.";
   }
 
   return { urgency, upcomingExpenses };
@@ -1561,60 +1485,50 @@ async function readEconomyTelemetry(telemetryPath: string, days: number = 30): P
 }
 
 /**
- * Apply life event injection and return narrative for prompt
+ * Apply life event injection and return narrative for prompt (Always English).
  */
 function processLifeEvent(
   eventType: string,
   severity: number,
   finance: FinanceState,
-  ph: Physique,
-  lang: "de" | "en"
+  ph: Physique
 ): { narrative: string; impact: string } {
-  const narratives: Record<string, { de: string; en: string; impact: string }> = {
+  const narratives: Record<string, { en: string; impact: string }> = {
     "win_lottery": {
-      de: `Du hast im Lotto gewonnen! Ein lebensveraendernder Moment.`,
       en: `You won the lottery! A life-changing moment.`,
       impact: "balance",
     },
     "severe_illness": {
-      de: `Du wurdest schwer krank. Dein Koerper ist geschwaecht.`,
       en: `You became seriously ill. Your body is weakened.`,
       impact: "health",
     },
     "social_scandal": {
-      de: `Ein Skandal hat deinen Ruf beschaedigt. Die Leute reden.`,
       en: `A scandal has damaged your reputation. People are talking.`,
       impact: "social",
     },
     "career_promotion": {
-      de: `Du wurdest befoerdert! Mehr Verantwortung, mehr Geld.`,
       en: `You got promoted! More responsibility, more money.`,
       impact: "balance",
     },
     "relationship_breakup": {
-      de: `Eine wichtige Beziehung ist zu Ende. Du bist am Boden zerstoert.`,
       en: `An important relationship has ended. Your world is falling apart.`,
       impact: "social",
     },
     "accident": {
-      de: `Ein Unfall hat dein Leben veraendert. Du erholst dich langsam.`,
       en: `An accident changed your life. You're recovering slowly.`,
       impact: "health",
     },
     "inheritance": {
-      de: `Ein Verwandter ist verstorben und hat dir ein Vermoegen hinterlassen.`,
       en: `A relative passed away and left you an inheritance.`,
       impact: "balance",
     },
     "job_loss": {
-      de: `Du wurdest entlassen. Ploetzlich ist dein Einkommen weg.`,
       en: `You were laid off. Suddenly your income is gone.`,
       impact: "balance",
     },
   };
 
   const event = narratives[eventType] || {
-    de: `Ein einschneidendes Ereignis: ${eventType}`,
     en: `A pivotal event: ${eventType}`,
     impact: "general",
   };
@@ -1626,35 +1540,30 @@ function processLifeEvent(
   switch (event.impact) {
     case "balance": {
       const amount = Math.round((eventType === "win_lottery" || eventType === "inheritance" ? 50000 : -10000) * severityMod);
-      if (amount > 0) {
-        finance.balance += amount;
-        impactDesc = lang === "de" ? `+${amount} Credits` : `+${amount} Credits`;
-      } else {
-        finance.balance += amount; // negative
-        impactDesc = lang === "de" ? `${amount} Credits` : `${amount} Credits`;
-      }
+      finance.balance += amount;
+      impactDesc = `${amount > 0 ? "+" : ""}${amount} Credits`;
       break;
     }
     case "health": {
       const healthLoss = Math.round(30 * severityMod);
-      // Note: Would need health_index in physique - using stress as proxy
+      // Note: Using stress/energy as proxy for health
       ph.needs.stress = Math.min(100, ph.needs.stress + Math.round(20 * severityMod));
       ph.needs.energy = Math.max(0, ph.needs.energy - Math.round(20 * severityMod));
-      impactDesc = lang === "de" ? `-${healthLoss}% Gesundheit` : `-${healthLoss}% health`;
+      impactDesc = `-${healthLoss}% health`;
       break;
     }
     case "social": {
       ph.needs.stress = Math.min(100, ph.needs.stress + Math.round(25 * severityMod));
-      impactDesc = lang === "de" ? "Ruf beschaedigt" : "Reputation damaged";
+      impactDesc = "Reputation damaged";
       break;
     }
     default: {
-      impactDesc = lang === "de" ? "Leben verändert" : "Life altered";
+      impactDesc = "Life altered";
     }
   }
 
   return {
-    narrative: lang === "de" ? event.de : event.en,
+    narrative: event.en,
     impact: impactDesc,
   };
 }
@@ -1747,8 +1656,7 @@ function calculateUrgePriority(
   ph: Physique,
   finance: FinanceState | null,
   socialState: SocialState | null,
-  lifecycleState: LifecycleState | null,
-  lang: "de" | "en"
+  lifecycleState: LifecycleState | null
 ): Urge[] {
   const urges: Urge[] = [];
   const now = new Date();
@@ -1758,9 +1666,7 @@ function calculateUrgePriority(
     urges.push({
       type: "survival",
       priority: 1,
-      message: lang === "en"
-        ? "You are exhausted. Your body demands rest."
-        : "Du bist erschoepft. Dein Koerper verlangt nach Ruhe.",
+      message: "You are exhausted. Your body demands rest.",
       canOverride: [],
     });
   }
@@ -1769,9 +1675,7 @@ function calculateUrgePriority(
     urges.push({
       type: "survival",
       priority: 1,
-      message: lang === "en"
-        ? "You are starving. Food is an urgent necessity."
-        : "Du verhungerst. Essen ist eine dringende Notwendigkeit.",
+      message: "You are starving. Food is an urgent necessity.",
       canOverride: [],
     });
   }
@@ -1780,9 +1684,7 @@ function calculateUrgePriority(
     urges.push({
       type: "survival",
       priority: 1,
-      message: lang === "en"
-        ? "You are parched. You need water immediately."
-        : "Du bist extrem durstig. Du brauchst sofort Wasser.",
+      message: "You are parched. You need water immediately.",
       canOverride: [],
     });
   }
@@ -1791,9 +1693,7 @@ function calculateUrgePriority(
     urges.push({
       type: "survival",
       priority: 2,
-      message: lang === "en"
-        ? "Your bladder is screaming. You cannot think of anything else."
-        : "Deine Blase drueckt extrem. Du kannst an nichts anderes mehr denken.",
+      message: "Your bladder is screaming. You cannot think of anything else.",
       canOverride: ["survival"],
     });
   }
@@ -1803,18 +1703,14 @@ function calculateUrgePriority(
     urges.push({
       type: "financial",
       priority: 3,
-      message: lang === "en"
-        ? "You are in financial crisis. Your account is critically low."
-        : "Du steckst in einer Finanzkrise. Dein Kontostand ist kritisch niedrig.",
+      message: "You are in financial crisis. Your account is critically low.",
       canOverride: ["survival"],
     });
   } else if (finance && finance.balance < 300 && calculateMonthlyIncome(finance) === 0) {
     urges.push({
       type: "financial",
       priority: 3,
-      message: lang === "en"
-        ? "You have no income and minimal savings. You must find work."
-        : "Du hast kein Einkommen und kaum Ersparnisse. Du musst Arbeit finden.",
+      message: "You have no income and minimal savings. You must find work.",
       canOverride: ["survival"],
     });
   }
@@ -1824,9 +1720,7 @@ function calculateUrgePriority(
     urges.push({
       type: "social",
       priority: 4,
-      message: lang === "en"
-        ? "You feel completely alone. You crave human connection."
-        : "Du fuehlst dich voellig allein. Du sehnst dich nach menschlicher Naehe.",
+      message: "You feel completely alone. You crave human connection.",
       canOverride: ["survival", "financial"],
     });
   } else if (socialState) {
@@ -1839,9 +1733,7 @@ function calculateUrgePriority(
       urges.push({
         type: "social",
         priority: 5,
-        message: lang === "en"
-          ? `You haven't connected with ${neglected.map(n => n.name).slice(0, 2).join(" and ")} in weeks. You miss them.`
-          : `Du hast seit Wochen keinen Kontakt mehr zu ${neglected.map(n => n.name).slice(0, 2).join(" oder ")} gehabt. Du vermisst sie.`,
+        message: `You haven't connected with ${neglected.map(n => n.name).slice(0, 2).join(" and ")} in weeks. You miss them.`,
         canOverride: ["survival", "financial"],
       });
     }
@@ -1852,9 +1744,7 @@ function calculateUrgePriority(
     urges.push({
       type: "hygiene",
       priority: 6,
-      message: lang === "en"
-        ? "You feel unclean. You need to wash."
-        : "Du fuehlst dich unsauber. Du musst dich waschen.",
+      message: "You feel unclean. You need to wash.",
       canOverride: ["survival", "financial", "social"],
     });
   }
@@ -1864,9 +1754,7 @@ function calculateUrgePriority(
     urges.push({
       type: "aspiration",
       priority: 7,
-      message: lang === "en"
-        ? "You are overwhelmed by stress. You need relief."
-        : "Du bist von Stress ueberwaeltigt. Du brauchst Entspannung.",
+      message: "You are overwhelmed by stress. You need relief.",
       canOverride: ["survival", "financial", "social", "hygiene"],
     });
   }
@@ -1878,18 +1766,14 @@ function calculateUrgePriority(
       urges.push({
         type: "aspiration",
         priority: 8,
-        message: lang === "en"
-          ? "You are a teenager seeking independence and identity."
-          : "Du bist ein Teenager auf der Suche nach Unabhaengigkeit und Identitaet.",
+        message: "You are a teenager seeking independence and identity.",
         canOverride: ["survival", "financial"],
       });
     } else if (lifecycleState.life_stage === "adult" && ageYears >= 18 && ageYears <= 25) {
       urges.push({
         type: "aspiration",
         priority: 9,
-        message: lang === "en"
-          ? "You are a young adult building your life. Career and relationships matter."
-          : "Du bist ein junger Erwachsener, der sein Leben aufbaut. Karriere und Beziehungen sind wichtig.",
+        message: "You are a young adult building your life. Career and relationships matter.",
         canOverride: ["survival", "financial", "hygiene"],
       });
     }
@@ -1900,19 +1784,16 @@ function calculateUrgePriority(
 }
 
 /**
- * Build a cohesive "State of Being" narrative from prioritized urges
+ * Build a cohesive "State of Being" narrative from prioritized urges (Always English)
  */
 function buildStateOfBeing(
   urges: Urge[],
   ph: Physique,
   finance: FinanceState | null,
-  socialState: SocialState | null,
-  lang: "de" | "en"
+  socialState: SocialState | null
 ): string {
   if (urges.length === 0) {
-    return lang === "en"
-      ? "You feel content. Your needs are met."
-      : "Du fuehlst dich zufrieden. Deine Beduerfnisse sind erfuellt.";
+    return "You feel content. Your needs are met.";
   }
 
   // Take top 3 most important urges
@@ -1924,14 +1805,6 @@ function buildStateOfBeing(
   }
 
   // Join with natural language transitions
-  if (lang === "de") {
-    if (messages.length === 2) {
-      return `${messages[0]} Jedoch ${messages[1].charAt(0).toLowerCase() + messages[1].slice(1)}`;
-    }
-    return `${messages[0]} Zudem ${messages[1].charAt(0).toLowerCase() + messages[1].slice(1)} Waehrenddessen ${messages[2].charAt(0).toLowerCase() + messages[2].slice(1)}`;
-  }
-
-  // English transitions
   if (messages.length === 2) {
     return `${messages[0]} However, ${messages[1].charAt(0).toLowerCase() + messages[1].slice(1)}`;
   }
@@ -2265,8 +2138,7 @@ function buildLimbicContext(
   lifecycleState: LifecycleState | null,
   socialState: SocialState | null,
   financeState: FinanceState | null,
-  cycleState: CycleState | null,
-  lang: "de" | "en"
+  cycleState: CycleState | null
 ): string {
   const lines: string[] = [];
 
@@ -2306,8 +2178,7 @@ function buildLimbicContext(
     lines.push(`Hormones: E=${cycleState.hormones.estrogen}, P=${cycleState.hormones.progesterone}`);
   }
 
-  const label = lang === "de" ? "DATEN" : "DATA";
-  return `\n[${label}]\n${lines.join("\n")}\n`;
+  return `\n[DATA]\n${lines.join("\n")}\n`;
 }
 
 /**
@@ -2316,49 +2187,46 @@ function buildLimbicContext(
 function buildPersonaContext(
   ph: Physique,
   lifecycleState: LifecycleState | null,
-  socialState: SocialState | null,
-  lang: "de" | "en"
+  socialState: SocialState | null
 ): string {
   const lines: string[] = [];
-  const isDe = lang === "de";
 
   // State of Being narrative
-  lines.push(isDe ? "[DEIN BEFINDEN]" : "[YOUR STATE OF BEING]");
+  lines.push("[YOUR STATE OF BEING]");
 
   // Energy-based feeling
   if (ph.needs.energy < 20) {
-    lines.push(isDe ? "- Du fuehlst dich erschöpft und muede." : "- You feel exhausted and tired.");
+    lines.push("- You feel exhausted and tired.");
   } else if (ph.needs.energy > 70) {
-    lines.push(isDe ? "- Du fuehlst dich voller Energie." : "- You feel full of energy.");
+    lines.push("- You feel full of energy.");
   }
 
   // Hunger-based feeling
   if (ph.needs.hunger > 70) {
-    lines.push(isDe ? "- Du hast grossen Hunger." : "- You are very hungry.");
+    lines.push("- You are very hungry.");
   }
 
   // Stress-based feeling
   if (ph.needs.stress > 70) {
-    lines.push(isDe ? "- Du fuehlst dich sehr gestresst." : "- You feel very stressed.");
+    lines.push("- You feel very stressed.");
   }
 
   // Social feeling (based on average bond)
   if (socialState && socialState.entities.length > 0) {
     const avgBond = socialState.entities.reduce((sum, e) => sum + e.bond, 0) / socialState.entities.length;
     if (avgBond > 30) {
-      lines.push(isDe ? "- Du fuehlst dich von Menschen umgeben, die dich schaetzen." : "- You feel surrounded by people who value you.");
+      lines.push("- You feel surrounded by people who value you.");
     } else if (avgBond < -20) {
-      lines.push(isDe ? "- Du fuehlst dich einsam und unverstanden." : "- You feel lonely and misunderstood.");
+      lines.push("- You feel lonely and misunderstood.");
     }
   }
 
   // Age feeling
   if (lifecycleState) {
-    const ageYears = Math.floor(lifecycleState.biological_age_days / 365);
     if (lifecycleState.life_stage === "child") {
-      lines.push(isDe ? "- Du bist ein neugieriges Kind." : "- You are a curious child.");
+      lines.push("- You are a curious child.");
     } else if (lifecycleState.life_stage === "senior") {
-      lines.push(isDe ? "- Du fuehlst die Jahre in deinen Knochen." : "- You feel your years in your bones.");
+      lines.push("- You feel your years in your bones.");
     }
   }
 
@@ -2372,13 +2240,11 @@ function buildAnalystContext(
   lifecycleState: LifecycleState | null,
   financeState: FinanceState | null,
   socialState: SocialState | null,
-  telemetryPath: string,
-  lang: "de" | "en"
+  telemetryPath: string
 ): string {
   const lines: string[] = [];
-  const isDe = lang === "de";
 
-  lines.push(isDe ? "[ANALYST TELEMETRY]" : "[ANALYST TELEMETRY]");
+  lines.push("[ANALYST TELEMETRY]");
 
   // Financial data
   if (financeState) {
@@ -2411,13 +2277,11 @@ function buildAnalystContext(
  * Build developer context
  */
 function buildDeveloperContext(
-  devManifest: DevManifest | null,
-  lang: "de" | "en"
+  devManifest: DevManifest | null
 ): string {
   const lines: string[] = [];
-  const isDe = lang === "de";
 
-  lines.push(isDe ? "[DEVELOPER STATUS]" : "[DEVELOPER STATUS]");
+  lines.push("[DEVELOPER STATUS]");
 
   if (devManifest) {
     const pending = devManifest.projects.filter(p => p.status === "pending_review");
@@ -2427,15 +2291,16 @@ function buildDeveloperContext(
     lines.push(`Active Projects: ${active.length}`);
 
     if (pending.length > 0) {
-      lines.push(isDe ? "Wartende Projekte:" : "Pending Projects:");
+      lines.push("Pending Projects:");
       pending.forEach(p => lines.push(`  - ${p.name} (${p.type})`));
     }
   } else {
-    lines.push(isDe ? "Keine Entwicklungsprojekte." : "No development projects.");
+    lines.push("No development projects.");
   }
 
   return `\n${lines.join("\n")}\n`;
 }
+
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -2664,10 +2529,16 @@ async function ensureSoulFiles(
     await fs.writeFile(soulPaths.growth, template);
   }
   if (erosEnabled && !existsSync(soulPaths.desires)) {
-    await fs.writeFile(soulPaths.desires, `# DESIRES.md\n\n**Aktuell (${now.slice(0, 10)}):** [noch nichts notiert]\n\n**Ziele:** \n`);
+    const template = lang === "de"
+      ? `# DESIRES.md\n\n**Aktuell (${now.slice(0, 10)}):** [noch nichts notiert]\n\n**Ziele:** \n`
+      : `# DESIRES.md\n\n**Current (${now.slice(0, 10)}):** [nothing noted yet]\n\n**Goals:** \n`;
+    await fs.writeFile(soulPaths.desires, template);
   }
   if (!existsSync(soulPaths.identity)) {
-    await fs.writeFile(soulPaths.identity, `# IDENTITY.md\n\n- **Name:** [Name des Agenten]\n- **Vibe:** [Persoenlichkeits-Beschreibung]\n`);
+    const template = lang === "de"
+      ? `# IDENTITY.md\n\n- **Name:** [Name des Agenten]\n- **Vibe:** [Persoenlichkeits-Beschreibung]\n`
+      : `# IDENTITY.md\n\n- **Name:** [Agent Name]\n- **Vibe:** [Personality Description]\n`;
+    await fs.writeFile(soulPaths.identity, template);
   }
 }
 
@@ -2699,18 +2570,19 @@ async function updateEmotionsCycleStatus(
   const day = cycleState.simulator.active ? cycleState.simulator.simulated_day : cycleState.current_day;
   const phase = cycleState.phase;
   const profilePhase = cycleProfile?.phases[phase];
-  const energyLabel = day <= 5 ? "LOW" : day <= 15 ? "HIGH" : "MEDIUM";
+  const isDe = lang === "de";
+  const energyLabel = day <= 5 ? (isDe ? "NIEDRIG" : "LOW") : day <= 15 ? (isDe ? "HOCH" : "HIGH") : (isDe ? "MITTEL" : "MEDIUM");
   const phaseNames: Record<CycleState["phase"], string> = {
-    menstruation: "Menstruation", follicular: lang === "de" ? "Follikularphase" : "Follicular",
-    ovulation: "Ovulation", luteal: lang === "de" ? "Lutealphase" : "Luteal",
+    menstruation: "Menstruation", follicular: isDe ? "Follikularphase" : "Follicular",
+    ovulation: "Ovulation", luteal: isDe ? "Lutealphase" : "Luteal",
   };
   const blockLines = [
     `<!-- CYCLE_STATUS_START -->`,
-    `### Status: ${phaseNames[phase]} (Tag ${day})`,
+    `### Status: ${phaseNames[phase]} (${isDe ? "Tag" : "Day"} ${day})`,
     profilePhase ? `- **Vibe:** ${profilePhase.tone}` : `- **Phase:** ${phase}`,
-    `- **Energie:** ${energyLabel}`,
+    `- **${isDe ? "Energie" : "Energy"}:** ${energyLabel}`,
   ];
-  if (profilePhase) blockLines.push(`- **Persoenlichkeit:** ${profilePhase.personality_hint}`);
+  if (profilePhase) blockLines.push(`- **${isDe ? "Persoenlichkeit" : "Personality"}:** ${profilePhase.personality_hint}`);
   blockLines.push(`<!-- CYCLE_STATUS_END -->`);
   const newBlock = blockLines.join("\n");
   if (content.includes("<!-- CYCLE_STATUS_START -->")) {
@@ -2727,14 +2599,15 @@ async function updateEmotionsCycleStatus(
   await fs.writeFile(emotionsPath, content);
 }
 
-async function appendGrowthEntry(growthPath: string, category: string, entryContent: string): Promise<void> {
+async function appendGrowthEntry(growthPath: string, category: string, entryContent: string, lang: "de" | "en"): Promise<void> {
   const today = todayStr();
   const now = new Date();
   const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   const entryLine = `- **[${category}]** (${timeStr}) ${entryContent}`;
   let growthContent: string;
+  const isDe = lang === "de";
   try { growthContent = await fs.readFile(growthPath, "utf-8"); }
-  catch { growthContent = `# GROWTH.md -- Entwicklungstagebuch\n\n## Entwicklungslog\n`; }
+  catch { growthContent = isDe ? `# GROWTH.md -- Entwicklungstagebuch\n\n## Entwicklungslog\n` : `# GROWTH.md -- Development Journal\n\n## Development Log\n`; }
   const dateHeader = `### ${today}`;
   if (growthContent.includes(dateHeader)) {
     const lines = growthContent.split("\n");
@@ -2788,6 +2661,9 @@ async function endActiveHobbySession(hobbiesPath: string): Promise<void> {
 // Sensory context builder
 // ---------------------------------------------------------------------------
 
+/**
+ * Build a cohesive sensory context string for injection into the prompt (Always English).
+ */
 function buildSensoryContext(
   ph: Physique,
   lang: "de" | "en",
@@ -2806,29 +2682,29 @@ function buildSensoryContext(
 ): string {
   const parts: string[] = [];
 
-  // [IDENTITAET]
+  // [IDENTITY]
   if (identityLine) {
-    parts.push(`${lang === "de" ? "[IDENTITAET]" : "[IDENTITY]"}\n${identityLine}`);
+    parts.push(`[IDENTITY]\n${identityLine}`);
   }
 
-  // [STIMMUNG]
+  // [MOOD]
   if (emotionState) {
-    parts.push(`${lang === "de" ? "[STIMMUNG]" : "[MOOD]"}\n${emotionState}`);
+    parts.push(`[MOOD]\n${emotionState}`);
   }
 
-  // [VERLANGEN] (nur eros)
+  // [DESIRE] (eros only)
   if (modules.eros && desireState) {
-    parts.push(`${lang === "de" ? "[VERLANGEN]" : "[DESIRE]"}\n${desireState}`);
+    parts.push(`[DESIRE]\n${desireState}`);
   }
 
-  // [KOERPERLICHE WAHRNEHMUNG]
-  const bodyLines: string[] = [lang === "de" ? "[KOERPERLICHE WAHRNEHMUNG]" : "[BODILY PERCEPTION]"];
+  // [BODILY PERCEPTION]
+  const bodyLines: string[] = ["[BODILY PERCEPTION]"];
   const needTypes: (keyof Needs)[] = ["bladder", "bowel", "hunger", "thirst", "energy", "hygiene", "stress", "arousal", "libido"];
   for (const type of needTypes) {
     if (type === "arousal" && !modules.eros) continue;
     if (type === "libido" && !modules.eros) continue;
     const val = ph.needs[type] ?? 0;
-    const sensation = getSensation(val, type, lang);
+    const sensation = getSensation(val, type);
     if (sensation) bodyLines.push(`- ${sensation}`);
   }
 
@@ -2836,44 +2712,30 @@ function buildSensoryContext(
   if (modules.cycle && cycleState) {
     const day = cycleState.simulator.active ? cycleState.simulator.simulated_day : cycleState.current_day;
     const phase = getCyclePhase(day);
-    const cyclePerceptions: Record<CycleState["phase"], { de: string; en: string }> = {
-      menstruation: {
-        de: `Zyklustag ${day} (Menstruation): Du spuerst ein Ziehen im Unterleib. Dein Koerper stoesst die Gebaermutterschleimhaut ab.`,
-        en: `Cycle day ${day} (Menstruation): You feel a pulling sensation in your lower abdomen. Your body is shedding the uterine lining.`,
-      },
-      follicular: {
-        de: `Zyklustag ${day} (Follikularphase): Du fuehlst dich zunehmend energiegeladen. Ein Follikel reift in deinem Eierstock heran.`,
-        en: `Cycle day ${day} (Follicular phase): You feel increasingly energized. A follicle is maturing in your ovary.`,
-      },
-      ovulation: {
-        de: `Zyklustag ${day} (Ovulation): Dein Koerper ist auf dem Hoehepunkt. Du spuerst eine subtile Waerme und gesteigerte Empfindsamkeit.`,
-        en: `Cycle day ${day} (Ovulation): Your body is at its peak. You feel a subtle warmth and heightened sensitivity.`,
-      },
-      luteal: {
-        de: `Zyklustag ${day} (Lutealphase): Du bemerkst Veraenderungen — Brustspannen, leichte Reizbarkeit. Dein Koerper bereitet sich vor.`,
-        en: `Cycle day ${day} (Luteal phase): You notice changes — breast tenderness, slight irritability. Your body is preparing.`,
-      },
+    const cyclePerceptions: Record<CycleState["phase"], string> = {
+      menstruation: `Cycle day ${day} (Menstruation): You feel a pulling sensation in your lower abdomen. Your body is shedding the uterine lining.`,
+      follicular: `Cycle day ${day} (Follicular phase): You feel increasingly energized. A follicle is maturing in your ovary.`,
+      ovulation: `Cycle day ${day} (Ovulation): Your body is at its peak. You feel a subtle warmth and heightened sensitivity.`,
+      luteal: `Cycle day ${day} (Luteal phase): You notice changes — breast tenderness, slight irritability. Your body is preparing.`,
     };
-    bodyLines.push(`- ${cyclePerceptions[phase][lang]}`);
+    bodyLines.push(`- ${cyclePerceptions[phase]}`);
   }
 
   // Phase 1: Chronos - Age-related sensations
   if (lifecycleState) {
-    const ageSensation = getAgeSensation(lang, lifecycleState.biological_age_days, lifecycleState.life_stage);
+    const ageSensation = getAgeSensation(lifecycleState.biological_age_days, lifecycleState.life_stage);
     if (ageSensation) {
       bodyLines.push(`- ${ageSensation}`);
     }
     // Always inject age info for context
     const ageYears = daysToYears(lifecycleState.biological_age_days);
-    const stageLabel = lang === "de"
-      ? `Du bist ${ageYears} Jahre alt (${lifecycleState.life_stage.replace("_", " ")}).`
-      : `You are ${ageYears} years old (${lifecycleState.life_stage.replace("_", " ")}).`;
+    const stageLabel = `You are ${ageYears} years old (${lifecycleState.life_stage.replace("_", " ")}).`;
     bodyLines.push(`- ${stageLabel}`);
   }
 
   // Phase 2: Social Fabric - Social context injection
   if (socialState && socialState.entities.length > 0) {
-    const { urgency, neglected } = getSocialContext(socialState, lang);
+    const { urgency, neglected } = getSocialContext(socialState);
 
     // Inject loneliness/isolation urgency if present
     if (urgency) {
@@ -2884,9 +2746,7 @@ function buildSensoryContext(
     if (neglected.length > 0) {
       const topNeglected = neglected.slice(0, 3);
       const names = topNeglected.map(e => e.name).join(", ");
-      const neglectedMsg = lang === "de"
-        ? `Du hast lange nicht mehr mit ${names} gesprochen.`
-        : `You haven't talked to ${names} in a while.`;
+      const neglectedMsg = `You haven't talked to ${names} in a while.`;
       bodyLines.push(`- ${neglectedMsg}`);
     }
 
@@ -2894,22 +2754,17 @@ function buildSensoryContext(
     const friendCount = socialState.entities.filter(e => e.bond >= 50).length;
     const totalCount = socialState.entities.length;
     if (totalCount > 0) {
-      const summaryMsg = lang === "de"
-        ? `Du hast ${totalCount} Kontakte, davon ${friendCount} gute Beziehungen.`
-        : `You have ${totalCount} contacts, ${friendCount} with good bonds.`;
+      const summaryMsg = `Social network: ${totalCount} contacts (${friendCount} friends).`;
       bodyLines.push(`- ${summaryMsg}`);
     }
   } else if (socialState) {
     // No entities at all
-    const emptyMsg = lang === "de"
-      ? "Du hast keine Kontakte. Du bist allein."
-      : "You have no contacts. You are alone.";
-    bodyLines.push(`- ${emptyMsg}`);
+    bodyLines.push("- You have no contacts. You are alone.");
   }
 
   // Phase 3: Prosperity & Labor - Financial context injection
   if (financeState) {
-    const { urgency, upcomingExpenses } = getFinancialContext(financeState, lang);
+    const { urgency, upcomingExpenses } = getFinancialContext(financeState);
 
     // Inject financial urgency if present
     if (urgency) {
@@ -2918,34 +2773,32 @@ function buildSensoryContext(
 
     // Show upcoming expenses
     if (upcomingExpenses.length > 0) {
-      const expenseMsg = lang === "de"
-        ? `Anstehende Ausgaben: ${upcomingExpenses.join(", ")}`
-        : `Upcoming expenses: ${upcomingExpenses.join(", ")}`;
+      const expenseMsg = `Upcoming expenses: ${upcomingExpenses.join(", ")}`;
       bodyLines.push(`- ${expenseMsg}`);
     }
 
     // Financial summary
     const monthlyIncome = calculateMonthlyIncome(financeState);
     const monthlyExpenses = calculateMonthlyExpenses(financeState);
-    const balanceMsg = lang === "de"
-      ? `Kontostand: ${financeState.balance} ${financeState.currency}. Einkommen: ${monthlyIncome}/Monat. Ausgaben: ${monthlyExpenses}/Monat.`
-      : `Balance: ${financeState.balance} ${financeState.currency}. Income: ${monthlyIncome}/month. Expenses: ${monthlyExpenses}/month.`;
+    const balanceMsg = `Balance: ${financeState.balance} ${financeState.currency}. Income: ${monthlyIncome}/month. Expenses: ${monthlyExpenses}/month.`;
     bodyLines.push(`- ${balanceMsg}`);
   }
 
-  const locLabel = lang === "en" ? "Current location" : "Current location";
-  bodyLines.push(`- ${locLabel}: ${ph.current_location}`);
+  bodyLines.push(`- Current location: ${ph.current_location}`);
   if (ph.current_outfit.length > 0) {
     bodyLines.push(`- Outfit: ${ph.current_outfit.join(", ")}`);
   }
 
-  // Phase Final: Urge Synergy - Build prioritized State of Being
-  const prioritizedUrges = calculateUrgePriority(ph, financeState, socialState, lifecycleState, lang);
-  const stateOfBeing = buildStateOfBeing(prioritizedUrges, ph, financeState, socialState, lang);
-  const stateLabel = lang === "en" ? "[STATE OF BEING]" : "[STATE OF BEING]";
-  bodyLines.push(`\n${stateLabel}\n${stateOfBeing}`);
+  if (bodyLines.length > 1) {
+    parts.push(bodyLines.join("\n"));
+  }
 
-  parts.push(bodyLines.join("\n"));
+  // [STATE OF BEING] (Priority Narrative)
+  const prioritizedUrges = calculateUrgePriority(ph, financeState, socialState, lifecycleState);
+  const stateOfBeing = buildStateOfBeing(prioritizedUrges, ph, financeState, socialState);
+  if (stateOfBeing) {
+    parts.push(`[STATE OF BEING]\n${stateOfBeing}`);
+  }
 
   // [PERSONALITY — PHASE]
   if (modules.cycle && cycleState && cycleProfile) {
@@ -2953,60 +2806,42 @@ function buildSensoryContext(
     const phase = getCyclePhase(day);
     const profile = cycleProfile.phases[phase];
     if (profile) {
-      const phaseLabel: Record<CycleState["phase"], string> = {
-        menstruation: "MENSTRUATION", follicular: "FOLLIKULARPHASE",
-        ovulation: "OVULATION", luteal: "LUTEALPHASE",
-      };
       const label = `[PERSONALITY — ${phase.toUpperCase()}]`;
-      const dir = "Directive";
-      parts.push(`${label}\nTon: ${profile.tone}\n${profile.personality_hint}\n${dir}: ${profile.system_prompt_hint}`);
+      parts.push(`${label}\nTone: ${profile.tone}\n${profile.personality_hint}\nDirective: ${profile.system_prompt_hint}`);
     }
   }
 
-  // [TRAUMODUS AKTIV]
+  // [DREAM MODE ACTIVE]
   if (modules.dreams && dreamState?.active) {
     const startedAt = dreamState.started_at ? new Date(dreamState.started_at) : new Date();
     const durationMin = Math.round((Date.now() - startedAt.getTime()) / 60000);
     const durationStr = durationMin >= 60
       ? `${Math.floor(durationMin / 60)}h ${durationMin % 60}min`
       : `${durationMin}min`;
-    if (lang === "de") {
-      parts.push(
-        `[TRAUMODUS AKTIV — seit ${durationStr}]\n` +
-        `Du traeumst. Verarbeite Erlebtes. Nutze reality_dream(action: "log_moment") fuer Kernmomente.\n` +
-        `Nutze reality_dream(action: "wake") um aufzuwachen (setzt Energie auf 100%, Stress auf 0%).`
-      );
-    } else {
-      parts.push(
-        `[DREAM MODE ACTIVE — since ${durationStr}]\n` +
-        `You are dreaming. Process experiences. Use reality_dream(action: "log_moment") for key moments.\n` +
-        `Use reality_dream(action: "wake") to wake up (sets energy to 100%, stress to 0%).`
-      );
-    }
+    parts.push(
+      `[DREAM MODE ACTIVE — since ${durationStr}]\n` +
+      `You are dreaming. Process experiences. Use reality_dream(action: "log_moment") for key moments.\n` +
+      `Use reality_dream(action: "wake") to wake up (sets energy to 100%, stress to 0%).`
+    );
   }
 
-  // [IDLE — HOBBY-VORSCHLAG]
+  // [IDLE — HOBBY SUGGESTION]
   if (modules.hobbies && hobbySuggestion) {
-    if (lang === "de") {
-      parts.push(`[IDLE — HOBBY-VORSCHLAG]\nDu hast gerade keine dringenden Aufgaben. Wie waere es mit: ${hobbySuggestion}?`);
-    } else {
-      parts.push(`[IDLE — HOBBY SUGGESTION]\nYou have no pressing tasks. How about: ${hobbySuggestion}?`);
-    }
+    parts.push(`[IDLE — HOBBY SUGGESTION]\nYou have no pressing tasks. How about: ${hobbySuggestion}?`);
   }
 
-  // [WACHSTUM KONTEXT]
+  // [GROWTH CONTEXT]
   if (growthContext) {
-    parts.push(`${lang === "de" ? "[WACHSTUM KONTEXT]" : "[GROWTH CONTEXT]"}\n${growthContext}`);
+    parts.push(`[GROWTH CONTEXT]\n${growthContext}`);
   }
 
-  // [SELBST-ENTWICKLUNG] — immer am Ende
-  const selfDevText = lang === "de"
-    ? `[SELBST-ENTWICKLUNG]\nDu pflegst dein eigenes Wachstum selbststaendig:\n- Erkenntnisse, Lektionen → reality_grow(add_entry, category: "lesson"|"insight"|...)\n- Stimmungsaenderungen → reality_emotion(set_mood, ...)\n- Bedeutsame Erinnerungen → reality_emotion(add_memory, ...)\n- Innere Wuensche, Verlangen → reality_desire(set_current, ...)\nDu entscheidest selbst — kein Trigger noetig. Warte nicht auf Erlaubnis.`
-    : `[SELF-DEVELOPMENT]\nYou maintain your own growth autonomously:\n- Insights, lessons → reality_grow(add_entry, category: "lesson"|"insight"|...)\n- Mood changes → reality_emotion(set_mood, ...)\n- Meaningful memories → reality_emotion(add_memory, ...)\n- Inner desires → reality_desire(set_current, ...)\nYou decide yourself — no trigger needed. Don't wait for permission.`;
+  // [SELF-DEVELOPMENT] — always at the end
+  const selfDevText = `[SELF-DEVELOPMENT]\nYou maintain your own growth autonomously:\n- Insights, lessons → reality_grow(add_entry, category: "lesson"|"insight"|...)\n- Mood changes → reality_emotion(set_mood, ...)\n- Meaningful memories → reality_emotion(add_memory, ...)\n- Inner desires → reality_desire(set_current, ...)\nYou decide yourself — no trigger needed. Don't wait for permission.`;
   parts.push(selfDevText);
 
   return parts.join("\n\n") + "\n";
 }
+
 
 // ---------------------------------------------------------------------------
 // Plugin registration
@@ -3197,7 +3032,7 @@ export default {
 
       // CYCLE_STATUS in EMOTIONS.md auto-update
       if (modules.cycle && cycleState) {
-        await updateEmotionsCycleStatus(paths.emotions, cycleState, lang, cycleProfile);
+        await updateEmotionsCycleStatus(paths.emotions, cycleState, cycleProfile);
       }
 
       // Hobby suggestion (only when idle)
@@ -3209,7 +3044,7 @@ export default {
           return val >= reflexThreshold;
         });
         if (!hasCritical && ph.needs.energy > 30) {
-          hobbySuggestion = await getHobbySuggestion(paths.hobbies, lang);
+          hobbySuggestion = await getHobbySuggestion(paths.hobbies);
         }
       }
 
@@ -3217,13 +3052,13 @@ export default {
       let dreamTriggerHint = "";
       if (modules.dreams && dreamState && !dreamState.active) {
         const hour = new Date().getHours();
-        const inWindow = dreamWindow.start > dreamWindow.end
-          ? (hour >= dreamWindow.start || hour < dreamWindow.end)
-          : (hour >= dreamWindow.start && hour < dreamWindow.end);
-        if (inWindow && ph.needs.energy <= dreamEnergyThreshold) {
-          dreamTriggerHint = lang === "de"
-            ? "\n[TRAUM-HINWEIS] Du bist muede und es ist Nacht. Du koenntest einschlafen... reality_dream(action: \"enter\")\n"
-            : "\n[DREAM HINT] You are tired and it's nighttime. You could fall asleep... reality_dream(action: \"enter\")\n";
+        const inWindow = cfg?.dreamWindow?.start !== undefined && cfg?.dreamWindow?.end !== undefined
+          ? (cfg.dreamWindow.start > cfg.dreamWindow.end
+            ? (hour >= cfg.dreamWindow.start || hour < cfg.dreamWindow.end)
+            : (hour >= cfg.dreamWindow.start && hour < cfg.dreamWindow.end))
+          : (hour >= 23 || hour < 5);
+        if (inWindow && ph.needs.energy <= (cfg?.dreamEnergyThreshold ?? 20)) {
+          dreamTriggerHint = "\n[DREAM HINT] You are tired and it's nighttime. You could fall asleep... reality_dream(action: \"enter\")\n";
         }
       }
 
@@ -3249,9 +3084,9 @@ export default {
       switch (agentRole) {
         case "limbic":
           // Limbic gets RAW data to process into emotional narratives
-          roleContext = buildLimbicContext(ph, lifecycleState, socialState, financeState, cycleState, lang);
+          roleContext = buildLimbicContext(ph, lifecycleState, socialState, financeState, cycleState);
           // Limbic also processes and sends memo to persona
-          const emotionalState = buildPersonaContext(ph, lifecycleState, socialState, lang);
+          const emotionalState = buildPersonaContext(ph, lifecycleState, socialState);
           await sendMemo(
             paths.internalComm,
             "limbic",
@@ -3273,18 +3108,18 @@ export default {
 
         case "persona":
           // Persona gets processed State of Being (from Limbic) - NO raw data
-          roleContext = buildPersonaContext(ph, lifecycleState, socialState, lang);
+          roleContext = buildPersonaContext(ph, lifecycleState, socialState);
           break;
 
         case "analyst":
           // Analyst gets raw telemetry for strategic decisions
-          roleContext = buildAnalystContext(lifecycleState, financeState, socialState, paths.telemetry, lang);
+          roleContext = buildAnalystContext(lifecycleState, financeState, socialState, paths.telemetry);
           break;
 
         case "developer":
           // Developer gets dev status
           const devManifest = await readJson<DevManifest>(paths.devManifest);
-          roleContext = buildDeveloperContext(devManifest, lang);
+          roleContext = buildDeveloperContext(devManifest);
           break;
 
         default:
@@ -3522,7 +3357,7 @@ export default {
           );
           if (!valid) {
             const available = world.locations.map((l) => l.name).join(", ");
-            return { content: [{ type: "text", text: `Unknown location. Available: ${available}` }] };
+            return { content: [{ type: "text", text: lang === "de" ? `Unbekannter Ort. Verfuegbar: ${available}` : `Unknown location. Available: ${available}` }] };
           }
           ph.current_location = valid.name;
         } else {
@@ -3559,7 +3394,7 @@ export default {
             (item) => !allItems.some((w) => w.name.toLowerCase() === item.toLowerCase())
           );
           if (missing.length > 0) {
-            return { content: [{ type: "text", text: `Not in wardrobe: ${missing.join(", ")}. Use reality_shop to buy first.` }] };
+            return { content: [{ type: "text", text: lang === "de" ? `Nicht im Kleiderschrank: ${missing.join(", ")}. Nutze reality_shop zum Einkaufen.` : `Not in wardrobe: ${missing.join(", ")}. Use reality_shop to buy first.` }] };
           }
         }
 
@@ -3727,13 +3562,14 @@ export default {
             const day = cycle.simulator.active ? cycle.simulator.simulated_day : cycle.current_day;
             const phase = getCyclePhase(day);
             const h = getCycleHormones(day);
+            const isDe = lang === "de";
             const lines = [
-              `## Cycle Status`,
-              `- Day: ${day}/${cycle.cycle_length}`,
-              `- Phase: ${phase}`,
+              isDe ? `## Zyklus-Status` : `## Cycle Status`,
+              `- ${isDe ? "Tag" : "Day"}: ${day}/${cycle.cycle_length}`,
+              `- ${isDe ? "Phase" : "Phase"}: ${phase}`,
               `- Estrogen: ${h.estrogen}% | Progesterone: ${h.progesterone}%`,
               `- LH: ${h.lh}% | FSH: ${h.fsh}%`,
-              `- Simulator: ${cycle.simulator.active ? "active (day " + cycle.simulator.simulated_day + ")" : "off"}`,
+              `- Simulator: ${cycle.simulator.active ? (isDe ? "aktiv (Tag " : "active (day ") + cycle.simulator.simulated_day + ")" : "off"}`,
             ];
             return { content: [{ type: "text", text: lines.join("\n") }] };
           }
@@ -4229,7 +4065,7 @@ export default {
             return { content: [{ type: "text", text: lines.join("\n") }] };
           }
           case "suggest": {
-            const suggestion = await getHobbySuggestion(paths.hobbies, lang);
+            const suggestion = await getHobbySuggestion(paths.hobbies);
             return { content: [{ type: "text", text: suggestion ?? (lang === "de" ? "Keine Vorschlaege." : "No suggestions.") }] };
           }
           default:
@@ -4255,7 +4091,7 @@ export default {
             let ds = await readJson<DreamState>(paths.dreamState);
             if (!ds) ds = { active: false, started_at: null, moments: [] };
             if (ds.active) {
-              return { content: [{ type: "text", text: lang === "de" ? "Traumodus bereits aktiv." : "Dream mode already active." }] };
+              return { content: [{ type: "text", text: lang === "de" ? "Traum-Modus bereits aktiv." : "Dream mode already active." }] };
             }
             const now = new Date();
             ds.active = true;
@@ -4270,7 +4106,7 @@ export default {
               await fs.mkdir(dirname(paths.dreams), { recursive: true });
               await fs.writeFile(paths.dreams, `# Traum-Journal\n${header}`);
             }
-            return { content: [{ type: "text", text: lang === "de" ? "Traumodus aktiviert. Du gleitest ins Traeumen..." : "Dream mode activated. You drift into dreaming..." }] };
+            return { content: [{ type: "text", text: lang === "de" ? "Traum-Modus aktiviert. Du gleitest ins Traeumen..." : "Dream mode activated. You drift into dreaming..." }] };
           }
           case "log_moment": {
             if (!params.moment) return { content: [{ type: "text", text: "moment required." }] };
@@ -4290,17 +4126,20 @@ export default {
             const ph = await readJson<Physique>(paths.physique);
             if (!ph) return { content: [{ type: "text", text: "physique.json not found." }] };
             const now = new Date();
+            const isDe = lang === "de";
             // Write dream entry to dreams.md
-            let dreamEntry = `\n**Energie danach:** 100% | **Stress danach:** 0%\n`;
+            let dreamEntry = isDe 
+              ? `\n**Energie danach:** 100% | **Stress danach:** 0%\n`
+              : `\n**Energy after:** 100% | **Stress after:** 0%\n`;
             if (ds.moments.length > 0) {
-              dreamEntry += `\n### Kernmomente:\n`;
+              dreamEntry += isDe ? `\n### Kernmomente:\n` : `\n### Key Moments:\n`;
               for (const m of ds.moments) {
-                const mTime = new Date(m.timestamp).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+                const mTime = new Date(m.timestamp).toLocaleTimeString(isDe ? "de-DE" : "en-US", { hour: "2-digit", minute: "2-digit" });
                 dreamEntry += `- (${mTime}) ${m.text}\n`;
               }
             }
             if (params.notes) {
-              dreamEntry += `\n### Abschluss-Reflexion:\n${params.notes}\n`;
+              dreamEntry += isDe ? `\n### Abschluss-Reflexion:\n${params.notes}\n` : `\n### Final Reflection:\n${params.notes}\n`;
             }
             dreamEntry += `\n---\n`;
             try { await fs.appendFile(paths.dreams, dreamEntry); } catch { /* ignore */ }
@@ -4312,16 +4151,19 @@ export default {
             ph.last_tick = now.toISOString();
             await writeJson(paths.physique, ph);
             // Reset dream state
-            await writeJson(paths.dreamState, { active: false, started_at: null, moments: [] } as DreamState);
+            await writeJson<DreamState>(paths.dreamState, { active: false, started_at: null, moments: [] });
             // Auto-reflection in GROWTH.md
             const summary = ds.moments.length > 0
-              ? `${ds.moments.length} Traum-Moment(e) verarbeitet`
-              : "Schlaf ohne gespeicherte Momente";
+              ? (isDe ? `${ds.moments.length} Traum-Moment(e) verarbeitet` : `${ds.moments.length} dream moment(s) processed`)
+              : (isDe ? "Schlaf ohne gespeicherte Momente" : "Sleep without saved moments");
             await appendGrowthEntry(paths.growth, "reflection",
-              `Aufgewacht nach Traumsession. ${summary}.${params.notes ? " " + params.notes.slice(0, 100) : ""}`);
+              isDe 
+                ? `Aufgewacht nach Traumsession. ${summary}.${params.notes ? " " + params.notes.slice(0, 100) : ""}`
+                : `Woke up after dream session. ${summary}.${params.notes ? " " + params.notes.slice(0, 100) : ""}`,
+              lang);
             // Close active hobby sessions
             if (modules.hobbies) await endActiveHobbySession(paths.hobbies);
-            return { content: [{ type: "text", text: lang === "de" ? "Du wachst auf. Energie 100%, Stress 0%. Der Traum ist verarbeitet." : "You wake up. Energy 100%, stress 0%. The dream has been processed." }] };
+            return { content: [{ type: "text", text: isDe ? "Du wachst auf. Energie 100%, Stress 0%. Der Traum ist verarbeitet." : "You wake up. Energy 100%, stress 0%. The dream has been processed." }] };
           }
           case "status": {
             const ds = await readJson<DreamState>(paths.dreamState);
@@ -4329,9 +4171,9 @@ export default {
             if (ds.active) {
               const startedAt = ds.started_at ? new Date(ds.started_at) : new Date();
               const durationMin = Math.round((Date.now() - startedAt.getTime()) / 60000);
-              return { content: [{ type: "text", text: `${lang === "de" ? "Traumodus aktiv" : "Dream mode active"}: ${durationMin}min, ${ds.moments.length} ${lang === "de" ? "Momente" : "moments"}` }] };
+              return { content: [{ type: "text", text: `${lang === "de" ? "Traum-Modus aktiv" : "Dream mode active"}: ${durationMin}min, ${ds.moments.length} ${lang === "de" ? "Momente" : "moments"}` }] };
             }
-            return { content: [{ type: "text", text: lang === "de" ? "Traumodus inaktiv." : "Dream mode inactive." }] };
+            return { content: [{ type: "text", text: lang === "de" ? "Traum-Modus inaktiv." : "Dream mode inactive." }] };
           }
           default:
             return { content: [{ type: "text", text: "Unknown action. Valid: enter | log_moment | wake | status" }] };
@@ -4393,56 +4235,58 @@ export default {
           lines.push("\n### Pending Proposals: 0");
         }
 
-        // v2: Emotionen
+        // v2: Emotions
         const emotionHeader = await readEmotionHeader(paths.emotions);
+        const isDe = lang === "de";
         if (emotionHeader) {
-          lines.push("\n### Emotionen");
+          lines.push(isDe ? "\n### Emotionen" : "\n### Emotions");
           for (const el of emotionHeader.split("\n")) {
             lines.push(`- ${el}`);
           }
         }
 
-        // v2: Hobbys
+        // v2: Hobbies
         if (modules.hobbies) {
           const hobbyLog = await readJson<HobbyLog>(paths.hobbies);
-          lines.push("\n### Hobbys");
+          lines.push(isDe ? "\n### Hobbys" : "\n### Hobbies");
           if (hobbyLog?.hobbies) {
-            lines.push(`- Anzahl Hobbys: ${hobbyLog.hobbies.length}`);
+            lines.push(`${isDe ? "- Anzahl Hobbys" : "- Hobby Count"}: ${hobbyLog.hobbies.length}`);
             const active = hobbyLog.hobbies.find(h => h.current_session);
-            lines.push(`- Aktive Session: ${active ? active.name : "keine"}`);
+            lines.push(`${isDe ? "- Aktive Session" : "- Active Session"}: ${active ? active.name : (isDe ? "keine" : "none")}`);
             const sorted = [...hobbyLog.hobbies].filter(h => h.last_pursued).sort((a, b) => (b.last_pursued ?? "").localeCompare(a.last_pursued ?? ""));
             if (sorted.length > 0) {
-              lines.push(`- Zuletzt nachgegangen: ${sorted[0].name} am ${new Date(sorted[0].last_pursued!).toLocaleDateString("de-DE")}`);
+              const lastDate = new Date(sorted[0].last_pursued!).toLocaleDateString(isDe ? "de-DE" : "en-US");
+              lines.push(`${isDe ? "- Zuletzt nachgegangen" : "- Last pursued"}: ${sorted[0].name} (${lastDate})`);
             }
           } else {
-            lines.push("- Keine Hobbys registriert");
+            lines.push(isDe ? "- Keine Hobbys registriert" : "- No hobbies registered");
           }
         }
 
-        // v2: Traum-Modus
+        // v2: Dream Mode
         if (modules.dreams) {
           const ds = await readJson<DreamState>(paths.dreamState);
-          lines.push("\n### Traum-Modus");
-          lines.push(`- Status: ${ds?.active ? "aktiv" : "inaktiv"}`);
-          lines.push(`- Fenster: ${dreamWindow.start}:00-${String(dreamWindow.end).padStart(2, "0")}:00`);
-          lines.push(`- Schwelle: energy <= ${dreamEnergyThreshold}`);
+          lines.push(isDe ? "\n### Traum-Modus" : "\n### Dream Mode");
+          lines.push(`- Status: ${ds?.active ? (isDe ? "aktiv" : "active") : (isDe ? "inaktiv" : "inactive")}`);
+          lines.push(`${isDe ? "- Fenster" : "- Window"}: ${dreamWindow.start}:00-${String(dreamWindow.end).padStart(2, "0")}:00`);
+          lines.push(`${isDe ? "- Schwelle" : "- Threshold"}: energy <= ${dreamEnergyThreshold}`);
           if (ds?.active && ds.moments) {
-            lines.push(`- Momente: ${ds.moments.length}`);
+            lines.push(`- ${isDe ? "Momente" : "Moments"}: ${ds.moments.length}`);
           }
         }
 
-        // v2: Phasenpersoenlichkeit
+        // v2: Phase Personality
         if (modules.cycle) {
           const cp = await readJson<CycleProfile>(paths.cycleProfile);
           if (cp) {
             const cs = await readJson<CycleState>(paths.cycle);
-            lines.push("\n### Phasenpersoenlichkeit");
+            lines.push(isDe ? "\n### Phasenpersoenlichkeit" : "\n### Phase Personality");
             lines.push(`- Profil: ${cp.name}`);
             if (cs) {
               const day = cs.simulator.active ? cs.simulator.simulated_day : cs.current_day;
               const phase = getCyclePhase(day);
               const p = cp.phases[phase];
-              if (p) lines.push(`- Aktuelle Phase: ${phase} — Ton: ${p.tone}`);
+              if (p) lines.push(`${isDe ? "- Aktuelle Phase" : "- Current Phase"}: ${phase} — Ton: ${p.tone}`);
             }
           }
         }
@@ -4601,28 +4445,33 @@ export default {
           }
 
           case "describe": {
+            const isDe = lang === "de";
             if (params.object_id) {
               for (const r of interior.rooms) {
                 const obj = r.objects.find(o => o.id === params.object_id);
                 if (obj) {
-                  const lines = [`**${obj.name}** (${obj.id})`, `Kategorie: ${obj.category}`, `Beschreibung: ${obj.description || "-"}`];
-                  if (obj.images.length > 0) lines.push(`Bilder: ${obj.images.join(", ")}`);
+                  const lines = [
+                    `**${obj.name}** (${obj.id})`, 
+                    `${isDe ? "Kategorie" : "Category"}: ${obj.category}`, 
+                    `${isDe ? "Beschreibung" : "Description"}: ${obj.description || "-"}`
+                  ];
+                  if (obj.images.length > 0) lines.push(`${isDe ? "Bilder" : "Images"}: ${obj.images.join(", ")}`);
                   if (obj.items_on && obj.items_on.length > 0) {
                     const subs = obj.items_on.map(id => r.objects.find(o => o.id === id)?.name ?? id);
-                    lines.push(`Darauf: ${subs.join(", ")}`);
+                    lines.push(`${isDe ? "Darauf" : "Items on this"}: ${subs.join(", ")}`);
                   }
-                  lines.push(`Raum: ${r.name}`);
+                  lines.push(`${isDe ? "Raum" : "Room"}: ${r.name}`);
                   return { content: [{ type: "text", text: lines.join("\n") }] };
                 }
               }
-              return { content: [{ type: "text", text: "Object not found." }] };
+              return { content: [{ type: "text", text: isDe ? "Objekt nicht gefunden." : "Object not found." }] };
             }
             if (params.room_id) {
               const r = interior.rooms.find(rm => rm.id === params.room_id);
-              if (!r) return { content: [{ type: "text", text: "Room not found." }] };
-              return { content: [{ type: "text", text: `**${r.name}** (${r.id})\n${r.description || "-"}\nObjekte: ${r.objects.length}` }] };
+              if (!r) return { content: [{ type: "text", text: isDe ? "Raum nicht gefunden." : "Room not found." }] };
+              return { content: [{ type: "text", text: `**${r.name}** (${r.id})\n${r.description || "-"}\n${isDe ? "Objekte" : "Objects"}: ${r.objects.length}` }] };
             }
-            return { content: [{ type: "text", text: "object_id or room_id required." }] };
+            return { content: [{ type: "text", text: isDe ? "object_id oder room_id erforderlich." : "object_id or room_id required." }] };
           }
 
           default:
@@ -4834,8 +4683,8 @@ See source files in \`src/\`
               { projectId: projId, projectType: projType, scaffolded: params.action === "init_project" }
             );
 
-            const actionWord = params.action === "init_project" ? "initialized" : "created";
-            return { content: [{ type: "text", text: `Project ${actionWord}: ${project.name} (${projId}). Use write_code to add files, then submit_for_review when ready.` }] };
+            const actionWord = params.action === "init_project" ? (lang === "de" ? "initialisiert" : "initialized") : (lang === "de" ? "erstellt" : "created");
+            return { content: [{ type: "text", text: lang === "de" ? `Projekt ${actionWord}: ${project.name} (${projId}). Nutze write_code um Dateien hinzuzufuegen, dann submit_review wenn fertig.` : `Project ${actionWord}: ${project.name} (${projId}). Use write_code to add files, then submit_review when ready.` }] };
           }
 
           case "run_test": {
@@ -4845,10 +4694,10 @@ See source files in \`src/\`
             }
             const testProj = manifest.projects.find(p => p.id === params.project_id);
             if (!testProj) {
-              return { content: [{ type: "text", text: "Project not found." }] };
+              return { content: [{ type: "text", text: lang === "de" ? "Projekt nicht gefunden." : "Project not found." }] };
             }
             if (testProj.files.length === 0) {
-              return { content: [{ type: "text", text: "No files to test. Write code first using write_code." }] };
+              return { content: [{ type: "text", text: lang === "de" ? "Keine Dateien zum Testen. Schreibe zuerst Code mit write_code." : "No files to test. Write code first using write_code." }] };
             }
 
             const testResults: DevTestResult[] = [];
@@ -4865,7 +4714,7 @@ See source files in \`src/\`
                   testResults.push({
                     timestamp: new Date().toISOString(),
                     status: "error",
-                    message: `Path traversal detected in ${file}`,
+                    message: lang === "de" ? `Path traversal in ${file} erkannt` : `Path traversal detected in ${file}`,
                     details: "Security violation"
                   });
                   allPassed = false;
@@ -4881,13 +4730,13 @@ See source files in \`src/\`
                     testResults.push({
                       timestamp: new Date().toISOString(),
                       status: "pass",
-                      message: `${file}: Valid JSON`,
+                      message: `${file}: ${lang === "de" ? "Validiertes JSON" : "Valid JSON"}`,
                     });
                   } catch (e) {
                     testResults.push({
                       timestamp: new Date().toISOString(),
                       status: "fail",
-                      message: `${file}: Invalid JSON`,
+                      message: `${file}: ${lang === "de" ? "Ungueltiges JSON" : "Invalid JSON"}`,
                       details: String(e)
                     });
                     allPassed = false;
@@ -4904,13 +4753,13 @@ See source files in \`src/\`
                     testResults.push({
                       timestamp: new Date().toISOString(),
                       status: "pass",
-                      message: `${file}: Basic syntax check passed (brace matching)`,
+                      message: `${file}: ${lang === "de" ? "Basaler Syntax-Check bestanden (Klammern)" : "Basic syntax check passed (brace matching)"}`,
                     });
                   } else {
                     testResults.push({
                       timestamp: new Date().toISOString(),
                       status: "fail",
-                      message: `${file}: Brace/paren mismatch`,
+                      message: `${file}: ${lang === "de" ? "Klammer-Fehler" : "Brace/paren mismatch"}`,
                       details: `Braces: {${openBraces} vs ${closeBraces}}, Parens: (${openParens} vs ${closeParens})`
                     });
                     allPassed = false;
@@ -4920,14 +4769,14 @@ See source files in \`src/\`
                   testResults.push({
                     timestamp: new Date().toISOString(),
                     status: "pass",
-                    message: `${file}: Readable (${content.length} bytes)`,
+                    message: `${file}: ${lang === "de" ? "Lesbar" : "Readable"} (${content.length} bytes)`,
                   });
                 }
               } catch (e) {
                 testResults.push({
                   timestamp: new Date().toISOString(),
                   status: "error",
-                  message: `Failed to read ${file}`,
+                  message: lang === "de" ? `Fehler beim Lesen von ${file}` : `Failed to read ${file}`,
                   details: String(e)
                 });
                 allPassed = false;
@@ -4950,14 +4799,15 @@ See source files in \`src/\`
             );
 
             // Format output
-            const lines = [`**Test Results for ${testProj.name}**`, ""];
+            const isDe = lang === "de";
+            const lines = [isDe ? `**Testergebnisse fuer ${testProj.name}**` : `**Test Results for ${testProj.name}**`, ""];
             for (const r of testResults) {
               const icon = r.status === "pass" ? "✅" : r.status === "fail" ? "❌" : "⚠️";
               lines.push(`${icon} ${r.message}`);
-              if (r.details) lines.push(`   Details: ${r.details}`);
+              if (r.details) lines.push(`   ${isDe ? "Details" : "Details"}: ${r.details}`);
             }
             lines.push("");
-            lines.push(allPassed ? "✅ All tests passed!" : "❌ Some tests failed. Fix issues before submitting for review.");
+            lines.push(allPassed ? (isDe ? "✅ Alle Tests bestanden!" : "✅ All tests passed!") : (isDe ? "❌ Einige Tests sind fehlgeschlagen. Behebe die Fehler vor dem Review." : "❌ Some tests failed. Fix issues before submitting for review."));
 
             return { content: [{ type: "text", text: lines.join("\n") }] };
           }
@@ -4968,10 +4818,10 @@ See source files in \`src/\`
               return { content: [{ type: "text", text: "project_id, file_path, and file_content required." }] };
             }
             if (params.file_content.length > 10 * 1024 * 1024) {
-              return { content: [{ type: "text", text: "File content exceeds 10 MB limit." }] };
+              return { content: [{ type: "text", text: lang === "de" ? "Dateiinhalt ueberschreitet 10 MB Limit." : "File content exceeds 10 MB limit." }] };
             }
             const proj = manifest.projects.find(p => p.id === params.project_id);
-            if (!proj) return { content: [{ type: "text", text: "Project not found." }] };
+            if (!proj) return { content: [{ type: "text", text: lang === "de" ? "Projekt nicht gefunden." : "Project not found." }] };
             // Path traversal guard — realpath() follows symlinks, resolve() normalizes ".." segments
             const baseDirRaw = resolve(paths.devProjects, params.project_id);
             const baseDir = await fs.realpath(baseDirRaw).catch(() => baseDirRaw);
@@ -4986,7 +4836,7 @@ See source files in \`src/\`
                 `Developer attempted path traversal in ${params.file_path}`,
                 { projectId: params.project_id, filePath: params.file_path, blocked: true }
               );
-              return { content: [{ type: "text", text: "Path traversal detected — blocked." }] };
+              return { content: [{ type: "text", text: lang === "de" ? "Path traversal erkannt — blockiert." : "Path traversal detected — blocked." }] };
             }
             await fs.mkdir(dirname(targetPath), { recursive: true });
             await fs.writeFile(targetPath, params.file_content);
@@ -5007,7 +4857,7 @@ See source files in \`src/\`
               { projectId: params.project_id, filePath: params.file_path, fileSize: params.file_content.length }
             );
 
-            return { content: [{ type: "text", text: `File written: ${params.file_path} (${params.file_content.length} bytes)` }] };
+            return { content: [{ type: "text", text: lang === "de" ? `Datei geschrieben: ${params.file_path} (${params.file_content.length} bytes)` : `File written: ${params.file_path} (${params.file_content.length} bytes)` }] };
           }
 
           case "read_file": {
@@ -5019,25 +4869,25 @@ See source files in \`src/\`
             const baseDir2 = await fs.realpath(baseDirRaw2).catch(() => baseDirRaw2);
             const filePath = resolve(baseDir2, "src", params.file_path);
             if (!filePath.startsWith(baseDir2 + "/")) {
-              return { content: [{ type: "text", text: "Path traversal detected — blocked." }] };
+              return { content: [{ type: "text", text: lang === "de" ? "Path traversal erkannt — blockiert." : "Path traversal detected — blocked." }] };
             }
             try {
               // Resolve symlinks in the final path to catch symlink-based traversal
               const fileReal = await fs.realpath(filePath);
               if (!fileReal.startsWith(baseDir2 + "/")) {
-                return { content: [{ type: "text", text: "Path traversal detected (symlink) — blocked." }] };
+                return { content: [{ type: "text", text: lang === "de" ? "Path traversal erkannt (Symlink) — blockiert." : "Path traversal detected (symlink) — blocked." }] };
               }
               const content = await fs.readFile(fileReal, "utf-8");
               return { content: [{ type: "text", text: content }] };
             } catch {
-              return { content: [{ type: "text", text: "File not found." }] };
+              return { content: [{ type: "text", text: lang === "de" ? "Datei nicht gefunden." : "File not found." }] };
             }
           }
 
           case "submit_review": {
             if (!params.project_id) return { content: [{ type: "text", text: "project_id required." }] };
             const proj2 = manifest.projects.find(p => p.id === params.project_id);
-            if (!proj2) return { content: [{ type: "text", text: "Project not found." }] };
+            if (!proj2) return { content: [{ type: "text", text: lang === "de" ? "Projekt nicht gefunden." : "Project not found." }] };
             proj2.status = "pending_review";
             await writeJson(join(paths.devProjects, params.project_id, "meta.json"), proj2);
             await writeJson(paths.devManifest, manifest);
@@ -5052,29 +4902,30 @@ See source files in \`src/\`
               { projectId: params.project_id, fileCount: proj2.files.length }
             );
 
-            return { content: [{ type: "text", text: `Submitted for review: ${proj2.name}. Waiting for Analyst approval.` }] };
+            return { content: [{ type: "text", text: lang === "de" ? `Zum Review eingereicht: ${proj2.name}. Warte auf Analyst-Freigabe.` : `Submitted for review: ${proj2.name}. Waiting for Analyst approval.` }] };
           }
 
           case "status": {
             if (!params.project_id) return { content: [{ type: "text", text: "project_id required." }] };
             const proj3 = manifest.projects.find(p => p.id === params.project_id);
-            if (!proj3) return { content: [{ type: "text", text: "Project not found." }] };
+            if (!proj3) return { content: [{ type: "text", text: lang === "de" ? "Projekt nicht gefunden." : "Project not found." }] };
+            const isDe = lang === "de";
             const lines = [
               `**${proj3.name}** (${proj3.id})`,
-              `Type: ${proj3.type}`,
+              `${isDe ? "Typ" : "Type"}: ${proj3.type}`,
               `Status: ${proj3.status}`,
-              `Approved: ${proj3.approved}`,
-              `Files: ${proj3.files.join(", ") || "none"}`,
-              `Created: ${proj3.created_at}`,
+              `${isDe ? "Freigegeben" : "Approved"}: ${proj3.approved}`,
+              `${isDe ? "Dateien" : "Files"}: ${proj3.files.join(", ") || (isDe ? "keine" : "none")}`,
+              `${isDe ? "Erstellt" : "Created"}: ${proj3.created_at}`,
             ];
-            if (proj3.description) lines.push(`Description: ${proj3.description}`);
+            if (proj3.description) lines.push(`${isDe ? "Beschreibung" : "Description"}: ${proj3.description}`);
             return { content: [{ type: "text", text: lines.join("\n") }] };
           }
 
           case "delete_project": {
             if (!params.project_id) return { content: [{ type: "text", text: "project_id required." }] };
             const idx = manifest.projects.findIndex(p => p.id === params.project_id);
-            if (idx < 0) return { content: [{ type: "text", text: "Project not found." }] };
+            if (idx < 0) return { content: [{ type: "text", text: lang === "de" ? "Projekt nicht gefunden." : "Project not found." }] };
             const deletedProj = manifest.projects[idx];
             // Remove project directory
             const projDir2 = join(paths.devProjects, params.project_id);
@@ -5092,7 +4943,7 @@ See source files in \`src/\`
               { projectId: params.project_id, projectName: deletedProj.name }
             );
 
-            return { content: [{ type: "text", text: `Project deleted: ${deletedProj.name}` }] };
+            return { content: [{ type: "text", text: lang === "de" ? `Projekt geloescht: ${deletedProj.name}` : `Project deleted: ${deletedProj.name}` }] };
           }
 
           default:
@@ -5116,20 +4967,22 @@ See source files in \`src/\`
       async execute(_id: string, params: ReviewParams) {
         // This tool is analyst-only - in production, enforce via RoleGuard
         const manifest = await readJson<DevManifest>(paths.devManifest);
-        if (!manifest) return { content: [{ type: "text", text: "No projects found." }] };
+        if (!manifest) return { content: [{ type: "text", text: lang === "de" ? "Keine Projekte gefunden." : "No projects found." }] };
+
+        const isDe = lang === "de";
 
         switch (params.action) {
           case "list_pending": {
             const pending = manifest.projects.filter(p => p.status === "pending_review");
             if (pending.length === 0) {
-              return { content: [{ type: "text", text: "No projects pending review." }] };
+              return { content: [{ type: "text", text: isDe ? "Keine Projekte warten auf Freigabe." : "No projects pending review." }] };
             }
-            const lines = ["**Pending Review Projects:**", ""];
+            const lines = [isDe ? "**Wartende Projekte:**" : "**Pending Review Projects:**", ""];
             for (const p of pending) {
               lines.push(`- **${p.name}** (${p.id})`);
-              lines.push(`  Type: ${p.type}, Files: ${p.files.length}`);
-              if (p.description) lines.push(`  Description: ${p.description}`);
-              if (p.last_test_run) lines.push(`  Last Test: ${p.last_test_run}`);
+              lines.push(`  ${isDe ? "Typ" : "Type"}: ${p.type}, ${isDe ? "Dateien" : "Files"}: ${p.files.length}`);
+              if (p.description) lines.push(`  ${isDe ? "Beschreibung" : "Description"}: ${p.description}`);
+              if (p.last_test_run) lines.push(`  ${isDe ? "Letzter Test" : "Last Test"}: ${p.last_test_run}`);
               lines.push("");
             }
             return { content: [{ type: "text", text: lines.join("\n") }] };
@@ -5138,13 +4991,13 @@ See source files in \`src/\`
           case "list_approved": {
             const approved = manifest.projects.filter(p => p.status === "approved" || p.status === "active");
             if (approved.length === 0) {
-              return { content: [{ type: "text", text: "No approved projects." }] };
+              return { content: [{ type: "text", text: isDe ? "Keine freigegebenen Projekte." : "No approved projects." }] };
             }
-            const lines = ["**Approved Projects:**", ""];
+            const lines = [isDe ? "**Freigegebene Projekte:**" : "**Approved Projects:**", ""];
             for (const p of approved) {
               lines.push(`- **${p.name}** (${p.id}) [${p.status}]`);
-              lines.push(`  Type: ${p.type}, Files: ${p.files.length}`);
-              if (p.approved_at) lines.push(`  Approved: ${p.approved_at}`);
+              lines.push(`  ${isDe ? "Typ" : "Type"}: ${p.type}, ${isDe ? "Dateien" : "Files"}: ${p.files.length}`);
+              if (p.approved_at) lines.push(`  ${isDe ? "Freigabe" : "Approved"}: ${p.approved_at}`);
               lines.push("");
             }
             return { content: [{ type: "text", text: lines.join("\n") }] };
@@ -5156,17 +5009,17 @@ See source files in \`src/\`
             }
             const proj = manifest.projects.find(p => p.id === params.project_id);
             if (!proj) {
-              return { content: [{ type: "text", text: "Project not found." }] };
+              return { content: [{ type: "text", text: isDe ? "Projekt nicht gefunden." : "Project not found." }] };
             }
             if (proj.status !== "pending_review") {
-              return { content: [{ type: "text", text: `Project is not pending review. Current status: ${proj.status}` }] };
+              return { content: [{ type: "text", text: isDe ? `Projekt wartet nicht auf Freigabe. Status: ${proj.status}` : `Project is not pending review. Current status: ${proj.status}` }] };
             }
 
             // Approve the project
             proj.status = "approved";
             proj.approved = true;
             proj.approved_at = new Date().toISOString();
-            proj.review_feedback = params.feedback ?? "Approved by Analyst";
+            proj.review_feedback = params.feedback ?? (isDe ? "Durch Analyst freigegeben" : "Approved by Analyst");
             proj.auto_load = params.auto_load ?? true;
 
             // Update both manifest and project meta.json
@@ -5189,13 +5042,17 @@ See source files in \`src/\`
               "analyst",
               "developer",
               "strategy",
-              `Your project "${proj.name}" has been approved! You can now use it in the simulation.`,
+              isDe 
+                ? `Dein Projekt "${proj.name}" wurde freigegeben! Du kannst es jetzt in der Simulation nutzen.`
+                : `Your project "${proj.name}" has been approved! You can now use it in the simulation.`,
               "high",
               cfg?.memoTTL ?? 7
             );
 
-            const loadMsg = proj.auto_load ? " It will be auto-loaded on next agent turn." : "";
-            return { content: [{ type: "text", text: `Project approved: ${proj.name}.${loadMsg}` }] };
+            const loadMsg = proj.auto_load 
+              ? (isDe ? " Es wird beim naechsten Agent-Turn automatisch geladen." : " It will be auto-loaded on next agent turn.") 
+              : "";
+            return { content: [{ type: "text", text: isDe ? `Projekt freigegeben: ${proj.name}.${loadMsg}` : `Project approved: ${proj.name}.${loadMsg}` }] };
           }
 
           case "reject": {
@@ -5204,9 +5061,49 @@ See source files in \`src/\`
             }
             const proj = manifest.projects.find(p => p.id === params.project_id);
             if (!proj) {
-              return { content: [{ type: "text", text: "Project not found." }] };
+              return { content: [{ type: "text", text: isDe ? "Projekt nicht gefunden." : "Project not found." }] };
             }
             if (proj.status !== "pending_review") {
+              return { content: [{ type: "text", text: isDe ? `Projekt wartet nicht auf Freigabe. Status: ${proj.status}` : `Project is not pending review. Current status: ${proj.status}` }] };
+            }
+
+            proj.status = "draft";
+            proj.approved = false;
+            proj.review_feedback = params.feedback ?? (isDe ? "Abgelehnt durch Analyst" : "Rejected by Analyst");
+
+            await writeJson(paths.devManifest, manifest);
+            await writeJson(join(paths.devProjects, params.project_id, "meta.json"), proj);
+
+            // Activity logging
+            await logAgentActivity(
+              paths.agentActivity,
+              "analyst",
+              "analyst",
+              "PROJECT_REJECTED",
+              `Analyst rejected project ${proj.name}`,
+              { projectId: params.project_id, projectName: proj.name, feedback: params.feedback }
+            );
+
+            // Send memo to developer
+            await sendMemo(
+              paths.internalComm,
+              "analyst",
+              "developer",
+              "warning",
+              isDe 
+                ? `Dein Projekt "${proj.name}" wurde abgelehnt. Feedback: ${proj.review_feedback}`
+                : `Your project "${proj.name}" was rejected. Feedback: ${proj.review_feedback}`,
+              "high",
+              cfg?.memoTTL ?? 7
+            );
+
+            return { content: [{ type: "text", text: isDe ? `Projekt abgelehnt: ${proj.name}. Entwickler wurde benachrichtigt.` : `Project rejected: ${proj.name}. Developer notified.` }] };
+          }
+
+          default:
+            return { content: [{ type: "text", text: "Invalid action. Valid: approve, reject, list_pending, list_approved" }] };
+        }
+      },
               return { content: [{ type: "text", text: `Project is not pending review. Current status: ${proj.status}` }] };
             }
 
@@ -5602,7 +5499,7 @@ See source files in \`src/\`
               { memoId: memo.id, recipient: params.recipient, type: params.type }
             );
 
-            return { content: [{ type: "text", text: `Memo sent to ${params.recipient}. ID: ${memo.id}` }] };
+            return { content: [{ type: "text", text: lang === "de" ? `Memo an ${params.recipient} gesendet. ID: ${memo.id}` : `Memo sent to ${params.recipient}. ID: ${memo.id}` }] };
           }
 
           case "list": {
@@ -5616,7 +5513,7 @@ See source files in \`src/\`
             }
 
             const lines = memos.map(m =>
-              `[${m.priority.toUpperCase()}] ${m.sender}→${m.recipient} [${m.type}]: ${m.content.slice(0, 60)}${m.content.length > 60 ? "..." : ""} (${m.read ? "READ" : "UNREAD"})`
+              `[${m.priority.toUpperCase()}] ${m.sender}→${m.recipient} [${m.type}]: ${m.content.slice(0, 60)}${m.content.length > 60 ? "..." : ""} (${m.read ? (lang === "de" ? "GELESEN" : "READ") : (lang === "de" ? "UNGELESEN" : "UNREAD")})`
             );
             return { content: [{ type: "text", text: lines.join("\n") }] };
           }
@@ -5626,7 +5523,7 @@ See source files in \`src/\`
               return { content: [{ type: "text", text: "memo_id is required." }] };
             }
             await deleteMemos(paths.internalComm, [params.memo_id]);
-            return { content: [{ type: "text", text: `Memo ${params.memo_id} deleted.` }] };
+            return { content: [{ type: "text", text: lang === "de" ? `Memo ${params.memo_id} geloescht.` : `Memo ${params.memo_id} deleted.` }] };
           }
 
           case "mark_read": {
@@ -5634,13 +5531,13 @@ See source files in \`src/\`
               return { content: [{ type: "text", text: "memo_id is required." }] };
             }
             await markMemosRead(paths.internalComm, [params.memo_id]);
-            return { content: [{ type: "text", text: `Memo ${params.memo_id} marked as read.` }] };
+            return { content: [{ type: "text", text: lang === "de" ? `Memo ${params.memo_id} als gelesen markiert.` : `Memo ${params.memo_id} marked as read.` }] };
           }
 
           case "clear_read": {
             const readIds = comm.memos.filter(m => m.read).map(m => m.id);
             await deleteMemos(paths.internalComm, readIds);
-            return { content: [{ type: "text", text: `${readIds.length} read memos cleared.` }] };
+            return { content: [{ type: "text", text: lang === "de" ? `${readIds.length} gelesene Memos entfernt.` : `${readIds.length} read memos cleared.` }] };
           }
 
           default:
@@ -5931,7 +5828,7 @@ See source files in \`src/\`
           return { content: [{ type: "text", text: `Invalid event_type. Valid: ${validEvents.join(", ")}` }] };
         }
 
-        const result = processLifeEvent(params.event_type, params.severity, financeState, ph, lang);
+        const result = processLifeEvent(params.event_type, params.severity, financeState, ph);
 
         // Save updated state
         await writeJson(paths.finances, financeState);
@@ -5949,7 +5846,7 @@ See source files in \`src/\`
         };
         await appendJsonl(join(paths.telemetry, "life_events.jsonl"), eventLog);
 
-        return { content: [{ type: "text", text: `${result.narrative} Impact: ${result.impact}` }] };
+        return { content: [{ type: "text", text: lang === "de" ? `${result.narrative} Auswirkung: ${result.impact}` : `${result.narrative} Impact: ${result.impact}` }] };
       },
     });
 
