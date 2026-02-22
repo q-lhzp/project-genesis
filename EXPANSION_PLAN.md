@@ -1,55 +1,76 @@
-# Expansion Plan: Project Genesis - The Human Lifecycle
+# Expansion Plan & Technical Audit Log: Project Genesis
 
-This document outlines the strategic roadmap for `project_genesis`, a comprehensive human life simulation designed for research, education, and AI embodiment.
+This document serves as the strategic roadmap and the authoritative verification registry for **Project Genesis**. It tracks the implementation of the human lifecycle simulation and provides technical pointers for auditing the system's integrity.
+
+---
 
 ## 1. Vision
-To create an autonomous AI entity that experiences a complete human life cycle. The engine provides the biological, social, and economic framework, while the AI independently makes life choices. The system operates as a **Multi-Agent Cluster (MAC)** to simulate a complex psyche with specialized roles for logic, emotion, interaction, and technical growth.
+To create an autonomous AI entity that experiences a complete human life cycle within a **Multi-Agent Cluster (MAC)**. The engine provides the biological, social, economic, and technical environment, while specialized AI agents provide mind, emotion, interaction, and growth.
 
-## 2. Key Architecture Principles
+---
 
-### Multi-Agent Cluster (MAC)
-The psyche is divided into specialized agents to ensure context hygiene and depth:
-- **Persona ("The Voice"):** Interaction with the user. Focus on empathy and character.
-- **Analyst ("The Brain"):** Strategy, finances, and identity governance.
-- **Limbic System ("The Heart"):** Translates data into emotional narratives.
-- **Developer ("The Hand"):** Self-programming and tool creation.
+## 2. Technical Verification Registry (Audit Log)
 
-### Research Transparency & Observability
-100% of internal agent processes must be visible and manageable via the WebUI:
-- **Activity Feed:** Real-time logging of inter-agent decisions ("Who thought what and why?").
-- **Memo Management:** Visual "bulletin board" of internal memos with TTL (Time-To-Live) logic.
-- **Parameter Override:** Real-time manipulation of all biological, social, and psychological values.
+### Phase 1: Chronos (Aging & Lifecycle)
+- **Status:** ✅ Complete
+- **Verification Points:**
+  - `index.ts`: `LifecycleState` interface and `updateLifecycle()` function.
+  - Logic: Age is calculated in days from `birthDate`. Metabolism rates scale via `getLifeStageMultipliers()`.
+  - Stages: Infant, Child, Teen, Adult, Middle Adult, Senior.
+  - File: `memory/reality/lifecycle.json`.
 
-## 3. Core Modules (Project Genesis)
+### Phase 2: Social Fabric (Relationship Engine)
+- **Status:** ✅ Complete
+- **Verification Points:**
+  - `index.ts`: `SocialEntity` interface and `reality_socialize` tool.
+  - Logic: `bond`, `trust`, and `intimacy` scores with dynamic decay via `applySocialDecay()`.
+  - File: `memory/reality/social.json`.
+  - Telemetry: `memory/telemetry/social/interactions.jsonl`.
 
-### Phase 1: Chronos & Social Fabric (Complete)
-- **Status:** Biological aging, life stages, and NPC relationship dynamics are implemented.
+### Phase 3: Prosperity & Labor (Economy)
+- **Status:** ✅ Complete
+- **Verification Points:**
+  - `index.ts`: `FinanceState` interface and `reality_job_market` / `reality_work` tools.
+  - Logic: Recurring expenses processed during heartbeat. Dynamic job offers linked to social status.
+  - File: `memory/reality/finances.json`.
+  - Telemetry: `memory/telemetry/economy/events_YYYY-MM-DD.jsonl`.
 
-### Phase 2: Prosperity & Labor (Complete)
-- **Status:** Economy engine, job market, and automated bills/rent are functional.
+### Phase 4: The Hand (Self-Development Engine)
+- **Status:** ✅ Complete
+- **Verification Points:**
+  - `index.ts`: `reality_develop` tool (init, test, write) and `reality_review_project` (Analyst).
+  - Logic: Sandbox security using `path.resolve`. Dynamic tool loading on next agent turn.
+  - Directory: `memory/development/projects/`.
+  - File: `memory/development/manifest.json`.
 
-### Phase 3: MAC Refactoring & Observability (Current)
-- **Objective:** Split the monolith into the MAC architecture.
-- **Infrastructure:** Role-based access control (RBAC) for tools.
-- **Observability:** Centralized activity logging and memo manager.
+---
 
-### Phase 4: Self-Development Engine
-- **Objective:** Enable the Developer agent to write and register its own tools.
-- **Safety:** Sandboxed filesystem and review-based approval system.
+## 3. Current Objective: Phase 5 - The Lab (WebUI Observability)
+
+**Goal:** Transform the simulated data into an intuitive, high-fidelity research dashboard.
+
+### Core Requirements:
+1. **MAC Transparency:**
+   - Visual log of agent activity ("Who thought what?").
+   - Interactive Memo Board (View/Edit/Delete memos).
+2. **Graphical Vitality:**
+   - Lifespan charts (Energy, Stress, Wealth curves).
+3. **Social Mapping:**
+   - 2D Relationship Graph visualization.
+4. **Researcher Controls:**
+   - Direct override buttons for all vitals and finance parameters.
+
+---
 
 ## 4. Development Milestones & Tagging Strategy
 
-| Tag | Milestone | Description | Status |
+| Tag | Milestone | Focus | Status |
 |---|---|---|---|
-| `v1.0.0-gold` | **Project Genesis 1.0** | Monolithic Human Lifecycle | ✅ Complete |
-| `v1.1.0-mac` | **The Psyche** | Multi-Agent Architecture | ⏳ In Progress |
-| `v1.2.0-observ` | **The Lab** | Full WebUI Observability & Dashboard | 📅 Planned |
-| `v1.3.0-hand` | **The Hand** | Technical Self-Evolution (Coding Agent) | 📅 Planned |
-
-## 5. Technical Specification
-- **Inter-Agent Comm:** `memory/reality/internal_comm.json` (Memos with 7-day TTL).
-- **Activity Logs:** `memory/telemetry/agents/activity.jsonl`.
-- **Role Detection:** `ctx.agent.id` mapping to roles.
+| `v1.0.0-gold` | **Genesis Gold** | Monolithic foundation | ✅ Complete |
+| `v1.1.0-mac` | **The Psyche** | Multi-Agent Refactoring | ✅ Complete |
+| `v1.2.0-hand` | **The Hand** | Self-Development Engine | ✅ Complete |
+| `v1.3.0-observ` | **The Lab** | WebUI Observability | ⏳ In Progress |
+| `v2.0.0-omega` | **Full Autonomy** | Stability & Refinement | 📅 Planned |
 
 ---
-*Official Roadmap for Project Genesis MAC Evolution.*
+*This log is the source of truth for Project Genesis implementation audits.*

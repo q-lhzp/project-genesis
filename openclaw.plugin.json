@@ -287,6 +287,59 @@
     "memoTTL": {
       "label": "Memo TTL (Days)",
       "help": "Time-to-live for inter-agent memos before auto-deletion (default: 7)"
+    },
+    "tools.lifeSimulation": {
+      "label": "Life Simulation Tools",
+      "help": "Tools for everyday living: needs, movement, social interaction, work, hobbies"
+    },
+    "tools.researchLab": {
+      "label": "Research Lab Tools",
+      "help": "Researcher tools: override, inject_event, export, social_map, life_summary, activity_summary"
+    },
+    "reality_override": {
+      "label": "Researcher: Override",
+      "category": "Research Lab",
+      "help": "Directly modify agent state for research (balance, age, stress, energy, hunger)"
+    },
+    "reality_inject_event": {
+      "label": "Researcher: Inject Event",
+      "category": "Research Lab",
+      "help": "Inject major life events for longitudinal studies"
+    },
+    "reality_export_research_data": {
+      "label": "Researcher: Export Data",
+      "category": "Research Lab",
+      "help": "Export telemetry data for analysis"
+    },
+    "reality_get_life_summary": {
+      "label": "Researcher: Life Summary",
+      "category": "Research Lab",
+      "help": "Get comprehensive life milestones and statistics report"
+    },
+    "reality_get_social_map": {
+      "label": "Researcher: Social Map",
+      "category": "Research Lab",
+      "help": "Get social network as JSON graph for visualization"
+    },
+    "reality_get_activity_summary": {
+      "label": "Researcher: Activity Summary",
+      "category": "Research Lab",
+      "help": "Get recent MAC agent activity for Mental Dashboard"
+    },
+    "reality_manage_memos": {
+      "label": "MAC: Memos",
+      "category": "Multi-Agent",
+      "help": "Manage inter-agent communication memos"
+    },
+    "reality_develop": {
+      "label": "Developer: Self-Expansion",
+      "category": "Developer",
+      "help": "Create and manage self-developed tools and scripts"
+    },
+    "reality_review_project": {
+      "label": "Analyst: Review Projects",
+      "category": "Developer",
+      "help": "Review and approve/reject developer project submissions"
     }
   }
 }

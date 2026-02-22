@@ -557,6 +557,21 @@ interface ReviewParams {
   auto_load?: boolean;
 }
 
+// Phase 5: Research Lab - Tool params
+interface LifeSummaryParams {
+  action: "full" | "milestones" | "vitals" | "social" | "finance";
+}
+
+interface SocialMapParams {
+  action: "get" | "entity_details";
+  entity_id?: string;
+}
+
+interface ActivitySummaryParams {
+  limit?: number;
+  agent_role?: string;
+}
+
 // Phase 2: Social Fabric - Tool params
 interface SocializeParams {
   target_id?: string;   // Existing entity ID
@@ -2100,6 +2115,140 @@ async function logAgentActivity(
 }
 
 /**
+ * Log researcher intervention to dedicated telemetry
+ */
+async function logIntervention(
+  telemetryPath: string,
+  interventionType: string,
+  target: string,
+  oldValue: string,
+  newValue: string,
+  reason: string
+): Promise<void> {
+  const interventionPath = join(telemetryPath, "interventions.jsonl");
+
+  const entry = {
+    timestamp: new Date().toISOString(),
+    type: interventionType,
+    target,
+    old_value: oldValue,
+    new_value: newValue,
+    reason,
+    source: "researcher"
+  };
+
+  await appendJsonl(interventionPath, entry);
+}
+
+/**
+ * Get agent activity summary for Mental Dashboard
+ */
+async function getAgentActivitySummary(
+  telemetryPath: string,
+  limit: number = 10
+): Promise<AgentActivityLog[]> {
+  const activityPath = join(telemetryPath, "agents", "activity.jsonl");
+
+  try {
+    const content = await fs.readFile(activityPath, "utf-8");
+    const lines = content.trim().split("\n").filter(Boolean);
+
+    // Parse and reverse to get newest first
+    const entries: AgentActivityLog[] = lines
+      .slice(-limit * 2) // Read more lines than needed
+      .map(line => {
+        try {
+          return JSON.parse(line) as AgentActivityLog;
+        } catch {
+          return null;
+        }
+      })
+      .filter((e): e is AgentActivityLog => e !== null)
+      .reverse();
+
+    return entries.slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Build social map JSON structure for web visualization
+ */
+async function getSocialMap(socialState: SocialState): Promise<{
+  nodes: Array<{
+    id: string;
+    name: string;
+    type: string;
+    bond: number;
+    trust: number;
+    last_interaction: string;
+    status: "active" | "neglected";
+  }>;
+  edges: Array<{
+    from: string;
+    to: string;
+    strength: number;
+    type: string;
+  }>;
+}> {
+  const now = new Date();
+  const nodes: Array<{
+    id: string;
+    name: string;
+    type: string;
+    bond: number;
+    trust: number;
+    last_interaction: string;
+    status: "active" | "neglected";
+  }> = [];
+  const edges: Array<{
+    from: string;
+    to: string;
+    strength: number;
+    type: string;
+  }> = [];
+
+  for (const entity of socialState.entities) {
+    const lastInteraction = new Date(entity.last_interaction);
+    const daysSince = Math.floor((now.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Determine status based on days since interaction
+    const status: "active" | "neglected" = daysSince > 30 ? "neglected" : "active";
+
+    nodes.push({
+      id: entity.id,
+      name: entity.name,
+      type: entity.relationship_type,
+      bond: entity.bond,
+      trust: entity.trust,
+      last_interaction: entity.last_interaction,
+      status
+    });
+
+    // Add edge from self to entity
+    edges.push({
+      from: "self",
+      to: entity.id,
+      strength: entity.bond,
+      type: "bond"
+    });
+
+    // Add trust and intimacy edges
+    if (entity.trust > 50) {
+      edges.push({
+        from: "self",
+        to: entity.id,
+        strength: entity.trust,
+        type: "trust"
+      });
+    }
+  }
+
+  return { nodes, edges };
+}
+
+/**
  * Build raw data context for Limbic agent
  */
 function buildLimbicContext(
@@ -3152,6 +3301,16 @@ export default {
       } else {
         // Others get: role context + default context + memos
         finalContext = roleContext + defaultContext + memoContext;
+      }
+
+      // Add researcher intervention message if present
+      // Note: lastResearcherIntervention is set by reality_override tool
+      // This is a closure variable, so we check it here
+      if (typeof lastResearcherIntervention !== 'undefined' && lastResearcherIntervention) {
+        const iv = lastResearcherIntervention;
+        const timeAgo = Math.floor((Date.now() - new Date(iv.timestamp).getTime()) / 60000); // minutes ago
+        const researcherMsg = `\n[RESEARCHER INTERVENTION] The Researcher has modified your reality:\n- ${iv.target}: ${iv.oldValue} -> ${iv.newValue}\n- Reason: "${iv.reason}"\n- (${timeAgo} minutes ago)\n`;
+        finalContext = finalContext + researcherMsg;
       }
 
       // Log the prompt injection
@@ -5675,6 +5834,9 @@ See source files in \`src/\`
     // -------------------------------------------------------------------
     // Tool: reality_override (Life Editor)
     // -------------------------------------------------------------------
+    // Track last researcher intervention for prompt injection
+    let lastResearcherIntervention: { target: string; oldValue: number; newValue: number; reason: string; timestamp: string } | null = null;
+
     api.registerTool({
       name: "reality_override",
       description: "Manual override for researcher interventions - set balance, age, needs directly",
@@ -5691,14 +5853,10 @@ See source files in \`src/\`
           case "balance": {
             const oldBalance = financeState.balance;
             financeState.balance = params.value;
+            financeState.net_worth = financeState.balance - financeState.debts.reduce((s, d) => s + d.current_balance, 0);
             await writeJson(paths.finances, financeState);
-            await appendJsonl(join(paths.economyTelemetry, "interventions.jsonl"), {
-              timestamp: now,
-              type: "balance_override",
-              old_value: oldBalance,
-              new_value: params.value,
-              reason,
-            });
+            lastResearcherIntervention = { target: "balance", oldValue: oldBalance, newValue: params.value, reason, timestamp: now };
+            await logIntervention(paths.telemetry, "balance_override", "balance", String(oldBalance), String(params.value), reason);
             return { content: [{ type: "text", text: `Balance overridden: ${oldBalance} -> ${params.value}. Reason: ${reason}` }] };
           }
           case "age_days": {
@@ -5707,50 +5865,34 @@ See source files in \`src/\`
               lifecycleState.biological_age_days = params.value;
               lifecycleState.life_stage = getLifeStage(params.value);
               await writeJson(paths.lifecycle, lifecycleState);
-              await appendJsonl(join(paths.telemetry, "interventions.jsonl"), {
-                timestamp: now,
-                type: "age_override",
-                old_value: oldAge,
-                new_value: params.value,
-                reason,
-              });
+              lastResearcherIntervention = { target: "age_days", oldValue: oldAge, newValue: params.value, reason, timestamp: now };
+              await logIntervention(paths.telemetry, "age_override", "age_days", String(oldAge), String(params.value), reason);
               return { content: [{ type: "text", text: `Age overridden: ${oldAge} -> ${params.value} days. Reason: ${reason}` }] };
             }
             return { content: [{ type: "text", text: "Lifecycle not initialized." }] };
           }
           case "stress": {
+            const oldStress = ph.needs.stress;
             ph.needs.stress = Math.min(100, Math.max(0, params.value));
             await writeJson(paths.physique, ph);
-            await appendJsonl(join(paths.telemetry, "interventions.jsonl"), {
-              timestamp: now,
-              type: "needs_override",
-              target: "stress",
-              new_value: params.value,
-              reason,
-            });
+            lastResearcherIntervention = { target: "stress", oldValue: oldStress, newValue: params.value, reason, timestamp: now };
+            await logIntervention(paths.telemetry, "needs_override", "stress", String(oldStress), String(params.value), reason);
             return { content: [{ type: "text", text: `Stress overridden to ${params.value}. Reason: ${reason}` }] };
           }
           case "energy": {
+            const oldEnergy = ph.needs.energy;
             ph.needs.energy = Math.min(100, Math.max(0, params.value));
             await writeJson(paths.physique, ph);
-            await appendJsonl(join(paths.telemetry, "interventions.jsonl"), {
-              timestamp: now,
-              type: "needs_override",
-              target: "energy",
-              new_value: params.value,
-              reason,
-            });
+            lastResearcherIntervention = { target: "energy", oldValue: oldEnergy, newValue: params.value, reason, timestamp: now };
+            await logIntervention(paths.telemetry, "needs_override", "energy", String(oldEnergy), String(params.value), reason);
             return { content: [{ type: "text", text: `Energy overridden to ${params.value}. Reason: ${reason}` }] };
           }
           case "hunger": {
+            const oldHunger = ph.needs.hunger;
             ph.needs.hunger = Math.min(100, Math.max(0, params.value));
             await writeJson(paths.physique, ph);
-            await appendJsonl(join(paths.telemetry, "interventions.jsonl"), {
-              timestamp: now,
-              type: "needs_override",
-              target: "hunger",
-              new_value: params.value,
-              reason,
+            lastResearcherIntervention = { target: "hunger", oldValue: oldHunger, newValue: params.value, reason, timestamp: now };
+            await logIntervention(paths.telemetry, "needs_override", "hunger", String(oldHunger), String(params.value), reason);
             });
             return { content: [{ type: "text", text: `Hunger overridden to ${params.value}. Reason: ${reason}` }] };
           }
@@ -5829,7 +5971,232 @@ See source files in \`src/\`
       },
     });
 
-    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + 2 + 2 + 3; // +2 social, +2 economy, +3 analytics
+    // -------------------------------------------------------------------
+    // Tool: reality_get_life_summary (Research Lab)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_get_life_summary",
+      description: "Get a high-level report of all major life milestones and statistics",
+      parameters: Type.Object({
+        action: Type.String({ description: "Type of summary: full | milestones | vitals | social | finance" }),
+      }),
+      async execute(_id: string, params: LifeSummaryParams) {
+        const action = params.action || "full";
+        let output = "";
+
+        switch (action) {
+          case "milestones": {
+            // Get key milestones from lifecycle
+            const lifecycle = await readJson<LifecycleState>(paths.lifecycle);
+            const social = await readJson<SocialState>(paths.social);
+            const finance = await readJson<FinanceState>(paths.finances);
+
+            const milestones: string[] = [];
+
+            // Age milestones
+            if (lifecycle) {
+              const ageYears = Math.floor(lifecycle.biological_age_days / 365);
+              milestones.push(`- Age: ${ageYears} years (${lifecycle.biological_age_days} days) - Life stage: ${lifecycle.life_stage}`);
+            }
+
+            // Social milestones
+            if (social && social.entities.length > 0) {
+              const strongest = social.entities.sort((a, b) => b.bond - a.bond)[0];
+              milestones.push(`- Strongest relationship: ${strongest.name} (bond: ${strongest.bond})`);
+              milestones.push(`- Total relationships: ${social.entities.length}`);
+            }
+
+            // Financial milestones
+            if (finance) {
+              milestones.push(`- Net worth: ${finance.net_worth} ${finance.currency}`);
+              milestones.push(`- Income sources: ${finance.income_sources.length}`);
+              if (finance.debts.length > 0) {
+                const totalDebt = finance.debts.reduce((sum, d) => sum + d.current_balance, 0);
+                milestones.push(`- Total debt: ${totalDebt} ${finance.currency}`);
+              }
+            }
+
+            output = "## Life Milestones\n\n" + milestones.join("\n");
+            break;
+          }
+
+          case "vitals": {
+            const ph = await readJson<Physique>(paths.physique);
+            const lifecycle = await readJson<LifecycleState>(paths.lifecycle);
+
+            if (ph && lifecycle) {
+              output = "## Current Vitals\n\n";
+              output += `- Energy: ${ph.needs.energy}/100\n`;
+              output += `- Hunger: ${ph.needs.hunger}/100\n`;
+              output += `- Thirst: ${ph.needs.thirst}/100\n`;
+              output += `- Stress: ${ph.needs.stress}/100\n`;
+              output += `- Hygiene: ${ph.needs.hygiene}/100\n`;
+              output += `- Age: ${Math.floor(lifecycle.biological_age_days / 365)} years\n`;
+              output += `- Location: ${ph.current_location}\n`;
+            }
+            break;
+          }
+
+          case "social": {
+            const social = await readJson<SocialState>(paths.social);
+
+            if (social && social.entities.length > 0) {
+              output = "## Social Network\n\n";
+              for (const e of social.entities.sort((a, b) => b.bond - a.bond).slice(0, 10)) {
+                output += `- ${e.name} [${e.relationship_type}]: bond=${e.bond}, trust=${e.trust}, intimacy=${e.intimacy}\n`;
+              }
+            } else {
+              output = "## Social Network\n\nNo relationships yet.";
+            }
+            break;
+          }
+
+          case "finance": {
+            const finance = await readJson<FinanceState>(paths.finances);
+
+            if (finance) {
+              output = "## Financial Status\n\n";
+              output += `- Balance: ${finance.balance} ${finance.currency}\n`;
+              output += `- Net Worth: ${finance.net_worth} ${finance.currency}\n`;
+              output += `- Monthly Income: ${finance.income_sources.reduce((sum, s) => sum + s.salary_per_month, 0)} ${finance.currency}\n`;
+              output += `- Monthly Expenses: ${finance.expenses_recurring.filter(e => e.is_active).reduce((sum, e) => sum + e.amount, 0)} ${finance.currency}\n`;
+              output += `- Active Debts: ${finance.debts.length}\n`;
+            }
+            break;
+          }
+
+          case "full":
+          default: {
+            // Full summary combining all
+            output = "## FULL LIFE SUMMARY\n\n";
+
+            // Vitals
+            const ph = await readJson<Physique>(paths.physique);
+            const lifecycle = await readJson<LifecycleState>(paths.lifecycle);
+            if (ph && lifecycle) {
+              output += "### Current State\n";
+              output += `- Energy: ${ph.needs.energy}/100 | Hunger: ${ph.needs.hunger}/100 | Stress: ${ph.needs.stress}/100\n`;
+              output += `- Age: ${Math.floor(lifecycle.biological_age_days / 365)} years (${lifecycle.life_stage})\n`;
+              output += `- Location: ${ph.current_location}\n\n`;
+            }
+
+            // Social
+            const social = await readJson<SocialState>(paths.social);
+            if (social) {
+              output += "### Social\n";
+              output += `- Relationships: ${social.entities.length}\n`;
+              if (social.entities.length > 0) {
+                const avgBond = Math.floor(social.entities.reduce((s, e) => s + e.bond, 0) / social.entities.length);
+                output += `- Average Bond: ${avgBond}\n`;
+              }
+              output += "\n";
+            }
+
+            // Finance
+            const finance = await readJson<FinanceState>(paths.finances);
+            if (finance) {
+              output += "### Finance\n";
+              output += `- Balance: ${finance.balance} ${finance.currency}\n`;
+              output += `- Net Worth: ${finance.net_worth} ${finance.currency}\n`;
+              output += `- Income: ${finance.income_sources.reduce((s, i) => s + i.salary_per_month, 0)}/month\n`;
+              output += `- Debts: ${finance.debts.reduce((s, d) => s + d.current_balance, 0)} ${finance.currency}\n`;
+            }
+            break;
+          }
+        }
+
+        return { content: [{ type: "text", text: output }] };
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_get_social_map (Research Lab)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_get_social_map",
+      description: "Get social network as JSON graph structure for visualization",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: get | entity_details" }),
+        entity_id: Type.Optional(Type.String()),
+      }),
+      async execute(_id: string, params: SocialMapParams) {
+        const socialState = await readJson<SocialState>(paths.social);
+
+        if (!socialState) {
+          return { content: [{ type: "text", text: "No social data found." }] };
+        }
+
+        if (params.action === "entity_details" && params.entity_id) {
+          const entity = socialState.entities.find(e => e.id === params.entity_id);
+          if (!entity) {
+            return { content: [{ type: "text", text: "Entity not found." }] };
+          }
+
+          const now = new Date();
+          const lastInteraction = new Date(entity.last_interaction);
+          const daysSince = Math.floor((now.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
+
+          const details = {
+            id: entity.id,
+            name: entity.name,
+            type: entity.relationship_type,
+            bond: entity.bond,
+            trust: entity.trust,
+            intimacy: entity.intimacy,
+            last_interaction: entity.last_interaction,
+            days_since_interaction: daysSince,
+            status: daysSince > 30 ? "neglected" : "active",
+            interaction_count: entity.interaction_count,
+            history_summary: entity.history_summary,
+            notes: entity.notes
+          };
+
+          return { content: [{ type: "text", text: JSON.stringify(details, null, 2) }] };
+        }
+
+        // Default: get full social map
+        const map = await getSocialMap(socialState);
+        return { content: [{ type: "text", text: JSON.stringify(map, null, 2) }] };
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_get_activity_summary (Research Lab)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_get_activity_summary",
+      description: "Get recent agent activity summary for the Mental Dashboard",
+      parameters: Type.Object({
+        limit: Type.Optional(Type.Number({ description: "Number of entries (default: 10)" })),
+        agent_role: Type.Optional(Type.String({ description: "Filter by role: persona | analyst | developer | limbic" })),
+      }),
+      async execute(_id: string, params: ActivitySummaryParams) {
+        const limit = params.limit || 10;
+        const activities = await getAgentActivitySummary(paths.telemetry, limit);
+
+        if (activities.length === 0) {
+          return { content: [{ type: "text", text: "No recent activity." }] };
+        }
+
+        // Filter by role if specified
+        const filtered = params.agent_role
+          ? activities.filter(a => a.agent_role === params.agent_role)
+          : activities;
+
+        const lines = ["## Recent Agent Activity\n"];
+
+        for (const activity of filtered) {
+          const time = new Date(activity.timestamp).toLocaleTimeString();
+          lines.push(`**[${activity.agent_role.toUpperCase()}]** ${time}: ${activity.action}`);
+          lines.push(`   ${activity.reason}`);
+          lines.push("");
+        }
+
+        return { content: [{ type: "text", text: lines.join("\n") }] };
+      },
+    });
+
+    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + 2 + 2 + 3 + 3; // +2 social, +2 economy, +3 analytics, +3 research lab
     api.logger.info(`[genesis] Registered: 3 hooks, ${baseToolCount + devToolsLoaded} tools (eros=${modules.eros}, cycle=${modules.cycle}, dreams=${modules.dreams}, hobbies=${modules.hobbies}). Ready.`);
   },
 };
