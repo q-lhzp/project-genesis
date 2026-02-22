@@ -541,7 +541,8 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "reality_develop", "reality_review_project",
     "soul_evolution_pipeline", "soul_evolution_propose", "soul_evolution_reflect",
     "soul_evolution_govern", "soul_evolution_apply",
-    "reality_manage_memos"
+    "reality_manage_memos",
+    "reality_genesis"
   ],
   developer: [
     "reality_develop",
@@ -674,6 +675,90 @@ interface SocialMapParams {
 interface ActivitySummaryParams {
   limit?: number;
   agent_role?: string;
+}
+
+// Phase 7: Origin Engine - Genesis params
+interface GenesisParams {
+  action: "bootstrap";
+  manifest: GenesisManifest;
+}
+
+interface GenesisManifest {
+  physique?: {
+    current_location?: string;
+    current_outfit?: string[];
+    needs?: {
+      energy?: number;
+      hunger?: number;
+      thirst?: number;
+      hygiene?: number;
+      bladder?: number;
+      bowel?: number;
+      stress?: number;
+      arousal?: number;
+      libido?: number;
+    };
+  };
+  lifecycle?: {
+    birth_date?: string;
+    biological_age_days?: number;
+    life_stage?: string;
+  };
+  finances?: {
+    balance?: number;
+    currency?: string;
+    income_sources?: Array<{
+      source_name: string;
+      job_type: string;
+      position: string;
+      salary_per_month: number;
+    }>;
+    debts?: Array<{
+      name: string;
+      principal: number;
+      interest_rate_annual: number;
+    }>;
+  };
+  social?: {
+    entities?: Array<{
+      name: string;
+      relationship_type: string;
+      bond: number;
+      trust: number;
+      intimacy: number;
+      history_summary: string;
+    }>;
+  };
+  skills?: {
+    skills?: Array<{
+      name: string;
+      level: number;
+      xp: number;
+    }>;
+    total_xp?: number;
+  };
+  psychology?: {
+    resilience?: number;
+    traumas?: Array<{
+      description: string;
+      severity: number;
+      trigger: string;
+      decay_rate: number;
+    }>;
+    joys?: string[];
+    phobias?: string[];
+  };
+  identity?: {
+    biography: string;
+    name: string;
+    core_traits?: string[];
+  };
+  soul?: {
+    personality?: string[];
+    philosophy?: string[];
+    boundaries?: string[];
+    continuity?: string[];
+  };
 }
 
 // Phase 2: Social Fabric - Tool params
@@ -3064,6 +3149,7 @@ export default {
       reputation: cfg?.modules?.reputation ?? true,
       desktop: cfg?.modules?.desktop ?? false,
       legacy: cfg?.modules?.legacy ?? false,
+      genesis: cfg?.modules?.genesis ?? false, // Can also be enabled via WebUI (genesis_enabled.json)
     };
     const growthContextEntries = cfg?.growthContextEntries ?? 10;
     const dreamWindow = cfg?.dreamWindow ?? { start: 23, end: 5 };
@@ -3112,6 +3198,8 @@ export default {
       world: resolvePath(ws, "memory", "reality", "world_state.json"),
       psychology: resolvePath(ws, "memory", "reality", "psychology.json"),
       reputation: resolvePath(ws, "memory", "reality", "reputation.json"),
+      genesisEnabled: resolvePath(ws, "memory", "reality", "genesis_enabled.json"),
+      genesisRequest: resolvePath(ws, "memory", "reality", "genesis_request.json"),
     };
 
     // -------------------------------------------------------------------
@@ -3301,6 +3389,17 @@ export default {
         }
       }
 
+      // Origin Engine (Genesis) request detection
+      let genesisInstruction = "";
+      if (genesisEnabled) {
+        try {
+          const request = await readJson<{ prompt: string }>(paths.genesisRequest);
+          if (request?.prompt) {
+            genesisInstruction = `\n[SYSTEM DIRECTIVE: ORIGIN ENGINE REQUEST]\nThe Researcher has requested a new life bootstrap.\nUSER PROMPT: "${request.prompt}"\n\nTASK:\n1. Use your internal knowledge and the Origin Engine rules to generate a complete character manifest.\n2. Call reality_genesis(action: "bootstrap", manifest: "...") with the generated JSON string.\n3. Ensure all fields match the required schemas precisely.\n4. This is a destructive operation. Proceed immediately.\n`;
+          }
+        } catch { /* ignore */ }
+      }
+
       const devManifest = await readJson<DevManifest>(paths.devManifest);
       const isDe = lang === "de";
 
@@ -3460,6 +3559,11 @@ export default {
         const timeAgo = Math.floor((Date.now() - new Date(iv.timestamp).getTime()) / 60000); // minutes ago
         const researcherMsg = `\n[RESEARCHER INTERVENTION] The Researcher has modified your reality:\n- ${iv.target}: ${iv.oldValue} -> ${iv.newValue}\n- Reason: "${iv.reason}"\n- (${timeAgo} minutes ago)\n`;
         finalContext = finalContext + researcherMsg;
+      }
+
+      // Add Genesis instruction if present
+      if (genesisInstruction) {
+        finalContext = finalContext + genesisInstruction;
       }
 
       // Log the prompt injection
@@ -6495,6 +6599,351 @@ See source files in \`src/\`
     });
 
     // -------------------------------------------------------------------
+    // Tool: reality_genesis (Phase 7 - Origin Engine)
+    // -------------------------------------------------------------------
+    // Check if genesis is enabled via config OR via WebUI runtime setting
+    let genesisEnabled = modules.genesis;
+    if (!genesisEnabled) {
+      try {
+        const runtimeSetting = await readJson<{ enabled: boolean }>(paths.genesisEnabled);
+        genesisEnabled = runtimeSetting?.enabled ?? false;
+      } catch { /* ignore - use config default */ }
+    }
+
+    if (genesisEnabled) {
+      // Origin System Prompt - defines the JSON schemas for character generation
+      const ORIGIN_SYSTEM_PROMPT = `You are the Origin Engine. Generate a complete human life profile from the user's natural language description.
+
+CRITICAL RULES:
+1. ALL output must be valid JSON matching the schemas exactly
+2. Use [CORE] tags for immutable identity traits (name, core personality, fundamental values)
+3. Use [MUTABLE] tags for changeable aspects (current mood, recent events, evolving beliefs)
+4. Create a psychologically consistent character with backstory explaining all traits
+
+JSON SCHEMAS REQUIRED:
+
+1. physique.json:
+{
+  "current_location": "string",
+  "current_outfit": ["string"],
+  "needs": { "energy": 0-100, "hunger": 0-100, "thirst": 0-100, "hygiene": 0-100, "bladder": 0-100, "bowel": 0-100, "stress": 0-100, "arousal": 0-100, "libido": 0-100 }
+}
+
+2. lifecycle.json:
+{
+  "birth_date": "YYYY-MM-DD",
+  "biological_age_days": number,
+  "life_stage": "infant|child|teen|adult|middle_adult|senior",
+  "age_progression_enabled": true
+}
+
+3. finances.json:
+{
+  "balance": number,
+  "currency": "EUR",
+  "income_sources": [{ "source_name": string, "job_type": string, "position": string, "salary_per_month": number, "started_at": "ISO" }],
+  "expenses_recurring": [],
+  "debts": [{ "name": string, "principal": number, "current_balance": number, "interest_rate_annual": number, "minimum_payment": number }]
+}
+
+4. social.json:
+{
+  "entities": [{ "name": string, "relationship_type": "family|friend|romantic|professional|acquaintance", "bond": -100 to 100, "trust": 0-100, "intimacy": 0-100, "history_summary": string }]
+}
+
+5. skills.json:
+{
+  "skills": [{ "name": string, "level": 1-100, "xp": 0-10000 }],
+  "total_xp": number
+}
+
+6. psychology.json:
+{
+  "resilience": 0-100,
+  "traumas": [{ "description": string, "severity": 0-100, "trigger": string, "decay_rate": 0.1-1.0 }],
+  "phobias": [string],
+  "joys": [string]
+}
+
+7. IDENTITY.md (Markdown):
+# Biography
+[detailed life story]
+
+# Core Identity
+## Name: [full name]
+## Age: [years]
+## Occupation: [job title]
+
+8. SOUL.md (Markdown with tags):
+[CORE]
+## Personality
+- trait 1
+## Philosophy
+- belief 1
+## Boundaries
+- limit 1
+
+[MUTABLE]
+## Current Mood
+- state
+## Recent Events
+- event 1
+## Evolving Beliefs
+- belief 1
+
+Generate the complete manifest now. Return valid JSON for each file.`;
+
+      api.registerTool({
+        name: "reality_genesis",
+        description: "Bootstrap a complete human life from natural language description (Phase 7 Origin Engine)",
+        parameters: Type.Object({
+          action: Type.String({ description: "Action: bootstrap" }),
+          manifest: Type.String({ description: "JSON string containing all genesis data" }),
+        }),
+        async execute(_id: string, params: { action: string; manifest: string }) {
+          const isDe = lang === "de";
+
+          if (params.action !== "bootstrap") {
+            return { content: [{ type: "text", text: isDe ? "Unbekannte Aktion. Nutze: bootstrap" : "Unknown action. Use: bootstrap" }] };
+          }
+
+          // Parse manifest
+          let manifest: GenesisManifest;
+          try {
+            manifest = JSON.parse(params.manifest);
+          } catch (e) {
+            return { content: [{ type: "text", text: isDe ? "Ungültiges JSON-Manifest." : "Invalid JSON manifest." }] };
+          }
+
+          const warnings: string[] = [];
+          const now = new Date().toISOString();
+
+          try {
+            // 1. Write physique.json
+            if (manifest.physique) {
+              const physique = {
+                current_location: manifest.physique.current_location ?? "home",
+                current_outfit: manifest.physique.current_outfit ?? ["casual"],
+                needs: {
+                  energy: manifest.physique.needs?.energy ?? 80,
+                  hunger: manifest.physique.needs?.hunger ?? 30,
+                  thirst: manifest.physique.needs?.thirst ?? 30,
+                  hygiene: manifest.physique.needs?.hygiene ?? 70,
+                  bladder: manifest.physique.needs?.bladder ?? 50,
+                  bowel: manifest.physique.needs?.bowel ?? 50,
+                  stress: manifest.physique.needs?.stress ?? 20,
+                  arousal: manifest.physique.needs?.arousal ?? 30,
+                  libido: manifest.physique.needs?.libido ?? 30,
+                },
+                last_tick: now,
+                appearance: { hair: "unknown", eyes: "unknown", modifications: [] },
+              };
+              await writeJson(paths.physique, physique);
+            }
+
+            // 2. Write lifecycle.json
+            if (manifest.lifecycle) {
+              const lifecycle = {
+                birth_date: manifest.lifecycle.birth_date ?? "1980-01-01",
+                biological_age_days: manifest.lifecycle.biological_age_days ?? 16000,
+                life_stage: manifest.lifecycle.life_stage ?? "adult",
+                last_aging_check: now,
+                age_progression_enabled: true,
+              };
+              await writeJson(paths.lifecycle, lifecycle);
+            }
+
+            // 3. Write finances.json
+            if (manifest.finances) {
+              const finances = {
+                balance: manifest.finances.balance ?? 1000,
+                currency: manifest.finances.currency ?? "EUR",
+                income_sources: manifest.finances.income_sources ?? [],
+                expenses_recurring: [],
+                debts: manifest.finances.debts ?? [],
+                last_expense_process: now,
+                last_income_process: now,
+                net_worth: (manifest.finances.balance ?? 1000) - (manifest.finances.debts?.reduce((sum, d) => sum + (d.principal ?? 0), 0) ?? 0),
+              };
+              await writeJson(paths.finances, finances);
+            }
+
+            // 4. Write social.json
+            if (manifest.social?.entities) {
+              const social = {
+                entities: manifest.social.entities.map((e, i) => ({
+                  id: `gen_${i + 1}`,
+                  name: e.name,
+                  relationship_type: e.relationship_type,
+                  bond: e.bond ?? 0,
+                  trust: e.trust ?? 50,
+                  intimacy: e.intimacy ?? 20,
+                  last_interaction: now,
+                  interaction_count: 0,
+                  history_summary: e.history_summary ?? "",
+                  introduced_at: now,
+                  notes: "",
+                })),
+                circles: [],
+                last_network_search: null,
+              };
+              await writeJson(paths.social, social);
+            }
+
+            // 5. Write skills.json
+            if (manifest.skills) {
+              const skills = {
+                skills: (manifest.skills.skills ?? []).map((s, i) => ({
+                  id: `skill_${i + 1}`,
+                  name: s.name,
+                  level: Math.min(100, Math.max(1, s.level ?? 1)),
+                  xp: s.xp ?? 0,
+                  xp_to_next: 100,
+                  last_trained: null,
+                })),
+                total_xp: manifest.skills.total_xp ?? 0,
+              };
+              await writeJson(paths.skills, skills);
+            }
+
+            // 6. Write psychology.json
+            if (manifest.psychology) {
+              const psychology = {
+                resilience: Math.min(100, Math.max(0, manifest.psychology.resilience ?? 100)),
+                traumas: (manifest.psychology.traumas ?? []).map((t, i) => ({
+                  id: `trauma_${i + 1}`,
+                  description: t.description,
+                  severity: Math.min(100, Math.max(0, t.severity)),
+                  trigger: t.trigger ?? "unknown",
+                  decay_rate: t.decay_rate ?? 0.5,
+                  added_at: now,
+                })),
+                phobias: manifest.psychology.phobias ?? [],
+                joys: manifest.psychology.joys ?? [],
+              };
+              await writeJson(paths.psychology, psychology);
+            }
+
+            // 7. Write world_state.json (default)
+            if (modules.world) {
+              const worldState = {
+                weather: "sunny",
+                temperature: 20,
+                season: "spring",
+                market_modifier: 1.0,
+                last_update: now,
+              };
+              await writeJson(paths.world, worldState);
+            }
+
+            // 8. Write IDENTITY.md
+            if (manifest.identity) {
+              const identityContent = `# Biography
+
+${manifest.identity.biography ?? "No biography provided."}
+
+## Core Identity
+- **Name:** ${manifest.identity.name ?? "Unknown"}
+- **Age:** ${manifest.identity.core_traits?.join(", ") ?? "Not specified"}
+`;
+              await fs.writeFile(paths.identity, identityContent);
+            }
+
+            // 9. Write SOUL.md
+            if (manifest.soul) {
+              const soulContent = `[CORE]
+## Personality
+${(manifest.soul.personality ?? []).map(t => `- ${t}`).join("\n") || "- (no personality defined)"}
+
+## Philosophy
+${(manifest.soul.philosophy ?? []).map(t => `- ${t}`).join("\n") || "- (no philosophy defined)"}
+
+## Boundaries
+${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no boundaries defined)"}
+
+[MUTABLE]
+## Current Mood
+- Neutral
+
+## Recent Events
+- Life was just bootstrapped via Origin Engine
+
+## Evolving Beliefs
+- (to be developed through simulation)
+`;
+              await fs.writeFile(resolvePath(ws, "SOUL.md"), soulContent);
+            }
+
+            // 10. Write EMOTIONS.md (default)
+            const emotionsContent = `# Emotions
+
+## Current State
+- **Mood:** Neutral
+- **Intensity:** 50/100
+- **Last Update:** ${now}
+
+## Recent Emotions
+- (none yet)
+`;
+            await fs.writeFile(paths.emotions, emotionsContent);
+
+            // 11. Write GROWTH.md (default)
+            const growthContent = `# Growth
+
+## Insights
+- Origin Engine initialized
+
+## Lessons
+- (to be learned through simulation)
+`;
+            await fs.writeFile(paths.growth, growthContent);
+
+            // 12. Write DESIRES.md (default)
+            const desiresContent = `# Desires
+
+## Current
+- (to be discovered through simulation)
+
+## Long-term
+- (to be defined through simulation)
+`;
+            await fs.writeFile(paths.desires, desiresContent);
+
+            // 13. Write interests.json (default)
+            const interests = {
+              hobbies: [],
+              likes: [],
+              wishes: [],
+            };
+            await writeJson(paths.interests, interests);
+
+            // 14. Cleanup: Remove the genesis request if it exists
+            try {
+              if (existsSync(paths.genesisRequest)) {
+                await fs.unlink(paths.genesisRequest);
+              }
+            } catch { /* ignore cleanup error */ }
+
+            const successMsg = isDe
+              ? `✅ Leben erfolgreich bootstrapped!\n- Standort: ${manifest.physique?.current_location ?? "home"}\n- Alter: ${Math.floor((manifest.lifecycle?.biological_age_days ?? 16000) / 365)} Jahre\n- Startkapital: ${manifest.finances?.balance ?? 1000} ${manifest.finances?.currency ?? "EUR"}\n- Beziehungen: ${manifest.social?.entities?.length ?? 0}\n- Fähigkeiten: ${manifest.skills?.skills?.length ?? 0}\n- Resilienz: ${manifest.psychology?.resilience ?? 100}`
+              : `✅ Life successfully bootstrapped!\n- Location: ${manifest.physique?.current_location ?? "home"}\n- Age: ${Math.floor((manifest.lifecycle?.biological_age_days ?? 16000) / 365)} years\n- Starting capital: ${manifest.finances?.balance ?? 1000} ${manifest.finances?.currency ?? "EUR"}\n- Relationships: ${manifest.social?.entities?.length ?? 0}\n- Skills: ${manifest.skills?.skills?.length ?? 0}\n- Resilience: ${manifest.psychology?.resilience ?? 100}`;
+
+            return { content: [{ type: "text", text: successMsg }] };
+
+          } catch (error) {
+            const errMsg = isDe
+              ? `❌ Bootstrap fehlgeschlagen: ${error}`
+              : `❌ Bootstrap failed: ${error}`;
+            return { content: [{ type: "text", text: errMsg }] };
+          }
+        },
+      });
+
+      // Store origin prompt for external LLM calls if needed
+      (globalThis as unknown as { ORIGIN_SYSTEM_PROMPT?: string }).ORIGIN_SYSTEM_PROMPT = ORIGIN_SYSTEM_PROMPT;
+    }
+
+    // -------------------------------------------------------------------
     // Tool: reality_get_activity_summary (Research Lab)
     // -------------------------------------------------------------------
     api.registerTool({
@@ -6530,7 +6979,7 @@ See source files in \`src/\`
       },
     });
 
-    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + 2 + 2 + 3 + 3; // +2 social, +2 economy, +3 analytics, +3 research lab
-    api.logger.info(`[genesis] Registered: 3 hooks, ${baseToolCount + devToolsLoaded} tools (eros=${modules.eros}, cycle=${modules.cycle}, dreams=${modules.dreams}, hobbies=${modules.hobbies}). Ready.`);
+    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + (modules.genesis ? 1 : 0) + 2 + 2 + 3 + 3; // +2 social, +2 economy, +3 analytics, +3 research lab, +1 genesis
+    api.logger.info(`[genesis] Registered: 3 hooks, ${baseToolCount + devToolsLoaded} tools (eros=${modules.eros}, cycle=${modules.cycle}, dreams=${modules.dreams}, hobbies=${modules.hobbies}, genesis=${modules.genesis}). Ready.`);
   },
 };

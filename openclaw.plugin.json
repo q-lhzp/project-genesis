@@ -39,7 +39,8 @@
           "world": { "type": "boolean", "default": true },
           "reputation": { "type": "boolean", "default": true },
           "desktop": { "type": "boolean", "default": false },
-          "legacy": { "type": "boolean", "default": false }
+          "legacy": { "type": "boolean", "default": false },
+          "genesis": { "type": "boolean", "default": false }
         }
       },
       "metabolismRates": {
@@ -303,6 +304,10 @@
     "modules.legacy": {
       "label": "Legacy & Mortality",
       "help": "Enable aging effects, mortality, and inheritance mechanics"
+    },
+    "modules.genesis": {
+      "label": "Origin Engine (Genesis)",
+      "help": "Enable neural life bootstrapping - generate complete character from natural language description"
     },
     "enableLifeEditor": {
       "label": "Enable Life Editor",

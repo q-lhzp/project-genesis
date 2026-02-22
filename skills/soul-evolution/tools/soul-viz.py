@@ -767,6 +767,13 @@ body::after {{
   border-color: var(--accent);
 }}
 
+/* Genesis Toggle Switch */
+#genesis-enabled {{ opacity: 0; width: 0; height: 0; }}
+#genesis-enabled + span {{ background-color: #ccc; }}
+#genesis-enabled:checked + span {{ background-color: var(--core); }}
+#genesis-enabled:checked + span:before {{ transform: translateX(24px); }}
+#genesis-enabled + span:before {{ position: absolute; content: ''; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; }}
+
 /* Editable bullets */
 .bullet.editing {{
   background: var(--bg-hover);
@@ -1673,6 +1680,7 @@ body::after {{
   <button class="tab-btn" onclick="switchTab('world')">World</button>
   <button class="tab-btn" onclick="switchTab('skills')">Skills</button>
   <button class="tab-btn" onclick="switchTab('psychology')">Psychology</button>
+  <button class="tab-btn" onclick="switchTab('genesis')">Genesis Lab</button>
 </div>
 
 <div id="tab-dashboard" class="tab-content active">
@@ -1904,6 +1912,75 @@ body::after {{
         <h2>Sources of Joy</h2>
         <div id="psych-joys"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Genesis Lab Tab -->
+<div id="tab-genesis" class="tab-content">
+  <div style="max-width:800px;margin:0 auto;padding:1.5rem 2rem;">
+    <div class="panel-card" style="border-left:4px solid var(--core);">
+      <h2>Neural Life Bootstrapping</h2>
+      <p style="color:var(--text-dim);margin-top:0.5rem;">Generate a complete human life from a natural language description.</p>
+
+      <!-- Genesis Enable Toggle -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <strong>Origin Engine</strong>
+          <p style="font-size:0.8rem;color:var(--text-dim);margin:0;">Enable neural character generation</p>
+        </div>
+        <label style="position:relative;display:inline-block;width:50px;height:26px;">
+          <input type="checkbox" id="genesis-enabled" style="opacity:0;width:0;height:0;" onchange="toggleGenesis(this.checked)">
+          <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#ccc;transition:0.3s;border-radius:26px;"></span>
+          <span style="position:absolute;content:'';height:20px;width:20px;left:3px;bottom:3px;background-color:white;transition:0.3s;border-radius:50%;"></span>
+        </label>
+      </div>
+      <div id="genesis-status" style="font-size:0.8rem;margin-top:0.5rem;"></div>
+    </div>
+
+    <!-- Danger Warning -->
+    <div class="panel-card" style="border-left:4px solid var(--danger);background:rgba(224,80,80,0.1);margin-top:1rem;">
+      <h3 style="color:var(--danger);">⚠️ DANGER</h3>
+      <p style="font-size:0.9rem;">Bootstrapping a new life will <strong>OVERWRITE ALL</strong> current simulation state. This includes:</p>
+      <ul style="margin:0.5rem 0 0 1.5rem;font-size:0.85rem;">
+        <li>Current age and lifecycle state</li>
+        <li>Balance, debts, and job history</li>
+        <li>All relationships and social network</li>
+        <li>Skills and experience</li>
+        <li>Psychology and mental state</li>
+        <li>Identity and SOUL.md</li>
+      </ul>
+      <p style="font-size:0.85rem;color:var(--danger);margin-top:0.5rem;"><strong>This cannot be undone.</strong></p>
+    </div>
+
+    <!-- Life Prompt -->
+    <div class="panel-card" style="margin-top:1rem;">
+      <h3>Life Description</h3>
+      <p style="color:var(--text-dim);font-size:0.85rem;margin-bottom:0.5rem;">Describe your character in natural language. Be specific about age, profession, personality, relationships, and any significant backstory.</p>
+      <textarea id="genesis-prompt" rows="8" placeholder="Example: A 45-year-old high-tech detective in neo-cyberpunk London struggling with an old trauma from a failed case, currently working as a freelance security consultant. Has a estranged sister, a mentor who died suspiciously, and moderate debts from a divorce. Skilled in combat, investigation, and hacking. Low resilience due to PTSD." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.75rem;font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
+    </div>
+
+    <!-- Generate Button -->
+    <div style="margin-top:1rem;text-align:center;">
+      <button class="btn-save" onclick="runGenesis()" style="background:var(--core);font-size:1rem;padding:0.75rem 2rem;">
+        🚀 GENERATE CHARACTER
+      </button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="genesis-loading" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center;flex-direction:column;">
+      <div style="font-size:2rem;margin-bottom:1rem;">🧬</div>
+      <p style="font-size:1.2rem;">Generating Life Profile...</p>
+      <p style="color:var(--text-dim);font-size:0.9rem;">This may take a moment</p>
+      <div style="margin-top:1rem;width:200px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+        <div id="genesis-progress" style="width:0%;height:100%;background:var(--core);transition:width 0.3s;"></div>
+      </div>
+    </div>
+
+    <!-- Result Display -->
+    <div id="genesis-result" class="panel-card" style="margin-top:1rem;display:none;">
+      <h3 id="genesis-result-title">Result</h3>
+      <pre id="genesis-result-content" style="white-space:pre-wrap;font-size:0.85rem;max-height:300px;overflow:auto;background:var(--bg);padding:0.75rem;border-radius:4px;"></pre>
     </div>
   </div>
 </div>
@@ -2632,6 +2709,7 @@ function switchTab(tabId) {{
   if (tabId === 'world' && !window._worldRendered) {{ renderWorldPanel(); window._worldRendered = true; }}
   if (tabId === 'skills' && !window._skillsRendered) {{ renderSkillsPanel(); window._skillsRendered = true; }}
   if (tabId === 'psychology' && !window._psychRendered) {{ renderPsychPanel(); window._psychRendered = true; }}
+  if (tabId === 'genesis' && !window._genesisRendered) {{ window._genesisRendered = true; loadGenesisStatus(); }}
 }}
 
 // ---------------------------------------------------------------------------
@@ -3639,6 +3717,113 @@ function renderSkillsPanel() {{
   document.getElementById('skills-total').innerHTML = `
     <p style="font-size:2rem;text-align:center;color:var(--growth);">${{totalXp}}</p>
     <p style="text-align:center;font-size:0.8rem;color:var(--text-dim);">Total XP earned</p>`;
+}}
+
+// ---------------------------------------------------------------------------
+// Genesis Lab Tab
+// ---------------------------------------------------------------------------
+async function toggleGenesis(enabled) {{
+  const statusDiv = document.getElementById('genesis-status');
+  try {{
+    const response = await fetch('/api/genesis/toggle', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ enabled: enabled }})
+    }});
+    const result = await response.json();
+
+    if (result.success) {{
+      statusDiv.innerHTML = enabled
+        ? '<span style="color:var(--growth);">✓ Origin Engine enabled. Restart the agent to activate.</span>'
+        : '<span style="color:var(--text-dim);">Origin Engine disabled.</span>';
+    }} else {{
+      statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
+    }}
+  }} catch (error) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + error.message + '</span>';
+  }}
+}}
+
+async function loadGenesisStatus() {{
+  try {{
+    const response = await fetch('/api/genesis/status');
+    const result = await response.json();
+    document.getElementById('genesis-enabled').checked = result.enabled || false;
+
+    const statusDiv = document.getElementById('genesis-status');
+    if (result.enabled) {{
+      statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Origin Engine is enabled</span>';
+    }} else {{
+      statusDiv.innerHTML = '<span style="color:var(--text-dim);">Origin Engine is disabled</span>';
+    }}
+  }} catch (e) {{
+    console.log('Could not load genesis status:', e);
+  }}
+}}
+
+async function runGenesis() {{
+  const prompt = document.getElementById('genesis-prompt').value.trim();
+  if (!prompt) {{
+    alert('Please enter a life description.');
+    return;
+  }}
+
+  if (!confirm('DANGER: This will overwrite your entire simulation. Are you sure?')) return;
+
+  // Show loading overlay
+  const loading = document.getElementById('genesis-loading');
+  const progress = document.getElementById('genesis-progress');
+  loading.style.display = 'flex';
+  progress.style.width = '10%';
+
+  try {{
+    progress.style.width = '30%';
+
+    // Send the prompt to the backend to be picked up by the agent
+    const response = await fetch('/api/genesis/request', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ prompt: prompt }})
+    }});
+    const result = await response.json();
+
+    if (!result.success) throw new Error(result.message);
+
+    progress.style.width = '60%';
+    
+    // Tell user to wait for the agent to process the request
+    const resultDiv = document.getElementById('genesis-result');
+    const resultTitle = document.getElementById('genesis-result-title');
+    const resultContent = document.getElementById('genesis-result-content');
+
+    resultDiv.style.display = 'block';
+    resultTitle.textContent = '⏳ Request Sent';
+    resultTitle.style.color = 'var(--accent)';
+    resultContent.textContent = 'Your request has been sent to the AI agent. Please wait a few seconds for the agent to process the generation and perform the bootstrap.\\n\\nThe dashboard will reload automatically once the process is complete.';
+
+    progress.style.width = '90%';
+
+    // Poll for completion (check if request file is gone)
+    let attempts = 0;
+    const poll = setInterval(async () => {{
+      attempts++;
+      const statusRes = await fetch('/api/genesis/request-status');
+      const status = await statusRes.json();
+      
+      if (!status.pending || attempts > 30) {{
+        clearInterval(poll);
+        progress.style.width = '100%';
+        resultTitle.textContent = '✅ Generation Complete';
+        resultTitle.style.color = 'var(--growth)';
+        resultContent.textContent = 'The agent has finished the life bootstrap. Reloading...';
+        setTimeout(() => location.reload(), 2000);
+      }}
+    }}, 2000);
+
+  }} catch (error) {{
+    alert('Error: ' + error.message);
+    loading.style.display = 'none';
+  }}
 }}
 
 // ---------------------------------------------------------------------------
@@ -5050,6 +5235,72 @@ def main():
                         self.send_header("Content-Type", "text/plain")
                         self.end_headers()
                         self.wfile.write(str(e).encode())
+
+                elif self.path == "/api/genesis/status":
+                    # Return genesis enabled status
+                    genesis_enabled_path = os.path.join(workspace, "memory", "reality", "genesis_enabled.json")
+                    enabled = False
+                    if os.path.exists(genesis_enabled_path):
+                        try:
+                            with open(genesis_enabled_path) as f:
+                                data = json.load(f)
+                                enabled = data.get("enabled", False)
+                        except:
+                            pass
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({{"enabled": enabled}}).encode())
+
+                elif self.path == "/api/genesis/toggle":
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        data = json.loads(body)
+                        enabled = data.get("enabled", False)
+                        genesis_enabled_path = os.path.join(workspace, "memory", "reality", "genesis_enabled.json")
+                        os.makedirs(os.path.dirname(genesis_enabled_path), exist_ok=True)
+                        with open(genesis_enabled_path, "w") as f:
+                            json.dump({{"enabled": enabled, "updated_at": datetime.now().isoformat()}}, f, indent=2)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": True, "enabled": enabled}}).encode())
+                        print(f"  \u2713 Genesis enabled: {enabled}")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+
+                elif self.path == "/api/genesis/request":
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        data = json.loads(body)
+                        prompt_text = data.get("prompt", "")
+                        request_path = os.path.join(workspace, "memory", "reality", "genesis_request.json")
+                        os.makedirs(os.path.dirname(request_path), exist_ok=True)
+                        with open(request_path, "w") as f:
+                            json.dump({{"prompt": prompt_text, "requested_at": datetime.now().isoformat()}}, f, indent=2)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": True}}).encode())
+                        print(f"  \u2713 Genesis request saved")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+
+                elif self.path == "/api/genesis/request-status":
+                    request_path = os.path.join(workspace, "memory", "reality", "genesis_request.json")
+                    pending = os.path.exists(request_path)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({{"pending": pending}}).encode())
 
                 else:
                     self.send_response(404)
