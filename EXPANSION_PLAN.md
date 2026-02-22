@@ -53,14 +53,14 @@ Project Genesis provides 100% web-based evaluation.
 
 Each milestone represents a major leap in capability and will be tagged in Git for version control.
 
-| Tag | Milestone | Description | Detail |
+| Tag | Milestone | Description | Status |
 |---|---|---|---|
-| `v0.1.0-genesis` | **Foundation** | Core transition from Bios Engine | Renaming, new structure, configurable birthDate. |
-| `v0.2.0-social` | **Social Fabric** | Autonomous Relationship Engine | `social.json`, NPC interactions, Social Map in UI. |
-| `v0.3.0-labor` | **Prosperity & Labor** | Autonomous Job Market | AI job search tools, salary logic, Economic Dashboard. |
-| `v0.4.0-chronos` | **The Lifecycle** | Full Aging & Health Engine | Biological decay, life stages, health events. |
-| `v0.5.0-lab` | **The Visual Lab** | Integrated Graphing & Analysis | Full WebUI analytics and Life-Editor functionality. |
-| `v1.0.0-gold` | **Project Genesis 1.0** | Full Autonomous Human Life | Stability, refined triggers, complete research suite. |
+| `v0.1.0-genesis` | **Foundation** | Core transition from Bios Engine | ✅ Complete |
+| `v0.2.0-social` | **Social Fabric** | Autonomous Relationship Engine | ✅ Complete |
+| `v0.3.0-labor` | **Prosperity & Labor** | Autonomous Job Market | ✅ Complete |
+| `v0.4.0-chronos` | **The Lifecycle** | Full Aging & Health Engine | ✅ Complete |
+| `v0.5.0-lab` | **The Visual Lab** | Integrated Graphing & Analysis | ✅ Complete |
+| `v1.0.0-gold` | **Project Genesis 1.0** | Full Autonomous Human Life | ✅ **RELEASED** |
 
 ---
 

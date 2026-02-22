@@ -1613,6 +1613,205 @@ async function exportResearchData(
 }
 
 // ---------------------------------------------------------------------------
+// Phase Final: Urge Synergy - Priority System
+// ---------------------------------------------------------------------------
+
+interface Urge {
+  type: "survival" | "financial" | "social" | "hygiene" | "aspiration";
+  priority: number;    // 1 = highest priority
+  message: string;
+  canOverride: string[];  // Urge types that can override this
+}
+
+function calculateUrgePriority(
+  ph: Physique,
+  finance: FinanceState | null,
+  socialState: SocialState | null,
+  lifecycleState: LifecycleState | null,
+  lang: "de" | "en"
+): Urge[] {
+  const urges: Urge[] = [];
+  const now = new Date();
+
+  // SURVIVAL NEEDS (Priority 1-2) - Critical biological imperatives
+  if (ph.needs.energy < 15) {
+    urges.push({
+      type: "survival",
+      priority: 1,
+      message: lang === "en"
+        ? "You are exhausted. Your body demands rest."
+        : "You are exhausted. Your body demands rest.",
+      canOverride: [],
+    });
+  }
+
+  if (ph.needs.hunger > 85) {
+    urges.push({
+      type: "survival",
+      priority: 1,
+      message: lang === "en"
+        ? "You are starving. Food is an urgent necessity."
+        : "You are starving. Food is an urgent necessity.",
+      canOverride: [],
+    });
+  }
+
+  if (ph.needs.thirst > 85) {
+    urges.push({
+      type: "survival",
+      priority: 1,
+      message: lang === "en"
+        ? "You are parched. You need water immediately."
+        : "You are parched. You need water immediately.",
+      canOverride: [],
+    });
+  }
+
+  if (ph.needs.bladder > 90) {
+    urges.push({
+      type: "survival",
+      priority: 2,
+      message: lang === "en"
+        ? "Your bladder is screaming. You cannot think of anything else."
+        : "Your bladder is screaming. You cannot think of anything else.",
+      canOverride: ["survival"],
+    });
+  }
+
+  // FINANCIAL CRISIS (Priority 3) - Immediate economic pressure
+  if (finance && finance.balance < 100) {
+    urges.push({
+      type: "financial",
+      priority: 3,
+      message: lang === "en"
+        ? "You are in financial crisis. Your account is critically low."
+        : "You are in financial crisis. Your account is critically low.",
+      canOverride: ["survival"],
+    });
+  } else if (finance && finance.balance < 300 && calculateMonthlyIncome(finance) === 0) {
+    urges.push({
+      type: "financial",
+      priority: 3,
+      message: lang === "en"
+        ? "You have no income and minimal savings. You must find work."
+        : "You have no income and minimal savings. You must find work.",
+      canOverride: ["survival"],
+    });
+  }
+
+  // SOCIAL ISOLATION (Priority 4) - Emotional need
+  if (socialState && socialState.entities.length === 0) {
+    urges.push({
+      type: "social",
+      priority: 4,
+      message: lang === "en"
+        ? "You feel completely alone. You crave human connection."
+        : "You feel completely alone. You crave human connection.",
+      canOverride: ["survival", "financial"],
+    });
+  } else if (socialState) {
+    const neglected = socialState.entities.filter(e => {
+      const last = new Date(e.last_interaction);
+      const days = (now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24);
+      return days > 30;
+    });
+    if (neglected.length >= 3) {
+      urges.push({
+        type: "social",
+        priority: 5,
+        message: lang === "en"
+          ? `You haven't connected with ${neglected.map(n => n.name).slice(0, 2).join(" and ")} in weeks. You miss them.`
+          : `You haven't connected with ${neglected.map(n => n.name).slice(0, 2).join(" and ")} in weeks. You miss them.`,
+        canOverride: ["survival", "financial"],
+      });
+    }
+  }
+
+  // HYGIENE (Priority 6)
+  if (ph.needs.hygiene > 85) {
+    urges.push({
+      type: "hygiene",
+      priority: 6,
+      message: lang === "en"
+        ? "You feel unclean. You need to wash."
+        : "You feel unclean. You need to wash.",
+      canOverride: ["survival", "financial", "social"],
+    });
+  }
+
+  // STRESS (Priority 7)
+  if (ph.needs.stress > 80) {
+    urges.push({
+      type: "aspiration",
+      priority: 7,
+      message: lang === "en"
+        ? "You are overwhelmed by stress. You need relief."
+        : "You are overwhelmed by stress. You need relief.",
+      canOverride: ["survival", "financial", "social", "hygiene"],
+    });
+  }
+
+  // LIFE STAGE ASPIRATIONS (Priority 8-10)
+  if (lifecycleState) {
+    const ageYears = Math.floor(lifecycleState.biological_age_days / 365.25);
+    if (lifecycleState.life_stage === "teen" && ageYears >= 16) {
+      urges.push({
+        type: "aspiration",
+        priority: 8,
+        message: lang === "en"
+          ? "You are a teenager seeking independence and identity."
+          : "You are a teenager seeking independence and identity.",
+        canOverride: ["survival", "financial"],
+      });
+    } else if (lifecycleState.life_stage === "adult" && ageYears >= 18 && ageYears <= 25) {
+      urges.push({
+        type: "aspiration",
+        priority: 9,
+        message: lang === "en"
+          ? "You are a young adult building your life. Career and relationships matter."
+          : "You are a young adult building your life. Career and relationships matter.",
+        canOverride: ["survival", "financial", "hygiene"],
+      });
+    }
+  }
+
+  // Sort by priority
+  return urges.sort((a, b) => a.priority - b.priority);
+}
+
+/**
+ * Build a cohesive "State of Being" narrative from prioritized urges
+ */
+function buildStateOfBeing(
+  urges: Urge[],
+  ph: Physique,
+  finance: FinanceState | null,
+  socialState: SocialState | null,
+  lang: "en"
+): string {
+  if (urges.length === 0) {
+    return lang === "en"
+      ? "You feel content. Your needs are met."
+      : "You feel content. Your needs are met.";
+  }
+
+  // Take top 3 most important urges
+  const topUrges = urges.slice(0, 3);
+  const messages = topUrges.map(u => u.message);
+
+  if (messages.length === 1) {
+    return messages[0];
+  }
+
+  // Join with natural language transitions
+  if (messages.length === 2) {
+    return `${messages[0]} However, ${messages[1].charAt(0).toLowerCase() + messages[1].slice(1)}`;
+  }
+
+  return `${messages[0]} Additionally, ${messages[1].charAt(0).toLowerCase() + messages[1].slice(1)} Meanwhile, ${messages[2].charAt(0).toLowerCase() + messages[2].slice(1)}`;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -2108,14 +2307,21 @@ function buildSensoryContext(
     bodyLines.push(`- ${balanceMsg}`);
   }
 
-  const locLabel = lang === "de" ? "Aktueller Ort" : "Current location";
+  const locLabel = lang === "en" ? "Current location" : "Current location";
   bodyLines.push(`- ${locLabel}: ${ph.current_location}`);
   if (ph.current_outfit.length > 0) {
     bodyLines.push(`- Outfit: ${ph.current_outfit.join(", ")}`);
   }
+
+  // Phase Final: Urge Synergy - Build prioritized State of Being
+  const prioritizedUrges = calculateUrgePriority(ph, financeState, socialState, lifecycleState, lang);
+  const stateOfBeing = buildStateOfBeing(prioritizedUrges, ph, financeState, socialState, lang);
+  const stateLabel = lang === "en" ? "[STATE OF BEING]" : "[STATE OF BEING]";
+  bodyLines.push(`\n${stateLabel}\n${stateOfBeing}`);
+
   parts.push(bodyLines.join("\n"));
 
-  // [PERSOENLICHKEIT — PHASE]
+  // [PERSONALITY — PHASE]
   if (modules.cycle && cycleState && cycleProfile) {
     const day = cycleState.simulator.active ? cycleState.simulator.simulated_day : cycleState.current_day;
     const phase = getCyclePhase(day);
@@ -2125,10 +2331,8 @@ function buildSensoryContext(
         menstruation: "MENSTRUATION", follicular: "FOLLIKULARPHASE",
         ovulation: "OVULATION", luteal: "LUTEALPHASE",
       };
-      const label = lang === "de"
-        ? `[PERSOENLICHKEIT — ${phaseLabel[phase]}]`
-        : `[PERSONALITY — ${phase.toUpperCase()}]`;
-      const dir = lang === "de" ? "Direktive" : "Directive";
+      const label = `[PERSONALITY — ${phase.toUpperCase()}]`;
+      const dir = "Directive";
       parts.push(`${label}\nTon: ${profile.tone}\n${profile.personality_hint}\n${dir}: ${profile.system_prompt_hint}`);
     }
   }
@@ -2192,7 +2396,7 @@ export default {
     if (!cfg?.workspacePath && !api.config?.agents?.list?.[0]?.workspace) {
       api.logger.warn("[genesis] workspacePath not configured — using '.' (cwd). Set workspacePath in plugin config to avoid path issues.");
     }
-    const lang = cfg?.language ?? "de";
+    const lang = cfg?.language ?? "en";  // Default to English for Gold Release
     const modules = {
       eros: cfg?.modules?.eros ?? false,
       cycle: cfg?.modules?.cycle ?? false,
