@@ -381,6 +381,75 @@ interface DreamParams {
   notes?: string;
 }
 
+// ---------------------------------------------------------------------------
+// MAC - Multi-Agent Cluster Types
+// ---------------------------------------------------------------------------
+type AgentRole = "persona" | "analyst" | "developer" | "limbic";
+
+interface RoleMapping {
+  persona?: string[];
+  analyst?: string[];
+  developer?: string[];
+  limbic?: string[];
+}
+
+interface AgentMemo {
+  id: string;
+  sender: AgentRole;
+  recipient: AgentRole;
+  type: "emotion" | "urgency" | "strategy" | "info" | "warning";
+  content: string;
+  timestamp: string;
+  ttl_days: number;
+  read: boolean;
+  priority: "low" | "normal" | "high" | "critical";
+}
+
+interface InternalComm {
+  memos: AgentMemo[];
+  last_cleanup: string;
+}
+
+interface AgentActivityLog {
+  timestamp: string;
+  agent_id: string;
+  agent_role: AgentRole;
+  action: string;
+  reason: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Tool access matrix - which roles can access which tools
+const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
+  persona: [
+    "reality_needs", "reality_move", "reality_dress", "reality_shop",
+    "reality_diary", "reality_pleasure", "reality_cycle", "reality_emotion",
+    "reality_desire", "reality_hobby", "reality_dream",
+    "reality_socialize", "reality_network",
+    "reality_interior", "reality_inventory",
+    "reality_manage_memos"
+  ],
+  analyst: [
+    "reality_job_market", "reality_work",
+    "reality_override", "reality_inject_event", "reality_export_research_data",
+    "reality_socialize", "reality_network",
+    "reality_develop",
+    "soul_evolution_pipeline", "soul_evolution_propose", "soul_evolution_reflect",
+    "soul_evolution_govern", "soul_evolution_apply",
+    "reality_manage_memos"
+  ],
+  developer: [
+    "reality_develop",
+    "reality_manage_memos"
+  ],
+  limbic: [
+    "reality_needs", "reality_move", "reality_dress",
+    "reality_emotion", "reality_desire", "reality_cycle",
+    "reality_socialize", "reality_network",
+    "reality_manage_memos"
+  ]
+};
+
 interface PluginConfig {
   workspacePath: string;
   language: "de" | "en";
@@ -413,6 +482,9 @@ interface PluginConfig {
     enabled?: boolean;
     auto_load_approved?: boolean;
   };
+  // MAC - Multi-Agent Cluster
+  roleMapping?: RoleMapping;
+  memoTTL?: number;
 }
 
 // Typed shape of the skill config.json written by this plugin
@@ -503,6 +575,15 @@ interface ExportParams {
   date_from?: string;
   date_to?: string;
   include_telemetry?: string[];
+}
+
+interface MemoParams {
+  action: "add" | "list" | "delete" | "mark_read" | "clear_read";
+  recipient?: string;
+  type?: "emotion" | "urgency" | "strategy" | "info" | "warning";
+  content?: string;
+  priority?: "low" | "normal" | "high" | "critical";
+  memo_id?: string;
 }
 
 interface OverrideParams {
@@ -1812,6 +1893,369 @@ function buildStateOfBeing(
 }
 
 // ---------------------------------------------------------------------------
+// MAC - Multi-Agent Cluster Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect agent role from agentId using roleMapping config
+ */
+function detectAgentRole(agentId: string, roleMapping: RoleMapping | undefined): AgentRole {
+  if (!roleMapping) {
+    // Default fallback: first agent ID is persona, rest is analyst
+    return "persona";
+  }
+
+  const lowerId = agentId.toLowerCase();
+
+  for (const [role, patterns] of Object.entries(roleMapping)) {
+    if (role === "persona" || role === "analyst" || role === "developer" || role === "limbic") {
+      if (patterns?.some(p => lowerId === p.toLowerCase() || lowerId.includes(p.toLowerCase()))) {
+        return role as AgentRole;
+      }
+    }
+  }
+
+  // Default to persona if no match
+  return "persona";
+}
+
+/**
+ * Check if an agent role has access to a specific tool
+ */
+function checkToolAccess(role: AgentRole, toolName: string): boolean {
+  const allowedTools = TOOL_ACCESS_MATRIX[role];
+  if (!allowedTools) return false;
+
+  // Developer gets extra dev tools if they match the pattern
+  if (role === "developer" && toolName.startsWith("dev_")) {
+    return true;
+  }
+
+  return allowedTools.includes(toolName);
+}
+
+/**
+ * Generate memo ID
+ */
+function generateMemoId(): string {
+  return "memo_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/**
+ * Send an inter-agent memo
+ */
+async function sendMemo(
+  commPath: string,
+  sender: AgentRole,
+  recipient: AgentRole,
+  type: AgentMemo["type"],
+  content: string,
+  priority: AgentMemo["priority"] = "normal",
+  ttlDays: number = 7
+): Promise<AgentMemo> {
+  const comm = await readJson<InternalComm>(commPath) ?? { memos: [], last_cleanup: "" };
+
+  const memo: AgentMemo = {
+    id: generateMemoId(),
+    sender,
+    recipient,
+    type,
+    content,
+    timestamp: new Date().toISOString(),
+    ttl_days: ttlDays,
+    read: false,
+    priority
+  };
+
+  comm.memos.push(memo);
+  await writeJson(commPath, comm);
+
+  return memo;
+}
+
+/**
+ * Read memos for a specific role
+ */
+async function readMemos(commPath: string, role: AgentRole, unreadOnly: boolean = false): Promise<AgentMemo[]> {
+  const comm = await readJson<InternalComm>(commPath);
+  if (!comm) return [];
+
+  let memos = comm.memos.filter(m => m.recipient === role);
+
+  if (unreadOnly) {
+    memos = memos.filter(m => !m.read);
+  }
+
+  return memos.sort((a, b) => {
+    // Sort by priority first, then by timestamp
+    const priorityOrder = { critical: 0, high: 1, normal: 2, low: 3 };
+    const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+    if (pDiff !== 0) return pDiff;
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
+}
+
+/**
+ * Mark memos as read
+ */
+async function markMemosRead(commPath: string, memoIds: string[]): Promise<void> {
+  const comm = await readJson<InternalComm>(commPath);
+  if (!comm) return;
+
+  for (const memo of comm.memos) {
+    if (memoIds.includes(memo.id)) {
+      memo.read = true;
+    }
+  }
+
+  await writeJson(commPath, comm);
+}
+
+/**
+ * Delete memos
+ */
+async function deleteMemos(commPath: string, memoIds: string[]): Promise<void> {
+  const comm = await readJson<InternalComm>(commPath);
+  if (!comm) return;
+
+  comm.memos = comm.memos.filter(m => !memoIds.includes(m.id));
+  await writeJson(commPath, comm);
+}
+
+/**
+ * Clean up expired memos (TTL)
+ */
+async function cleanupExpiredMemos(commPath: string, defaultTTL: number = 7): Promise<number> {
+  const comm = await readJson<InternalComm>(commPath);
+  if (!comm || comm.memos.length === 0) return 0;
+
+  const now = new Date();
+  const before = comm.last_cleanup ? new Date(comm.last_cleanup) : new Date(0);
+  const daysSinceCleanup = Math.floor((now.getTime() - before.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Only cleanup once per day
+  if (daysSinceCleanup < 1) return 0;
+
+  const originalCount = comm.memos.length;
+
+  comm.memos = comm.memos.filter(m => {
+    const created = new Date(m.timestamp);
+    const ageDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+    return ageDays < m.ttl_days;
+  });
+
+  comm.last_cleanup = now.toISOString();
+  await writeJson(commPath, comm);
+
+  return originalCount - comm.memos.length;
+}
+
+/**
+ * Log agent activity to telemetry
+ */
+async function logAgentActivity(
+  telemetryPath: string,
+  agentId: string,
+  agentRole: AgentRole,
+  action: string,
+  reason: string,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  const activityPath = join(telemetryPath, "agents", "activity.jsonl");
+
+  const entry: AgentActivityLog = {
+    timestamp: new Date().toISOString(),
+    agent_id: agentId,
+    agent_role: agentRole,
+    action,
+    reason,
+    metadata
+  };
+
+  await appendJsonl(activityPath, entry);
+}
+
+/**
+ * Build raw data context for Limbic agent
+ */
+function buildLimbicContext(
+  ph: Physique,
+  lifecycleState: LifecycleState | null,
+  socialState: SocialState | null,
+  financeState: FinanceState | null,
+  cycleState: CycleState | null,
+  lang: "de" | "en"
+): string {
+  const lines: string[] = [];
+
+  // Raw vitals
+  lines.push(`[LIMBIC RAW DATA]`);
+  lines.push(`Energy: ${ph.needs.energy}/100`);
+  lines.push(`Hunger: ${ph.needs.hunger}/100`);
+  lines.push(`Thirst: ${ph.needs.thirst}/100`);
+  lines.push(`Stress: ${ph.needs.stress}/100`);
+  lines.push(`Hygiene: ${ph.needs.hygiene}/100`);
+
+  // Lifecycle
+  if (lifecycleState) {
+    lines.push(`Age: ${Math.floor(lifecycleState.biological_age_days / 365)} years (${lifecycleState.biological_age_days} days)`);
+    lines.push(`Life Stage: ${lifecycleState.life_stage}`);
+  }
+
+  // Social bonds
+  if (socialState && socialState.entities.length > 0) {
+    const topBonds = socialState.entities
+      .sort((a, b) => b.bond - a.bond)
+      .slice(0, 5)
+      .map(e => `${e.name}: bond=${e.bond}, trust=${e.trust}`);
+    lines.push(`Top Relationships: ${topBonds.join("; ")}`);
+  }
+
+  // Finance
+  if (financeState) {
+    lines.push(`Balance: ${financeState.balance} ${financeState.currency}`);
+    lines.push(`Income: ${financeState.income_sources.reduce((sum, s) => sum + s.salary_per_month, 0)}/month`);
+  }
+
+  // Cycle
+  if (cycleState) {
+    lines.push(`Cycle Day: ${cycleState.current_day}/28`);
+    lines.push(`Phase: ${cycleState.phase}`);
+    lines.push(`Hormones: E=${cycleState.hormones.estrogen}, P=${cycleState.hormones.progesterone}`);
+  }
+
+  const label = lang === "de" ? "DATEN" : "DATA";
+  return `\n[${label}]\n${lines.join("\n")}\n`;
+}
+
+/**
+ * Build persona context (State of Being narrative only)
+ */
+function buildPersonaContext(
+  ph: Physique,
+  lifecycleState: LifecycleState | null,
+  socialState: SocialState | null,
+  lang: "de" | "en"
+): string {
+  const lines: string[] = [];
+  const isDe = lang === "de";
+
+  // State of Being narrative
+  lines.push(isDe ? "[DEIN BEFINDEN]" : "[YOUR STATE OF BEING]");
+
+  // Energy-based feeling
+  if (ph.needs.energy < 20) {
+    lines.push(isDe ? "- Du fuehlst dich erschöpft und muede." : "- You feel exhausted and tired.");
+  } else if (ph.needs.energy > 70) {
+    lines.push(isDe ? "- Du fuehlst dich voller Energie." : "- You feel full of energy.");
+  }
+
+  // Hunger-based feeling
+  if (ph.needs.hunger > 70) {
+    lines.push(isDe ? "- Du hast grossen Hunger." : "- You are very hungry.");
+  }
+
+  // Stress-based feeling
+  if (ph.needs.stress > 70) {
+    lines.push(isDe ? "- Du fuehlst dich sehr gestresst." : "- You feel very stressed.");
+  }
+
+  // Social feeling (based on average bond)
+  if (socialState && socialState.entities.length > 0) {
+    const avgBond = socialState.entities.reduce((sum, e) => sum + e.bond, 0) / socialState.entities.length;
+    if (avgBond > 30) {
+      lines.push(isDe ? "- Du fuehlst dich von Menschen umgeben, die dich schaetzen." : "- You feel surrounded by people who value you.");
+    } else if (avgBond < -20) {
+      lines.push(isDe ? "- Du fuehlst dich einsam und unverstanden." : "- You feel lonely and misunderstood.");
+    }
+  }
+
+  // Age feeling
+  if (lifecycleState) {
+    const ageYears = Math.floor(lifecycleState.biological_age_days / 365);
+    if (lifecycleState.life_stage === "child") {
+      lines.push(isDe ? "- Du bist ein neugieriges Kind." : "- You are a curious child.");
+    } else if (lifecycleState.life_stage === "senior") {
+      lines.push(isDe ? "- Du fuehlst die Jahre in deinen Knochen." : "- You feel your years in your bones.");
+    }
+  }
+
+  return `\n${lines.join("\n")}\n`;
+}
+
+/**
+ * Build analyst context (raw telemetry)
+ */
+function buildAnalystContext(
+  lifecycleState: LifecycleState | null,
+  financeState: FinanceState | null,
+  socialState: SocialState | null,
+  telemetryPath: string,
+  lang: "de" | "en"
+): string {
+  const lines: string[] = [];
+  const isDe = lang === "de";
+
+  lines.push(isDe ? "[ANALYST TELEMETRY]" : "[ANALYST TELEMETRY]");
+
+  // Financial data
+  if (financeState) {
+    lines.push(`Balance: ${financeState.balance} ${financeState.currency}`);
+    lines.push(`Net Worth: ${financeState.net_worth}`);
+    lines.push(`Monthly Income: ${financeState.income_sources.reduce((sum, s) => sum + s.salary_per_month, 0)}`);
+    lines.push(`Monthly Expenses: ${financeState.expenses_recurring.filter(e => e.is_active).reduce((sum, e) => sum + e.amount, 0)}`);
+    lines.push(`Debts: ${financeState.debts.reduce((sum, d) => sum + d.current_balance, 0)}`);
+  }
+
+  // Social metrics
+  if (socialState) {
+    lines.push(`Total Relationships: ${socialState.entities.length}`);
+    const avgBond = socialState.entities.length > 0
+      ? Math.floor(socialState.entities.reduce((sum, e) => sum + e.bond, 0) / socialState.entities.length)
+      : 0;
+    lines.push(`Average Bond Score: ${avgBond}`);
+  }
+
+  // Lifecycle metrics
+  if (lifecycleState) {
+    lines.push(`Biological Age: ${lifecycleState.biological_age_days} days (${Math.floor(lifecycleState.biological_age_days / 365)} years)`);
+    lines.push(`Life Stage: ${lifecycleState.life_stage}`);
+  }
+
+  return `\n${lines.join("\n")}\n`;
+}
+
+/**
+ * Build developer context
+ */
+function buildDeveloperContext(
+  devManifest: DevManifest | null,
+  lang: "de" | "en"
+): string {
+  const lines: string[] = [];
+  const isDe = lang === "de";
+
+  lines.push(isDe ? "[DEVELOPER STATUS]" : "[DEVELOPER STATUS]");
+
+  if (devManifest) {
+    const pending = devManifest.projects.filter(p => p.status === "pending_review");
+    const active = devManifest.projects.filter(p => p.status === "active");
+
+    lines.push(`Pending Reviews: ${pending.length}`);
+    lines.push(`Active Projects: ${active.length}`);
+
+    if (pending.length > 0) {
+      lines.push(isDe ? "Wartende Projekte:" : "Pending Projects:");
+      pending.forEach(p => lines.push(`  - ${p.name} (${p.type})`));
+    }
+  } else {
+    lines.push(isDe ? "Keine Entwicklungsprojekte." : "No development projects.");
+  }
+
+  return `\n${lines.join("\n")}\n`;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -2442,6 +2886,9 @@ export default {
       // Phase 3: Prosperity & Labor - Economy
       finances: resolvePath(ws, "memory", "reality", "finances.json"),
       economyTelemetry: resolvePath(ws, "memory", "telemetry", "economy"),
+      // MAC - Multi-Agent Cluster
+      internalComm: resolvePath(ws, "memory", "reality", "internal_comm.json"),
+      agentActivity: resolvePath(ws, "memory", "telemetry", "agents"),
     };
 
     // -------------------------------------------------------------------
@@ -2477,9 +2924,29 @@ export default {
     await migrateWardrobe(paths.wardrobe);
 
     // -------------------------------------------------------------------
-    // Hook: before_prompt_build — sensory injection
+    // Hook: before_prompt_build — role-specific sensory injection
     // -------------------------------------------------------------------
-    api.on("before_prompt_build", async (_event: unknown, _ctx: unknown) => {
+    // Extended ctx interface for MAC role detection in before_prompt_build
+    interface PromptBuildCtx {
+      agent?: { id?: string; name?: string };
+    }
+
+    api.on("before_prompt_build", async (_event: unknown, ctx: unknown) => {
+      const promptCtx = ctx as PromptBuildCtx;
+      const agentId = promptCtx?.agent?.id ?? promptCtx?.agent?.name ?? "persona";
+      const roleMapping = cfg?.roleMapping;
+      const agentRole = detectAgentRole(agentId, roleMapping);
+
+      // Clean up expired memos (daily)
+      const memoTTL = cfg?.memoTTL ?? 7;
+      await cleanupExpiredMemos(paths.internalComm, memoTTL);
+
+      // Initialize internal_comm.json if missing
+      const internalComm = await readJson<InternalComm>(paths.internalComm);
+      if (!internalComm) {
+        await writeJson(paths.internalComm, { memos: [], last_cleanup: new Date().toISOString() });
+      }
+
       const ph = await readJson<Physique>(paths.physique);
       if (!ph) return { prependContext: "" };
 
@@ -2518,6 +2985,10 @@ export default {
       if (lifecycleState) {
         await logVitalityTelemetry(paths.telemetry, lifecycleState, ph.needs, ph.current_location);
       }
+
+      // Load social and finance state for role-specific contexts
+      let socialState: SocialState | null = await readJson<SocialState>(paths.social);
+      let financeState: FinanceState | null = await readJson<FinanceState>(paths.finances);
 
       // Ensure soul files exist (one-time auto-init)
       await ensureSoulFiles(
@@ -2574,11 +3045,100 @@ export default {
         }
       }
 
-      const context = buildSensoryContext(
+      // Build role-specific context
+      let roleContext = "";
+      let memoContext = "";
+
+      // Get memos for this agent
+      const myMemos = await readMemos(paths.internalComm, agentRole, false);
+      if (myMemos.length > 0) {
+        const unreadCount = myMemos.filter(m => !m.read).length;
+        memoContext = `\n[INTERNAL COMMS - ${unreadCount} unread]\n`;
+        for (const memo of myMemos.slice(0, 5)) {
+          const from = memo.sender;
+          const type = memo.type;
+          const content = memo.content.slice(0, 100) + (memo.content.length > 100 ? "..." : "");
+          memoContext += `- ${from}→${memo.recipient} [${type}]: ${content}\n`;
+        }
+        // Mark as read
+        await markMemosRead(paths.internalComm, myMemos.filter(m => !m.read).map(m => m.id));
+      }
+
+      switch (agentRole) {
+        case "limbic":
+          // Limbic gets RAW data to process into emotional narratives
+          roleContext = buildLimbicContext(ph, lifecycleState, socialState, financeState, cycleState, lang);
+          // Limbic also processes and sends memo to persona
+          const emotionalState = buildPersonaContext(ph, lifecycleState, socialState, lang);
+          await sendMemo(
+            paths.internalComm,
+            "limbic",
+            "persona",
+            "emotion",
+            emotionalState.trim(),
+            "normal",
+            memoTTL
+          );
+          await logAgentActivity(
+            paths.agentActivity,
+            agentId,
+            agentRole,
+            "STATE_OF_BEING_GENERATED",
+            `Generated emotional state from raw data`,
+            { cyclePhase: cycleState?.phase, stress: ph.needs.stress, energy: ph.needs.energy }
+          );
+          break;
+
+        case "persona":
+          // Persona gets processed State of Being (from Limbic) - NO raw data
+          roleContext = buildPersonaContext(ph, lifecycleState, socialState, lang);
+          break;
+
+        case "analyst":
+          // Analyst gets raw telemetry for strategic decisions
+          roleContext = buildAnalystContext(lifecycleState, financeState, socialState, paths.telemetry, lang);
+          break;
+
+        case "developer":
+          // Developer gets dev status
+          const devManifest = await readJson<DevManifest>(paths.devManifest);
+          roleContext = buildDeveloperContext(devManifest, lang);
+          break;
+
+        default:
+          // Fallback to default sensory context
+          roleContext = "";
+      }
+
+      // Build default sensory context (for everyone)
+      const defaultContext = buildSensoryContext(
         ph, lang, modules, cycleState, cycleProfile,
         emotionState, desireState, identityLine, growthCtx,
         dreamState, hobbySuggestion, lifecycleState, socialState, financeState
       ) + dreamTriggerHint;
+
+      // Combine contexts based on role
+      let finalContext: string;
+      if (agentRole === "persona") {
+        // Persona gets: default context + role context (State of Being)
+        finalContext = defaultContext + roleContext;
+      } else if (agentRole === "limbic") {
+        // Limbic gets: role context (raw data) only
+        finalContext = roleContext + memoContext;
+      } else {
+        // Others get: role context + default context + memos
+        finalContext = roleContext + defaultContext + memoContext;
+      }
+
+      // Log the prompt injection
+      await logAgentActivity(
+        paths.agentActivity,
+        agentId,
+        agentRole,
+        "PROMPT_INJECTION",
+        `Role ${agentRole} received ${finalContext.length} chars of context`,
+        { contextLength: finalContext.length, role: agentRole }
+      );
 
       // Check for critical needs and enqueue emergency event
       const criticalNeeds = Object.entries(ph.needs)
@@ -2598,15 +3158,58 @@ export default {
         runtime.system.enqueueSystemEvent({ text, mode: "next" });
       }
 
-      return { prependContext: context };
+      return { prependContext: finalContext };
     });
 
     // -------------------------------------------------------------------
-    // Hook: before_tool_call — reflex lock
+    // Hook: before_tool_call — RoleGuard + reflex lock
     // -------------------------------------------------------------------
+    // Extended ctx interface for MAC role detection
+    interface HookContext {
+      toolName?: string;
+      agent?: { id?: string; name?: string };
+    }
+
     api.on("before_tool_call", async (_event: unknown, ctx: unknown) => {
+      const hookCtx = ctx as HookContext;
+      const toolName: string = hookCtx.toolName ?? "";
+      const agentId = hookCtx.agent?.id ?? hookCtx.agent?.name ?? "unknown";
+
+      // Detect agent role
+      const roleMapping = cfg?.roleMapping;
+      const agentRole = detectAgentRole(agentId, roleMapping);
+
+      // MAC: RoleGuard - block unauthorized tools
+      if (!toolName.startsWith("reality_") && toolName !== "evolution_debug") {
+        if (!checkToolAccess(agentRole, toolName)) {
+          // Log the blocked access attempt
+          await logAgentActivity(
+            paths.agentActivity,
+            agentId,
+            agentRole,
+            "TOOL_ACCESS_DENIED",
+            `Role ${agentRole} attempted to access forbidden tool: ${toolName}`,
+            { toolName, blocked: true }
+          );
+
+          const reason = lang === "de"
+            ? `Rolle '${agentRole}' hat keinen Zugriff auf '${toolName}'.`
+            : `Role '${agentRole}' does not have access to '${toolName}'.`;
+          return { block: true, blockReason: reason };
+        }
+      }
+
+      // Log successful tool access
+      await logAgentActivity(
+        paths.agentActivity,
+        agentId,
+        agentRole,
+        "TOOL_ACCESS",
+        `Role ${agentRole} accessed tool: ${toolName}`,
+        { toolName }
+      );
+
       // Never block reality tools or debug — prevents deadlock
-      const toolName: string = (ctx as BeforeToolCallCtx).toolName ?? "";
       if (toolName.startsWith("reality_") || toolName === "evolution_debug") return { block: false };
 
       const ph = await readJson<Physique>(paths.physique);
@@ -4384,6 +4987,113 @@ export default {
 
           default:
             return { content: [{ type: "text", text: "Invalid action." }] };
+        }
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_manage_memos — Inter-Agent Communication
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_manage_memos",
+      description: "Manage inter-agent memos for the Multi-Agent Cluster communication system",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: add | list | delete | mark_read | clear_read" }),
+        recipient: Type.Optional(Type.String({ description: "Target role: persona | analyst | developer | limbic" })),
+        type: Type.Optional(Type.String({ description: "Memo type: emotion | urgency | strategy | info | warning" })),
+        content: Type.Optional(Type.String()),
+        priority: Type.Optional(Type.String({ description: "Priority: low | normal | high | critical" })),
+        memo_id: Type.Optional(Type.String()),
+      }),
+      async execute(_id: string, params: { action: string; recipient?: string; type?: string; content?: string; priority?: string; memo_id?: string }) {
+        const action = params.action;
+
+        if (!action) {
+          return { content: [{ type: "text", text: "Action is required." }] };
+        }
+
+        // Ensure internal_comm.json exists
+        let comm = await readJson<InternalComm>(paths.internalComm);
+        if (!comm) {
+          comm = { memos: [], last_cleanup: new Date().toISOString() };
+          await writeJson(paths.internalComm, comm);
+        }
+
+        switch (action) {
+          case "add": {
+            if (!params.recipient || !params.content) {
+              return { content: [{ type: "text", text: "recipient and content are required." }] };
+            }
+            const validRecipients: AgentRole[] = ["persona", "analyst", "developer", "limbic"];
+            const validTypes: AgentMemo["type"][] = ["emotion", "urgency", "strategy", "info", "warning"];
+            const validPriorities: AgentMemo["priority"][] = ["low", "normal", "high", "critical"];
+
+            if (!validRecipients.includes(params.recipient as AgentRole)) {
+              return { content: [{ type: "text", text: `Invalid recipient. Valid: ${validRecipients.join(", ")}` }] };
+            }
+
+            const memo = await sendMemo(
+              paths.internalComm,
+              "persona", // sender - would be dynamic in full implementation
+              params.recipient as AgentRole,
+              params.type as AgentMemo["type"] || "info",
+              params.content,
+              params.priority as AgentMemo["priority"] || "normal",
+              cfg?.memoTTL ?? 7
+            );
+
+            await logAgentActivity(
+              paths.agentActivity,
+              "system",
+              "persona",
+              "MEMO_SENT",
+              `Memo sent to ${params.recipient}: ${params.content.slice(0, 50)}...`,
+              { memoId: memo.id, recipient: params.recipient, type: params.type }
+            );
+
+            return { content: [{ type: "text", text: `Memo sent to ${params.recipient}. ID: ${memo.id}` }] };
+          }
+
+          case "list": {
+            const recipient = params.recipient as AgentRole | undefined;
+            const memos = recipient
+              ? await readMemos(paths.internalComm, recipient, false)
+              : comm.memos;
+
+            if (memos.length === 0) {
+              return { content: [{ type: "text", text: lang === "de" ? "Keine Memos." : "No memos." }] };
+            }
+
+            const lines = memos.map(m =>
+              `[${m.priority.toUpperCase()}] ${m.sender}→${m.recipient} [${m.type}]: ${m.content.slice(0, 60)}${m.content.length > 60 ? "..." : ""} (${m.read ? "READ" : "UNREAD"})`
+            );
+            return { content: [{ type: "text", text: lines.join("\n") }] };
+          }
+
+          case "delete": {
+            if (!params.memo_id) {
+              return { content: [{ type: "text", text: "memo_id is required." }] };
+            }
+            await deleteMemos(paths.internalComm, [params.memo_id]);
+            return { content: [{ type: "text", text: `Memo ${params.memo_id} deleted.` }] };
+          }
+
+          case "mark_read": {
+            if (!params.memo_id) {
+              return { content: [{ type: "text", text: "memo_id is required." }] };
+            }
+            await markMemosRead(paths.internalComm, [params.memo_id]);
+            return { content: [{ type: "text", text: `Memo ${params.memo_id} marked as read.` }] };
+          }
+
+          case "clear_read": {
+            const readIds = comm.memos.filter(m => m.read).map(m => m.id);
+            await deleteMemos(paths.internalComm, readIds);
+            return { content: [{ type: "text", text: `${readIds.length} read memos cleared.` }] };
+          }
+
+          default:
+            return { content: [{ type: "text", text: "Invalid action. Valid: add, list, delete, mark_read, clear_read" }] };
         }
       },
     });

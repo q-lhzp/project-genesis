@@ -1,96 +1,51 @@
 # Project Genesis - Core Implementation Context (for Opus 4.6)
 
-This document serves as the high-fidelity technical handover for the implementation of **Project Genesis - The Human Lifecycle**. 
+## 1. Project Vision
+A Multi-Agent Cluster (MAC) simulation of a human psyche. Engine provides biology/world; specialized AI agents provide mind/emotion/growth.
 
 ---
 
-## 1. Project Vision & Identity
-**Project Genesis** is a simulation framework where an AI entity experiences a full human life cycle. 
-- **Shortname:** `project_genesis`
-- **Core Principle:** The Engine (Plugin) simulates biology and environment; the Model (Mind) makes autonomous life choices.
-- **Tone:** Scientific, research-oriented, highly autonomous.
+## 2. Multi-Agent Cluster (MAC) Architecture
+
+### Role-Based Access Control (RBAC)
+- **Detection:** Identify the agent using `ctx.agent.id` in every hook.
+- **Enforcement:** Use `before_tool_call` to block tools not belonging to the agent's role.
+- **Config:** `openclaw.plugin.json` defines the mapping between `agentId` and `role`.
+
+### Specialized Roles
+1. **Persona ("The Voice"):** 
+   - Interaction focused.
+   - Only sees the "State of Being" narrative (no raw JSON).
+2. **Analyst ("The Brain"):**
+   - Strategic and administrative.
+   - Access to raw economy and lifecycle telemetry.
+   - Runs the "Economic Tick" and "Soul Evolution Pipeline."
+3. **Limbic System ("The Heart"):**
+   - Data-to-Emotion converter.
+   - Creates the "State of Being" narrative for the Persona.
+4. **Developer ("The Hand"):**
+   - System expansion.
+   - Can write and register tools within the `development/` sandbox.
 
 ---
 
-## 2. Technical Architecture
+## 3. Communication & Observability
 
-### A. The "Mind" (Soul Evolution Skill)
-- **Location:** `skills/soul-evolution/`
-- **Function:** Structured reflection on experiences (`memory/experiences/*.jsonl`).
-- **Identity:** `SOUL.md` (Core/Mutable tags).
-- **Evolution:** 10-step pipeline (Ingest -> Reflect -> Propose -> Apply).
+### Internal Communication (Memos)
+- **Storage:** `memory/reality/internal_comm.json`.
+- **Retention:** Standard 7-day TTL (Time-To-Live). Traumatic/Core memos use TTL: -1.
+- **WebUI:** Memos must be listable and deletable via `reality_manage_memos`.
 
-### B. The "Body" (Plugin Engine)
-- **File:** `index.ts` (Main logic), `openclaw.plugin.json` (WebUI Config).
-- **Metabolism:** Decays needs (hunger, thirst, energy, etc.) based on time deltas.
-- **Sensory Injection:** The `before_prompt_build` hook injects somatic feelings (e.g., "You are starving") and autonomous triggers (e.g., "You need a job").
+### Activity Telemetry
+- **File:** `memory/telemetry/agents/activity.jsonl`.
+- **Purpose:** Full research transparency. Log every major decision or injection.
 
 ---
 
-## 3. Implementation Modules (Priority List)
-
-### Phase 1: Aging & Life-Stage (Chronos)
-- **WebUI Config:** `birthDate` (YYYY-MM-DD), `initialAgeDays` (number).
-- **Logic:** Calculate `currentAge` in years/days.
-- **Impact:** Scale metabolism rates based on life stage (Child -> Adult -> Senior).
-- **Telemetry:** Log daily vitality metrics for the statistics dashboard.
-
-### Phase 2: Social Ecosystem (Social Fabric)
-- **File:** `memory/reality/social.json`.
-- **Entities:** UUID, Name, Personality Traits, Bond Strength (-100 to 100), Trust, Intimacy.
-- **Autonomy:** Tools for the AI to `socialize`, `befriend`, or `break_up`.
-- **Visual Lab:** Interactive social map showing relationship nodes.
-
-### Phase 3: Prosperity & Labor (Economy)
-- **File:** `memory/reality/finances.json`.
-- **Mechanics:** Balance, Income, Expenses, Debt.
-- **Job Market:** Simulated job offers that the AI must actively search and apply for (`reality_job_market`).
-- **Reflector Integration:** Automated rent and bills deduction via background process.
-
-### Phase 4: Visual Lab & Analytics (Statistics)
-- **Goal:** 100% web-based evaluation.
-- **Visualization:** Graphical charts (line/bar/heatmaps) for life-span data.
-- **Life-Editor:** WebUI toggles to manually override any state (set money to 0, age the AI by 10 years instantly).
+## 4. Technical Invariants
+1. **Tool Registration:** Register all tools at startup. Filter access at runtime via `before_tool_call`.
+2. **Sanity Check:** Always verify `soul-evolution/SKILL.md` exists before pipeline execution.
+3. **English Only:** All logs, code, and narratives must be in high-quality English.
 
 ---
-
-## 4. Key Data Structures
-
-### `physique.json` (Existing, to be expanded)
-```json
-{
-  "birth_date": "2000-01-01",
-  "biological_age_days": 9490,
-  "needs": { "energy": 80, "hunger": 20, "thirst": 15, "stress": 10 },
-  "health_index": 100
-}
-```
-
-### `social.json` (New)
-```json
-{
-  "entities": [
-    { "id": "uuid", "name": "Sarah", "bond": 45, "trust": 30, "last_interaction": "timestamp" }
-  ]
-}
-```
-
-### `finances.json` (New)
-```json
-{
-  "balance": 1500.50,
-  "income_per_month": 2400.00,
-  "expenses_scheduled": { "rent": 800, "subscriptions": 50 }
-}
-```
-
----
-
-## 5. Development Invariants
-1. **Always English:** Code, documentation, and plan must be in English.
-2. **Tagging:** Every major milestone (Social, Economy, Aging) must be tagged in Git (v0.x.x-milestone).
-3. **Research First:** Ensure all data is logged structurely for the 100% WebUI Analytics module.
-4. **AI Autonomy:** The engine provides *urges* and *opportunities*, but the model makes the *choices*.
-
----
-*End of Context for Opus 4.6.*
+*Technical Handover Documentation for MAC Refactoring.*

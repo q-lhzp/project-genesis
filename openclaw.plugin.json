@@ -85,6 +85,37 @@
           "enabled": { "type": "boolean", "default": true },
           "auto_load_approved": { "type": "boolean", "default": true }
         }
+      },
+      "roleMapping": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "persona": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": ["q", "primary", "voice", "persona"]
+          },
+          "analyst": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": ["analyst", "brain", "strategist", "planner"]
+          },
+          "developer": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": ["developer", "hand", "engineer", "coder"]
+          },
+          "limbic": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": ["limbic", "heart", "emotion", "feeling"]
+          }
+        }
+      },
+      "memoTTL": {
+        "type": "number",
+        "default": 7,
+        "description": "Time-to-live for inter-agent memos in days"
       }
     }
   },
@@ -236,6 +267,26 @@
     "enableEventInjection": {
       "label": "Enable Event Injection",
       "help": "Allow researchers to inject major life events"
+    },
+    "roleMapping.persona": {
+      "label": "Persona Agents",
+      "help": "Agent IDs mapped to Persona role (comma-separated)"
+    },
+    "roleMapping.analyst": {
+      "label": "Analyst Agents",
+      "help": "Agent IDs mapped to Analyst role"
+    },
+    "roleMapping.developer": {
+      "label": "Developer Agents",
+      "help": "Agent IDs mapped to Developer role"
+    },
+    "roleMapping.limbic": {
+      "label": "Limbic Agents",
+      "help": "Agent IDs mapped to Limbic (Heart) role"
+    },
+    "memoTTL": {
+      "label": "Memo TTL (Days)",
+      "help": "Time-to-live for inter-agent memos before auto-deletion (default: 7)"
     }
   }
 }
