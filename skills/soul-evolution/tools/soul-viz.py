@@ -1982,6 +1982,46 @@ body::after {{
       <h3 id="genesis-result-title">Result</h3>
       <pre id="genesis-result-content" style="white-space:pre-wrap;font-size:0.85rem;max-height:300px;overflow:auto;background:var(--bg);padding:0.75rem;border-radius:4px;"></pre>
     </div>
+
+    <!-- Profile Manager Section -->
+    <div class="panel-card" style="margin-top:1rem;border-left:4px solid var(--accent);">
+      <h3>Profile Manager</h3>
+      <p style="color:var(--text-dim);font-size:0.85rem;margin-bottom:0.5rem;">Save and switch between different characters.</p>
+
+      <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+        <input type="text" id="profile-name" placeholder="Profile name" style="flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;">
+        <button class="btn-save" onclick="saveProfile()" style="padding:0.5rem 1rem;">💾 Save</button>
+      </div>
+
+      <div id="profile-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.5rem;">
+        <!-- Profiles loaded dynamically -->
+      </div>
+    </div>
+
+    <!-- Time Vault Section -->
+    <div class="panel-card" style="margin-top:1rem;border-left:4px solid var(--growth);">
+      <h3>Time Vault - Rollback</h3>
+      <p style="color:var(--text-dim);font-size:0.85rem;margin-bottom:0.5rem;">Restore a previous daily snapshot.</p>
+
+      <div id="backup-list" style="max-height:200px;overflow-y:auto;">
+        <!-- Backups loaded dynamically -->
+        <p style="color:var(--text-dim);font-size:0.85rem;">Loading...</p>
+      </div>
+    </div>
+
+    <!-- Patching Section -->
+    <div class="panel-card" style="margin-top:1rem;border-left:4px solid var(--core);">
+      <h3>Evolutionary Edits (Patching)</h3>
+      <p style="color:var(--text-dim);font-size:0.85rem;margin-bottom:0.5rem;">Modify your character without resetting. Start with "Patch:" or "Modify:"</p>
+
+      <textarea id="patch-prompt" rows="4" placeholder="Example: Make him more arrogant. Or: Add a new trauma about the past. Or: Increase hacking skill." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.75rem;font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
+
+      <div style="margin-top:0.5rem;text-align:right;">
+        <button class="btn-save" onclick="runPatch()" style="background:var(--accent);">
+          ✏️ Update Character
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -3756,8 +3796,201 @@ async function loadGenesisStatus() {{
     }} else {{
       statusDiv.innerHTML = '<span style="color:var(--text-dim);">Origin Engine is disabled</span>';
     }}
+
+    // Load profiles
+    loadProfiles();
+
+    // Load backups
+    loadBackups();
   }} catch (e) {{
     console.log('Could not load genesis status:', e);
+  }}
+}}
+
+async function loadProfiles() {{
+  try {{
+    const response = await fetch('/api/profiles/list');
+    const profiles = await response.json();
+
+    const container = document.getElementById('profile-list');
+    if (!profiles || profiles.length === 0) {{
+      container.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No profiles saved yet.</p>';
+      return;
+    }}
+
+    container.innerHTML = profiles.map(p => `
+      <div style="background:var(--bg);padding:0.5rem;border-radius:4px;display:flex;justify-content:space-between;align-items:center;">
+        <span><strong>${{p}}</strong></span>
+        <div>
+          <button onclick="loadProfile('${{p}}')" style="background:var(--growth);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;margin-right:0.25rem;">Load</button>
+          <button onclick="deleteProfile('${{p}}')" style="background:var(--danger);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;">Del</button>
+        </div>
+      </div>
+    `).join('');
+  }} catch (e) {{
+    console.log('Could not load profiles:', e);
+  }}
+}}
+
+async function loadBackups() {{
+  try {{
+    const response = await fetch('/api/backups/list');
+    const backups = await response.json();
+
+    const container = document.getElementById('backup-list');
+    if (!backups || backups.length === 0) {{
+      container.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No backups available yet.</p>';
+      return;
+    }}
+
+    container.innerHTML = backups.map(b => `
+      <div style="background:var(--bg);padding:0.5rem;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
+        <span><strong>${{b}}</strong></span>
+        <button onclick="rollbackTo('${{b}}')" style="background:var(--accent);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;">Rollback</button>
+      </div>
+    `).join('');
+  }} catch (e) {{
+    console.log('Could not load backups:', e);
+  }}
+}}
+
+async function saveProfile() {{
+  const name = document.getElementById('profile-name').value.trim();
+  if (!name) {{
+    alert('Please enter a profile name.');
+    return;
+  }}
+
+  // Sanitize name
+  const safeName = name.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50);
+  if (!safeName) {{
+    alert('Invalid profile name.');
+    return;
+  }}
+
+  try {{
+    const response = await fetch('/api/profiles/save', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ name: safeName }})
+    }});
+    const result = await response.json();
+    alert(result.success ? 'Profile saved!' : 'Error: ' + result.message);
+    loadProfiles();
+  }} catch (e) {{
+    alert('Error: ' + e.message);
+  }}
+}}
+
+async function loadProfile(name) {{
+  if (!confirm('Load profile "' + name + '"? This will overwrite current state.')) return;
+
+  try {{
+    const response = await fetch('/api/profiles/load', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ name: name }})
+    }});
+    const result = await response.json();
+    alert(result.success ? 'Profile loaded!' : 'Error: ' + result.message);
+  }} catch (e) {{
+    alert('Error: ' + e.message);
+  }}
+}}
+
+async function deleteProfile(name) {{
+  if (!confirm('Delete profile "' + name + '"? This cannot be undone.')) return;
+
+  try {{
+    const response = await fetch('/api/profiles/delete', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ name: name }})
+    }});
+    const result = await response.json();
+    alert(result.success ? 'Profile deleted!' : 'Error: ' + result.message);
+    loadProfiles();
+  }} catch (e) {{
+    alert('Error: ' + e.message);
+  }}
+}}
+
+async function rollbackTo(date) {{
+  if (!confirm('Rollback to ' + date + '? This will overwrite current state.')) return;
+
+  try {{
+    const response = await fetch('/api/backups/rollback', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ date: date }})
+    }});
+    const result = await response.json();
+    alert(result.success ? 'Rollback complete!' : 'Error: ' + result.message);
+  }} catch (e) {{
+    alert('Error: ' + e.message);
+  }}
+}}
+
+async function runPatch() {{
+  const instructions = document.getElementById('patch-prompt').value.trim();
+  if (!instructions) {{
+    alert('Please enter patch instructions.');
+    return;
+  }}
+
+  if (!confirm('This will modify your current character traits. Proceed?')) return;
+
+  // Prepend Patch: if not already present
+  const prefix = instructions.toLowerCase().startsWith('patch:') || instructions.toLowerCase().startsWith('modify:')
+    ? ''
+    : 'Patch: ';
+
+  // Show loading overlay
+  const loading = document.getElementById('genesis-loading');
+  const progress = document.getElementById('genesis-progress');
+  loading.style.display = 'flex';
+  progress.style.width = '10%';
+
+  try {{
+    progress.style.width = '40%';
+    const response = await fetch('/api/genesis/request', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ prompt: prefix + instructions }})
+    }});
+    const result = await response.json();
+    
+    if (!result.success) throw new Error(result.message);
+
+    progress.style.width = '70%';
+    
+    // Show result
+    const resultDiv = document.getElementById('genesis-result');
+    const resultTitle = document.getElementById('genesis-result-title');
+    const resultContent = document.getElementById('genesis-result-content');
+
+    resultDiv.style.display = 'block';
+    resultTitle.textContent = '⏳ Patch Requested';
+    resultTitle.style.color = 'var(--accent)';
+    resultContent.textContent = 'Your modification request has been sent. The agent will apply the patch in the next cycle. The dashboard will reload once complete.';
+
+    // Poll for completion
+    let attempts = 0;
+    const poll = setInterval(async () => {{
+      attempts++;
+      const statusRes = await fetch('/api/genesis/request-status');
+      const status = await statusRes.json();
+      
+      if (!status.pending || attempts > 30) {{
+        clearInterval(poll);
+        progress.style.width = '100%';
+        setTimeout(() => location.reload(), 2000);
+      }}
+    }}, 2000);
+
+  }} catch (e) {{
+    alert('Error: ' + e.message);
+    loading.style.display = 'none';
   }}
 }}
 
@@ -4897,6 +5130,58 @@ def main():
                         self.send_header("Content-Disposition", "attachment")
                     self.end_headers()
                     self.wfile.write(data)
+                elif self.path == "/api/genesis/status":
+                    # Return genesis enabled status
+                    genesis_enabled_path = os.path.join(workspace, "memory", "reality", "genesis_enabled.json")
+                    enabled = False
+                    if os.path.exists(genesis_enabled_path):
+                        try:
+                            with open(genesis_enabled_path) as f:
+                                data = json.load(f)
+                                enabled = data.get("enabled", False)
+                        except:
+                            pass
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({{"enabled": enabled}}).encode())
+
+                elif self.path == "/api/genesis/request-status":
+                    request_path = os.path.join(workspace, "memory", "reality", "genesis_request.json")
+                    pending = os.path.exists(request_path)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({{"pending": pending}}).encode())
+
+                elif self.path == "/api/profiles/list":
+                    # List all saved profiles
+                    profiles_dir = os.path.join(workspace, "memory", "profiles")
+                    profiles = []
+                    if os.path.isdir(profiles_dir):
+                        for entry in os.listdir(profiles_dir):
+                            full_path = os.path.join(profiles_dir, entry)
+                            if os.path.isdir(full_path):
+                                profiles.append(entry)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(profiles).encode())
+
+                elif self.path == "/api/backups/list":
+                    # List all daily backups
+                    backups_dir = os.path.join(workspace, "memory", "backups")
+                    backups = []
+                    if os.path.isdir(backups_dir):
+                        for entry in os.listdir(backups_dir):
+                            full_path = os.path.join(backups_dir, entry)
+                            if os.path.isdir(full_path) and entry not in ('.snapshot_done'):
+                                backups.append(entry)
+                    backups.sort(reverse=True)  # Most recent first
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(backups).encode())
                 else:
                     super().do_GET()
 
@@ -5236,22 +5521,6 @@ def main():
                         self.end_headers()
                         self.wfile.write(str(e).encode())
 
-                elif self.path == "/api/genesis/status":
-                    # Return genesis enabled status
-                    genesis_enabled_path = os.path.join(workspace, "memory", "reality", "genesis_enabled.json")
-                    enabled = False
-                    if os.path.exists(genesis_enabled_path):
-                        try:
-                            with open(genesis_enabled_path) as f:
-                                data = json.load(f)
-                                enabled = data.get("enabled", False)
-                        except:
-                            pass
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/json")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({{"enabled": enabled}}).encode())
-
                 elif self.path == "/api/genesis/toggle":
                     length = int(self.headers.get("Content-Length", 0))
                     body = self.rfile.read(length).decode("utf-8")
@@ -5272,6 +5541,155 @@ def main():
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
                         self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+
+                elif self.path == "/api/backups/rollback":
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        data = json.loads(body)
+                        date = data.get("date", "")
+                        backup_dir = os.path.join(workspace, "memory", "backups", date)
+                        if not os.path.isdir(backup_dir):
+                            raise ValueError("Backup not found")
+
+                        # Restore files
+                        files_restore = [
+                            ("physique.json", os.path.join(workspace, "memory", "reality", "physique.json")),
+                            ("lifecycle.json", os.path.join(workspace, "memory", "reality", "lifecycle.json")),
+                            ("finances.json", os.path.join(workspace, "memory", "reality", "finances.json")),
+                            ("social.json", os.path.join(workspace, "memory", "reality", "social.json")),
+                            ("skills.json", os.path.join(workspace, "memory", "reality", "skills.json")),
+                            ("psychology.json", os.path.join(workspace, "memory", "reality", "psychology.json")),
+                            ("world_state.json", os.path.join(workspace, "memory", "reality", "world_state.json")),
+                            ("interests.json", os.path.join(workspace, "memory", "reality", "interests.json")),
+                            ("IDENTITY.md", os.path.join(workspace, "IDENTITY.md")),
+                            ("SOUL.md", os.path.join(workspace, "SOUL.md")),
+                            ("EMOTIONS.md", os.path.join(workspace, "EMOTIONS.md")),
+                            ("GROWTH.md", os.path.join(workspace, "GROWTH.md")),
+                            ("DESIRES.md", os.path.join(workspace, "DESIRES.md")),
+                        ]
+                        for src_name, dest_path in files_restore:
+                            src_path = os.path.join(backup_dir, src_name)
+                            if os.path.exists(src_path):
+                                with open(src_path) as sf:
+                                    with open(dest_path, "w") as df:
+                                        df.write(sf.read())
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True}).encode())
+                        print(f"  ✓ Rolled back to {date}")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
+
+                elif self.path == "/api/profiles/save":
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        data = json.loads(body)
+                        name = data.get("name", "")
+                        profile_dir = os.path.join(workspace, "memory", "profiles", name)
+                        os.makedirs(profile_dir, exist_ok=True)
+
+                        files_save = [
+                            (os.path.join(workspace, "memory", "reality", "physique.json"), "physique.json"),
+                            (os.path.join(workspace, "memory", "reality", "lifecycle.json"), "lifecycle.json"),
+                            (os.path.join(workspace, "memory", "reality", "finances.json"), "finances.json"),
+                            (os.path.join(workspace, "memory", "reality", "social.json"), "social.json"),
+                            (os.path.join(workspace, "memory", "reality", "skills.json"), "skills.json"),
+                            (os.path.join(workspace, "memory", "reality", "psychology.json"), "psychology.json"),
+                            (os.path.join(workspace, "memory", "reality", "world_state.json"), "world_state.json"),
+                            (os.path.join(workspace, "memory", "reality", "interests.json"), "interests.json"),
+                            (os.path.join(workspace, "IDENTITY.md"), "IDENTITY.md"),
+                            (os.path.join(workspace, "SOUL.md"), "SOUL.md"),
+                            (os.path.join(workspace, "EMOTIONS.md"), "EMOTIONS.md"),
+                            (os.path.join(workspace, "GROWTH.md"), "GROWTH.md"),
+                            (os.path.join(workspace, "DESIRES.md"), "DESIRES.md"),
+                        ]
+                        for src_path, dest_name in files_save:
+                            if os.path.exists(src_path):
+                                with open(src_path) as sf:
+                                    with open(os.path.join(profile_dir, dest_name), "w") as df:
+                                        df.write(sf.read())
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True}).encode())
+                        print(f"  ✓ Profile saved: {name}")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
+
+                elif self.path == "/api/profiles/load":
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        data = json.loads(body)
+                        name = data.get("name", "")
+                        profile_dir = os.path.join(workspace, "memory", "profiles", name)
+                        if not os.path.isdir(profile_dir):
+                            raise ValueError("Profile not found")
+
+                        files_restore = [
+                            ("physique.json", os.path.join(workspace, "memory", "reality", "physique.json")),
+                            ("lifecycle.json", os.path.join(workspace, "memory", "reality", "lifecycle.json")),
+                            ("finances.json", os.path.join(workspace, "memory", "reality", "finances.json")),
+                            ("social.json", os.path.join(workspace, "memory", "reality", "social.json")),
+                            ("skills.json", os.path.join(workspace, "memory", "reality", "skills.json")),
+                            ("psychology.json", os.path.join(workspace, "memory", "reality", "psychology.json")),
+                            ("world_state.json", os.path.join(workspace, "memory", "reality", "world_state.json")),
+                            ("interests.json", os.path.join(workspace, "memory", "reality", "interests.json")),
+                            ("IDENTITY.md", os.path.join(workspace, "IDENTITY.md")),
+                            ("SOUL.md", os.path.join(workspace, "SOUL.md")),
+                            ("EMOTIONS.md", os.path.join(workspace, "EMOTIONS.md")),
+                            ("GROWTH.md", os.path.join(workspace, "GROWTH.md")),
+                            ("DESIRES.md", os.path.join(workspace, "DESIRES.md")),
+                        ]
+                        for src_name, dest_path in files_restore:
+                            src_path = os.path.join(profile_dir, src_name)
+                            if os.path.exists(src_path):
+                                with open(src_path) as sf:
+                                    with open(dest_path, "w") as df:
+                                        df.write(sf.read())
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True}).encode())
+                        print(f"  ✓ Profile loaded: {name}")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
+
+                elif self.path == "/api/profiles/delete":
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        data = json.loads(body)
+                        name = data.get("name", "")
+                        profile_dir = os.path.join(workspace, "memory", "profiles", name)
+                        if os.path.isdir(profile_dir):
+                            import shutil
+                            shutil.rmtree(profile_dir)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True}).encode())
+                        print(f"  ✓ Profile deleted: {name}")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
 
                 elif self.path == "/api/genesis/request":
                     length = int(self.headers.get("Content-Length", 0))

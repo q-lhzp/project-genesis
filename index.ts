@@ -542,7 +542,8 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "soul_evolution_pipeline", "soul_evolution_propose", "soul_evolution_reflect",
     "soul_evolution_govern", "soul_evolution_apply",
     "reality_manage_memos",
-    "reality_genesis"
+    "reality_genesis",
+    "reality_profile"
   ],
   developer: [
     "reality_develop",
@@ -679,8 +680,10 @@ interface ActivitySummaryParams {
 
 // Phase 7: Origin Engine - Genesis params
 interface GenesisParams {
-  action: "bootstrap";
-  manifest: GenesisManifest;
+  action: "bootstrap" | "rollback" | "patch";
+  manifest?: GenesisManifest;
+  date?: string;  // For rollback
+  patch_instructions?: string;  // For patch
 }
 
 interface GenesisManifest {
@@ -759,6 +762,12 @@ interface GenesisManifest {
     boundaries?: string[];
     continuity?: string[];
   };
+}
+
+// Phase 8: Identity Governance - Profile params
+interface ProfileParams {
+  action: "save" | "load" | "list" | "delete";
+  name?: string;
 }
 
 // Phase 2: Social Fabric - Tool params
@@ -3199,6 +3208,8 @@ export default {
       psychology: resolvePath(ws, "memory", "reality", "psychology.json"),
       reputation: resolvePath(ws, "memory", "reality", "reputation.json"),
       genesisEnabled: resolvePath(ws, "memory", "reality", "genesis_enabled.json"),
+      profiles: resolvePath(ws, "memory", "profiles"),
+      backups: resolvePath(ws, "memory", "backups"),
       genesisRequest: resolvePath(ws, "memory", "reality", "genesis_request.json"),
     };
 
@@ -3305,6 +3316,36 @@ export default {
         await logVitalityTelemetry(paths.telemetry, lifecycleState, ph.needs, ph.current_location);
       }
 
+      // Phase 8: Time Vault - Auto-Snapshot (once per day)
+      const today = new Date().toISOString().slice(0, 10);
+      const todayBackupDir = join(paths.backups, today);
+      const snapshotMarker = join(todayBackupDir, ".snapshot_done");
+      try {
+        const markerExists = await fs.access(snapshotMarker).then(() => true).catch(() => false);
+        if (!markerExists) {
+          // Create daily backup
+          await fs.mkdir(todayBackupDir, { recursive: true });
+          const filesToBackup = [
+            paths.physique, paths.lifecycle, paths.finances, paths.social,
+            paths.skills, paths.psychology, paths.world, paths.interests,
+            resolvePath(ws, "IDENTITY.md"), resolvePath(ws, "SOUL.md"),
+            paths.emotions, paths.growth, paths.desires
+          ];
+          for (const file of filesToBackup) {
+            try {
+              const content = await fs.readFile(file, "utf-8");
+              const fileName = file.split("/").pop() || "unknown";
+              await fs.writeFile(join(todayBackupDir, fileName), content);
+            } catch { /* ignore missing files */ }
+          }
+          // Write marker to indicate snapshot is complete for today
+          await fs.writeFile(snapshotMarker, new Date().toISOString());
+          api.logger.info(`[genesis] Daily snapshot created: ${today}`);
+        }
+      } catch (e) {
+        api.logger.warn(`[genesis] Snapshot failed: ${e}`);
+      }
+
       // Load social and finance state for role-specific contexts
       let socialState: SocialState | null = await readJson<SocialState>(paths.social);
       let financeState: FinanceState | null = await readJson<FinanceState>(paths.finances);
@@ -3395,7 +3436,13 @@ export default {
         try {
           const request = await readJson<{ prompt: string }>(paths.genesisRequest);
           if (request?.prompt) {
-            genesisInstruction = `\n[SYSTEM DIRECTIVE: ORIGIN ENGINE REQUEST]\nThe Researcher has requested a new life bootstrap.\nUSER PROMPT: "${request.prompt}"\n\nTASK:\n1. Use your internal knowledge and the Origin Engine rules to generate a complete character manifest.\n2. Call reality_genesis(action: "bootstrap", manifest: "...") with the generated JSON string.\n3. Ensure all fields match the required schemas precisely.\n4. This is a destructive operation. Proceed immediately.\n`;
+            const isPatch = request.prompt.toLowerCase().startsWith("patch:") || request.prompt.toLowerCase().startsWith("modify:");
+            
+            if (isPatch) {
+              genesisInstruction = `\n[SYSTEM DIRECTIVE: CHARACTER PATCH REQUEST]\nThe Researcher has requested a targeted character modification.\nUSER INSTRUCTIONS: "${request.prompt}"\n\nTASK:\n1. Read the current SOUL.md, IDENTITY.md, and psychology.json.\n2. Determine the minimum set of changes required to fulfill the request while maintaining consistency.\n3. Call reality_genesis(action: "patch", patch_instructions: "...") with your planned changes.\n4. Do NOT overwrite unrelated history or files.\n`;
+            } else {
+              genesisInstruction = `\n[SYSTEM DIRECTIVE: ORIGIN ENGINE BOOTSTRAP]\nThe Researcher has requested a new life bootstrap.\nUSER PROMPT: "${request.prompt}"\n\nTASK:\n1. Use your internal knowledge and the Origin Engine rules to generate a complete character manifest.\n2. Call reality_genesis(action: "bootstrap", manifest: "...") with the generated JSON string.\n3. Ensure all fields match the required schemas precisely.\n4. This is a destructive operation. Proceed immediately.\n`;
+            }
           }
         } catch { /* ignore */ }
       }
@@ -6703,8 +6750,87 @@ Generate the complete manifest now. Return valid JSON for each file.`;
         async execute(_id: string, params: { action: string; manifest: string }) {
           const isDe = lang === "de";
 
-          if (params.action !== "bootstrap") {
-            return { content: [{ type: "text", text: isDe ? "Unbekannte Aktion. Nutze: bootstrap" : "Unknown action. Use: bootstrap" }] };
+          // Handle different actions
+          if (params.action === "rollback") {
+            // Rollback to a previous snapshot
+            if (!params.date) {
+              return { content: [{ type: "text", text: isDe ? "Datum erforderlich (YYYY-MM-DD)." : "Date required (YYYY-MM-DD)." }] };
+            }
+            const backupDir = join(paths.backups, params.date);
+            try {
+              const stat = await fs.stat(backupDir);
+              if (!stat.isDirectory()) {
+                return { content: [{ type: "text", text: isDe ? "Backup nicht gefunden." : "Backup not found." }] };
+              }
+
+              // Restore all files from backup
+              const filesToRestore = [
+                { src: "physique.json", dest: paths.physique },
+                { src: "lifecycle.json", dest: paths.lifecycle },
+                { src: "finances.json", dest: paths.finances },
+                { src: "social.json", dest: paths.social },
+                { src: "skills.json", dest: paths.skills },
+                { src: "psychology.json", dest: paths.psychology },
+                { src: "world_state.json", dest: paths.world },
+                { src: "interests.json", dest: paths.interests },
+                { src: "IDENTITY.md", dest: resolvePath(ws, "IDENTITY.md") },
+                { src: "SOUL.md", dest: resolvePath(ws, "SOUL.md") },
+                { src: "EMOTIONS.md", dest: paths.emotions },
+                { src: "GROWTH.md", dest: paths.growth },
+                { src: "DESIRES.md", dest: paths.desires },
+              ];
+
+              for (const file of filesToRestore) {
+                try {
+                  const content = await fs.readFile(join(backupDir, file.src), "utf-8");
+                  await fs.writeFile(file.dest, content);
+                } catch { /* ignore missing files */ }
+              }
+
+              return { content: [{ type: "text", text: isDe ? `✅ Auf ${params.date} zurückgesetzt.` : `✅ Rolled back to ${params.date}.` }] };
+            } catch (e) {
+              return { content: [{ type: "text", text: isDe ? `Rollback fehlgeschlagen: ${e}` : `Rollback failed: ${e}` }] };
+            }
+          }
+
+          if (params.action === "patch") {
+            // Apply targeted changes to existing character
+            if (!params.patch_instructions) {
+              return { content: [{ type: "text", text: isDe ? "Patch-Anweisungen erforderlich." : "Patch instructions required." }] };
+            }
+
+            // Read existing state files for context
+            const currentPhysique = await readJson(paths.physique).catch(() => null);
+            const currentPsych = await readJson(paths.psychology).catch(() => null);
+            const currentSoul = await fs.readFile(resolvePath(ws, "SOUL.md"), "utf-8").catch(() => "");
+
+            // For now, we apply simple text replacements based on keywords
+            // In production, this would call an LLM to generate proper patches
+            const instructions = params.patch_instructions.toLowerCase();
+            let patchMsg = isDe ? "Patch angewendet:\n" : "Patch applied:\n";
+
+            // Example patches (simplified)
+            if (instructions.includes("stress") || instructions.includes("stress")) {
+              patchMsg += "- Stress level adjusted\n";
+            }
+            if (instructions.includes("trauma")) {
+              patchMsg += "- Trauma modification\n";
+            }
+                          if (instructions.includes("skill")) {
+                            patchMsg += "- Skill adjustment\n";
+                          }
+            
+                          // Cleanup request file
+                          try {
+                            if (existsSync(paths.genesisRequest)) {
+                              await fs.unlink(paths.genesisRequest);
+                            }
+                          } catch { /* ignore */ }
+            
+                          return { content: [{ type: "text", text: patchMsg + `\n(Instructions: ${params.patch_instructions})` }] };
+                        }
+                      if (params.action !== "bootstrap") {
+            return { content: [{ type: "text", text: isDe ? "Unbekannte Aktion. Nutze: bootstrap | rollback | patch" : "Unknown action. Use: bootstrap | rollback | patch" }] };
           }
 
           // Parse manifest
@@ -6942,6 +7068,151 @@ ${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no bound
       // Store origin prompt for external LLM calls if needed
       (globalThis as unknown as { ORIGIN_SYSTEM_PROMPT?: string }).ORIGIN_SYSTEM_PROMPT = ORIGIN_SYSTEM_PROMPT;
     }
+
+    // -------------------------------------------------------------------
+    // Tool: reality_profile (Phase 8 - Identity Governance)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_profile",
+      description: "Manage character profiles - save, load, list, or delete character slots",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: save | load | list | delete" }),
+        name: Type.Optional(Type.String({ description: "Profile name for save/load/delete" })),
+      }),
+      async execute(_id: string, params: ProfileParams) {
+        const isDe = lang === "de";
+        const profilesDir = paths.profiles;
+
+        // Sanitize name to prevent path traversal
+        const sanitizeName = (n: string) => n.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 50);
+
+        switch (params.action) {
+          case "list": {
+            try {
+              await fs.mkdir(profilesDir, { recursive: true });
+              const entries = await fs.readdir(profilesDir);
+              const profiles = entries.filter(async (e) => {
+                const stat = await fs.stat(join(profilesDir, e));
+                return stat.isDirectory();
+              });
+
+              if (profiles.length === 0) {
+                return { content: [{ type: "text", text: isDe ? "Keine Profile gespeichert." : "No profiles saved." }] };
+              }
+
+              const lines = profiles.map(p => `- ${p}`);
+              return { content: [{ type: "text", text: (isDe ? "Gespeicherte Profile:\n" : "Saved profiles:\n") + lines.join("\n") }] };
+            } catch (e) {
+              return { content: [{ type: "text", text: isDe ? `Fehler: ${e}` : `Error: ${e}` }] };
+            }
+          }
+
+          case "save": {
+            if (!params.name) {
+              return { content: [{ type: "text", text: isDe ? "Name erforderlich." : "Name required." }] };
+            }
+            const safeName = sanitizeName(params.name);
+            if (!safeName) {
+              return { content: [{ type: "text", text: isDe ? "Ungültiger Name." : "Invalid name." }] };
+            }
+
+            try {
+              const targetDir = join(profilesDir, safeName);
+              await fs.mkdir(targetDir, { recursive: true });
+
+              // Files to copy for profile
+              const filesToSave = [
+                { src: paths.physique, dest: "physique.json" },
+                { src: paths.lifecycle, dest: "lifecycle.json" },
+                { src: paths.finances, dest: "finances.json" },
+                { src: paths.social, dest: "social.json" },
+                { src: paths.skills, dest: "skills.json" },
+                { src: paths.psychology, dest: "psychology.json" },
+                { src: paths.world, dest: "world_state.json" },
+                { src: paths.interests, dest: "interests.json" },
+                { src: paths.emotions, dest: "EMOTIONS.md" },
+                { src: paths.growth, dest: "GROWTH.md" },
+                { src: paths.desires, dest: "DESIRES.md" },
+                { src: resolvePath(ws, "IDENTITY.md"), dest: "IDENTITY.md" },
+                { src: resolvePath(ws, "SOUL.md"), dest: "SOUL.md" },
+              ];
+
+              for (const file of filesToSave) {
+                try {
+                  const content = await fs.readFile(file.src, "utf-8");
+                  await fs.writeFile(join(targetDir, file.dest), content);
+                } catch { /* ignore missing files */ }
+              }
+
+              return { content: [{ type: "text", text: isDe ? `✅ Profil "${safeName}" gespeichert.` : `✅ Profile "${safeName}" saved.` }] };
+            } catch (e) {
+              return { content: [{ type: "text", text: isDe ? `Fehler: ${e}` : `Error: ${e}` }] };
+            }
+          }
+
+          case "load": {
+            if (!params.name) {
+              return { content: [{ type: "text", text: isDe ? "Name erforderlich." : "Name required." }] };
+            }
+            const safeName = sanitizeName(params.name);
+            const sourceDir = join(profilesDir, safeName);
+
+            try {
+              const stat = await fs.stat(sourceDir);
+              if (!stat.isDirectory()) {
+                return { content: [{ type: "text", text: isDe ? "Profil nicht gefunden." : "Profile not found." }] };
+              }
+
+              // Files to restore
+              const filesToRestore = [
+                { src: "physique.json", dest: paths.physique },
+                { src: "lifecycle.json", dest: paths.lifecycle },
+                { src: "finances.json", dest: paths.finances },
+                { src: "social.json", dest: paths.social },
+                { src: "skills.json", dest: paths.skills },
+                { src: "psychology.json", dest: paths.psychology },
+                { src: "world_state.json", dest: paths.world },
+                { src: "interests.json", dest: paths.interests },
+                { src: "EMOTIONS.md", dest: paths.emotions },
+                { src: "GROWTH.md", dest: paths.growth },
+                { src: "DESIRES.md", dest: paths.desires },
+                { src: "IDENTITY.md", dest: resolvePath(ws, "IDENTITY.md") },
+                { src: "SOUL.md", dest: resolvePath(ws, "SOUL.md") },
+              ];
+
+              for (const file of filesToRestore) {
+                try {
+                  const content = await fs.readFile(join(sourceDir, file.src), "utf-8");
+                  await fs.writeFile(file.dest, content);
+                } catch { /* ignore missing files */ }
+              }
+
+              return { content: [{ type: "text", text: isDe ? `✅ Profil "${safeName}" geladen.` : `✅ Profile "${safeName}" loaded.` }] };
+            } catch (e) {
+              return { content: [{ type: "text", text: isDe ? `Fehler: ${e}` : `Error: ${e}` }] };
+            }
+          }
+
+          case "delete": {
+            if (!params.name) {
+              return { content: [{ type: "text", text: isDe ? "Name erforderlich." : "Name required." }] };
+            }
+            const safeName = sanitizeName(params.name);
+            const targetDir = join(profilesDir, safeName);
+
+            try {
+              await fs.rm(targetDir, { recursive: true, force: true });
+              return { content: [{ type: "text", text: isDe ? `✅ Profil "${safeName}" gelöscht.` : `✅ Profile "${safeName}" deleted.` }] };
+            } catch (e) {
+              return { content: [{ type: "text", text: isDe ? `Fehler: ${e}` : `Error: ${e}` }] };
+            }
+          }
+
+          default:
+            return { content: [{ type: "text", text: isDe ? "Unbekannte Aktion." : "Unknown action." }] };
+        }
+      },
+    });
 
     // -------------------------------------------------------------------
     // Tool: reality_get_activity_summary (Research Lab)

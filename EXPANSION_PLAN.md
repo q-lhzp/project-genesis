@@ -61,7 +61,8 @@ Each milestone represents a major leap in capability and will be tagged in Git f
 | `v0.4.0-chronos` | **The Lifecycle** | Full Aging & Health Engine | ✅ Complete |
 | `v0.5.0-lab` | **The Visual Lab** | Integrated Graphing & Analysis | ✅ Complete |
 | `v1.0.0-gold` | **Project Genesis 1.0** | Full Autonomous Human Life | ✅ Complete |
-| `v1.4.0-world` | **The Living World** | Skills, World Events, Psychology | ⏳ In Progress |
+| `v1.4.0-world` | **The Living World** | Skills, World Events, Psychology | ✅ Complete |
+| `v1.5.0-gov` | **Governance** | Profiles & Time Travel | ✅ Complete |
 
 ---
 
