@@ -189,9 +189,18 @@ interface PsychState {
   joys: string[]; // Positive memories that buff resilience
 }
 
+interface ReputationEvent {
+  timestamp: string;
+  circle: string;
+  change: number;
+  reason: string;
+}
+
 interface ReputationState {
   global_score: number; // -100 to 100
   circles: { name: string; score: number }[];
+  events: ReputationEvent[];
+  last_propagation: string | null;
 }
 
 interface Inventory {
@@ -360,6 +369,7 @@ interface SocialEntity {
   history_summary: string;   // Brief summary of relationship history
   introduced_at: string;     // When this entity was first met
   notes: string;             // Additional notes about the entity
+  circle?: string;           // Phase 10: Social circle (e.g., "Professional", "Family")
 }
 
 interface SocialState {
@@ -489,13 +499,14 @@ interface DreamParams {
 // ---------------------------------------------------------------------------
 // MAC - Multi-Agent Cluster Types
 // ---------------------------------------------------------------------------
-type AgentRole = "persona" | "analyst" | "developer" | "limbic";
+type AgentRole = "persona" | "analyst" | "developer" | "limbic" | "world_engine";
 
 interface RoleMapping {
   persona?: string[];
   analyst?: string[];
   developer?: string[];
   limbic?: string[];
+  world_engine?: string[];
 }
 
 interface AgentMemo {
@@ -553,6 +564,12 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "reality_needs", "reality_move", "reality_dress",
     "reality_emotion", "reality_desire", "reality_cycle",
     "reality_socialize", "reality_network",
+    "reality_manage_memos"
+  ],
+  world_engine: [
+    "reality_cycle",
+    "reality_override",
+    "reality_inject_event",
     "reality_manage_memos"
   ]
 };
@@ -1595,7 +1612,7 @@ function getFinancialContext(
 /**
  * Generate job listings based on social connections and random factors
  */
-function generateJobListings(socialEntities: SocialEntity[] = []): Array<{
+function generateJobListings(socialEntities: SocialEntity[] = [], globalReputation: number = 0): Array<{
   id: string;
   position: string;
   company: string;
@@ -1604,21 +1621,24 @@ function generateJobListings(socialEntities: SocialEntity[] = []): Array<{
   requirements: string[];
   employer_id: string | null;
   posted_by: string | null;
+  min_reputation?: number;
 }> {
   const now = new Date();
   const jobId = `job_${now.getTime()}`;
 
   const jobTemplates = [
-    { position: "Retail Associate", company: "General Store", salary: 1800, type: "full_time" as JobType, req: ["customer service"] },
-    { position: "Delivery Driver", company: "QuickShip", salary: 2200, type: "full_time" as JobType, req: ["driver's license", "vehicle"] },
-    { position: "Office Assistant", company: "AdminCorp", salary: 2400, type: "full_time" as JobType, req: ["computer skills", "organization"] },
-    { position: "Barista", company: "Coffee House", salary: 1600, type: "part_time" as JobType, req: ["customer service", "food handling"] },
-    { position: "Web Developer", company: "TechStart", salary: 3500, type: "full_time" as JobType, req: ["programming", "web technologies"] },
-    { position: "Tutor", company: "LearnCenter", salary: 2000, type: "part_time" as JobType, req: ["teaching", "subject expertise"] },
-    { position: "Warehouse Worker", company: "LogiCo", salary: 2100, type: "full_time" as JobType, req: ["physical fitness"] },
-    { position: "Freelance Writer", company: "ContentHub", salary: 2500, type: "freelance" as JobType, req: ["writing", "research"] },
-    { position: "Security Guard", company: "SafeSec", salary: 2000, type: "full_time" as JobType, req: ["observation", "reliability"] },
-    { position: "Chef Assistant", company: "FoodieRest", salary: 1900, type: "full_time" as JobType, req: ["cooking", "food safety"] },
+    { position: "Retail Associate", company: "General Store", salary: 1800, type: "full_time" as JobType, req: ["customer service"], minRep: -100 },
+    { position: "Delivery Driver", company: "QuickShip", salary: 2200, type: "full_time" as JobType, req: ["driver's license", "vehicle"], minRep: -50 },
+    { position: "Office Assistant", company: "AdminCorp", salary: 2400, type: "full_time" as JobType, req: ["computer skills", "organization"], minRep: 0 },
+    { position: "Barista", company: "Coffee House", salary: 1600, type: "part_time" as JobType, req: ["customer service", "food handling"], minRep: -100 },
+    { position: "Web Developer", company: "TechStart", salary: 3500, type: "full_time" as JobType, req: ["programming", "web technologies"], minRep: 20 },
+    { position: "Tutor", company: "LearnCenter", salary: 2000, type: "part_time" as JobType, req: ["teaching", "subject expertise"], minRep: -30 },
+    { position: "Warehouse Worker", company: "LogiCo", salary: 2100, type: "full_time" as JobType, req: ["physical fitness"], minRep: -80 },
+    { position: "Freelance Writer", company: "ContentHub", salary: 2500, type: "freelance" as JobType, req: ["writing", "research"], minRep: -20 },
+    { position: "Security Guard", company: "SafeSec", salary: 2000, type: "full_time" as JobType, req: ["observation", "reliability"], minRep: -30 },
+    { position: "Chef Assistant", company: "FoodieRest", salary: 1900, type: "full_time" as JobType, req: ["cooking", "food safety"], minRep: -50 },
+    { position: "Executive Manager", company: "MegaCorp", salary: 6000, type: "full_time" as JobType, req: ["leadership", "experience"], minRep: 50 },
+    { position: "Consultant", company: "ExpertHub", salary: 4500, type: "freelance" as JobType, req: ["expertise", "certifications"], minRep: 30 },
   ];
 
   // Add jobs from social connections if available
@@ -1635,8 +1655,9 @@ function generateJobListings(socialEntities: SocialEntity[] = []): Array<{
       posted_by: e.name as string | null,
     }));
 
-  // Return 3-5 random jobs + social referrals
-  const shuffled = jobTemplates.sort(() => Math.random() - 0.5);
+  // Filter jobs by reputation and return 3-5 random jobs + social referrals
+  const filteredByRep = jobTemplates.filter(j => (j.minRep ?? -100) <= globalReputation);
+  const shuffled = filteredByRep.sort(() => Math.random() - 0.5);
   const selectedJobs = shuffled.slice(0, 4).map((j, i) => ({
     id: `${jobId}_${i}`,
     position: j.position,
@@ -1646,6 +1667,7 @@ function generateJobListings(socialEntities: SocialEntity[] = []): Array<{
     requirements: j.req,
     employer_id: null,
     posted_by: null,
+    min_reputation: j.minRep,
   }));
 
   return [...selectedJobs, ...socialJobs.slice(0, 2)];
@@ -2070,9 +2092,10 @@ function detectAgentRole(agentId: string, roleMapping: RoleMapping | undefined):
   }
 
   const lowerId = agentId.toLowerCase();
+  const validRoles = ["persona", "analyst", "developer", "limbic", "world_engine"];
 
   for (const [role, patterns] of Object.entries(roleMapping)) {
-    if (role === "persona" || role === "analyst" || role === "developer" || role === "limbic") {
+    if (validRoles.includes(role)) {
       if (patterns?.some(p => lowerId === p.toLowerCase() || lowerId.includes(p.toLowerCase()))) {
         return role as AgentRole;
       }
@@ -2927,7 +2950,7 @@ async function endActiveHobbySession(hobbiesPath: string, lang: "de" | "en" = "e
 function buildSensoryContext(
   ph: Physique,
   lang: "de" | "en",
-  modules: { 
+  modules: {
     eros: boolean; cycle: boolean; dreams: boolean; hobbies: boolean;
     utility?: boolean; psychology?: boolean; skills?: boolean; world?: boolean;
     reputation?: boolean; desktop?: boolean; legacy?: boolean;
@@ -2946,6 +2969,7 @@ function buildSensoryContext(
   worldState?: WorldState | null,
   skillState?: SkillState | null,
   psychState?: PsychState | null,
+  reputationState?: ReputationState | null,
 ): string {
   const parts: string[] = [];
 
@@ -2957,6 +2981,17 @@ function buildSensoryContext(
   // [MOOD]
   if (emotionState) {
     parts.push(`[MOOD]\n${emotionState}`);
+  }
+
+  // Phase 10: Reputation Context (English)
+  if (modules.reputation && reputationState) {
+    const global = reputationState.global_score;
+    const rank = global >= 80 ? "Icon" : global >= 50 ? "Respected" : global >= 20 ? "Known" : global >= -20 ? "Neutral" : global >= -50 ? "Controversial" : "Pariah";
+    const circleLines = reputationState.circles
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(c => `- ${c.name}: ${c.score >= 0 ? "+" : ""}${c.score}`);
+    parts.push(`[REPUTATION]\nGlobal Standing: ${rank} (${global >= 0 ? "+" : ""}${global})\nNotable Circles:\n${circleLines.join("\n")}`);
   }
 
   // Phase 6: Psychology Context
@@ -3208,6 +3243,7 @@ export default {
       psychology: resolvePath(ws, "memory", "reality", "psychology.json"),
       reputation: resolvePath(ws, "memory", "reality", "reputation.json"),
       genesisEnabled: resolvePath(ws, "memory", "reality", "genesis_enabled.json"),
+      modelConfig: resolvePath(ws, "memory", "reality", "model_config.json"),
       profiles: resolvePath(ws, "memory", "profiles"),
       backups: resolvePath(ws, "memory", "backups"),
       genesisRequest: resolvePath(ws, "memory", "reality", "genesis_request.json"),
@@ -3349,6 +3385,51 @@ export default {
       // Load social and finance state for role-specific contexts
       let socialState: SocialState | null = await readJson<SocialState>(paths.social);
       let financeState: FinanceState | null = await readJson<FinanceState>(paths.finances);
+
+      // Phase 10: Reputation - Auto-initialize if missing
+      let reputationState: ReputationState | null = await withFileLock(paths.reputation, async () => {
+        let rep = await readJson<ReputationState>(paths.reputation);
+        if (!rep) {
+          // Initialize default reputation state
+          rep = {
+            global_score: 0,
+            circles: [
+              { name: "Public", score: 0 },
+              { name: "Professional", score: 0 },
+              { name: "Family", score: 50 },
+              { name: "Friends", score: 30 },
+              { name: "Underground", score: 0 }
+            ],
+            events: [],
+            last_propagation: null
+          };
+          await writeJson(paths.reputation, rep);
+          api.logger.info("[genesis] Initialized reputation.json");
+        }
+        return rep;
+      });
+
+      // Phase 10: Reputation Propagation (every tick, slightly shift circles toward global)
+      if (reputationState) {
+        const now = new Date();
+        const lastProp = reputationState.last_propagation ? new Date(reputationState.last_propagation) : null;
+        const hoursSinceProp = lastProp ? (now.getTime() - lastProp.getTime()) / 3600000 : 25;
+
+        // Propagate every 24 hours
+        if (hoursSinceProp >= 24) {
+          let globalSum = 0;
+          for (const circle of reputationState.circles) {
+            // Move circle score 10% toward global score (leaky integration)
+            const drift = (reputationState.global_score - circle.score) * 0.1;
+            circle.score = Math.max(-100, Math.min(100, Math.round(circle.score + drift)));
+            globalSum += circle.score;
+          }
+          // Update global score as average of all circles
+          reputationState.global_score = Math.round(globalSum / reputationState.circles.length);
+          reputationState.last_propagation = now.toISOString();
+          await withFileLock(paths.reputation, () => writeJson(paths.reputation, reputationState));
+        }
+      }
 
       // Apply social decay in hook (with 24h guard to avoid excessive decay)
       if (socialState && socialState.entities.length > 0) {
@@ -3533,9 +3614,22 @@ export default {
 
       switch (agentRole) {
         case "limbic":
-          // Limbic gets RAW data to process into emotional narratives
-          roleContext = buildLimbicContext(ph, lifecycleState, socialState, financeState, cycleState);
-          // Limbic also processes and sends memo to persona
+          // Limbic gets RAW biological JSON data only - optimized for lightweight model
+          // Strict instruction: return concise emotional narrative in English
+          roleContext = `[LIMBIC MODE - COST OPTIMIZED]
+You receive raw biological data. Process this into a CONCISE emotional narrative in English (2-3 sentences max).
+
+[RAW DATA - PHYSIQUE]
+${JSON.stringify(ph.needs, null, 2)}
+Current Location: ${ph.current_location}
+Current Outfit: ${ph.current_outfit.join(", ")}
+
+${cycleState ? `[CYCLE] Phase: ${cycleState.phase}, Day: ${cycleState.current_day}` : ""}
+
+[INSTRUCTION]
+Generate a brief emotional narrative describing how the body feels right now. Use sensory language. Be concise.
+Respond with only the emotional narrative text.`;
+          // Limbic also sends memo to persona for Persona role to read
           const emotionalState = buildPersonaContext(ph, lifecycleState, socialState);
           await sendMemo(
             paths.internalComm,
@@ -3551,18 +3645,47 @@ export default {
             agentId,
             agentRole,
             "STATE_OF_BEING_GENERATED",
-            `Generated emotional state from raw data`,
+            `Generated emotional state from raw data (cost-optimized)`,
             { cyclePhase: cycleState?.phase, stress: ph.needs.stress, energy: ph.needs.energy }
           );
           break;
 
         case "persona":
-          // Persona gets processed State of Being (from Limbic) - NO raw data
-          roleContext = buildPersonaContext(ph, lifecycleState, socialState);
+          // Persona receives emotional narrative from Limbic memo (NOT raw biological JSON)
+          // This is the key optimization: Persona doesn't process raw data
+          const limbicMemos = await readMemos(paths.internalComm, "persona", true);
+          const latestLimbicMsg = limbicMemos.find(m => m.sender === "limbic" && m.type === "emotion");
+          const limbicNarrative = latestLimbicMsg?.content
+            ? `\n[EMOTIONAL STATE - from Limbic System]\n${latestLimbicMsg.content}\n`
+            : "";
+          roleContext = `[PERSONA MODE - EMOTION-FIRST]
+${limbicNarrative}
+[YOUR STATE]
+${buildPersonaContext(ph, lifecycleState, socialState)}`;
+          break;
+
+        case "world_engine":
+          // World Engine receives world_state.json only - for environmental simulation
+          // Lightweight context for weather/events/NPC interactions
+          roleContext = `[WORLD ENGINE MODE - ENVIRONMENT SIMULATION]
+You control the environment. Current state:
+
+[WORLD]
+Weather: ${worldState?.weather || "unknown"}
+Temperature: ${worldState?.temperature || 20}°C
+Season: ${worldState?.season || "spring"}
+Market Modifier: ${worldState?.market_modifier || 1.0}x
+
+[LOCATIONS]
+${(await readJson<{ locations: WorldLocation[] }>(paths.locations))?.locations?.map(l => `- ${l.name}: ${l.description}`).join("\n") || "No locations defined"}
+
+[INSTRUCTION]
+Generate environmental events or NPC interactions based on current weather/season.
+Keep responses brief. Focus on environmental storytelling.`;
           break;
 
         case "analyst":
-          // Analyst gets raw telemetry for strategic decisions
+          // Analyst gets full telemetry for governance - no pruning needed
           roleContext = buildAnalystContext(lifecycleState, financeState, socialState, paths.telemetry);
           break;
 
@@ -3582,19 +3705,25 @@ export default {
         ph, lang, modules, cycleState, cycleProfile,
         emotionState, desireState, identityLine, growthCtx,
         dreamState, hobbySuggestion, lifecycleState, socialState, financeState,
-        worldState, skillState, psychState
+        worldState, skillState, psychState, reputationState
       ) + dreamTriggerHint;
 
-      // Combine contexts based on role
+      // Combine contexts based on role - COST OPTIMIZED
       let finalContext: string;
       if (agentRole === "persona") {
-        // Persona gets: default context + role context (State of Being)
-        finalContext = defaultContext + roleContext;
+        // Persona gets: emotional narrative from Limbic + minimal context
+        finalContext = roleContext;
       } else if (agentRole === "limbic") {
-        // Limbic gets: role context (raw data) only
+        // Limbic gets: role context (raw data) only - lightweight
         finalContext = roleContext + memoContext;
+      } else if (agentRole === "world_engine") {
+        // World Engine gets: world context only - lightweight
+        finalContext = roleContext;
+      } else if (agentRole === "analyst") {
+        // Analyst gets: full context for governance
+        finalContext = roleContext + defaultContext + memoContext;
       } else {
-        // Others get: role context + default context + memos
+        // Developer and others get: role context + default context + memos
         finalContext = roleContext + defaultContext + memoContext;
       }
 
@@ -3890,6 +4019,18 @@ export default {
           return { content: [{ type: "text", text: lang === "de" ? "Alles schon im Kleiderschrank." : "Everything already in wardrobe." }] };
         }
 
+        // Phase 10: Calculate price with reputation modifier
+        const basePrice = newItems.length * 50; // 50 per item
+        const globalRep = reputationState?.global_score ?? 0;
+        let modifier = 1.0;
+        let repLabel = "";
+        if (globalRep >= 80) { modifier = 0.9; repLabel = lang === "de" ? " (Icon-Rabatt -10%)" : " (Icon discount -10%)"; }
+        else if (globalRep >= 50) { modifier = 0.95; repLabel = lang === "de" ? " (Respektiert-Rabatt -5%)" : " (Respected discount -5%)"; }
+        else if (globalRep <= -50) { modifier = 1.2; repLabel = lang === "de" ? " (Paria-Aufschlag +20%)" : " (Pariah surcharge +20%)"; }
+        else if (globalRep <= -30) { modifier = 1.1; repLabel = lang === "de" ? " (Umstritten +10%)" : " (Controversial +10%)"; }
+
+        const finalPrice = Math.round(basePrice * modifier);
+
         for (const name of newItems) {
           wardrobe.inventory[category].push({
             id: generateId(category),
@@ -3900,8 +4041,8 @@ export default {
         await writeJson(paths.wardrobe, wardrobe);
 
         const msg = lang === "de"
-          ? `Eingekauft: ${newItems.join(", ")}. Kleiderschrank aktualisiert.`
-          : `Bought: ${newItems.join(", ")}. Wardrobe updated.`;
+          ? `Eingekauft: ${newItems.join(", ")}. Preis: ${finalPrice}${repLabel}. Kleiderschrank aktualisiert.`
+          : `Bought: ${newItems.join(", ")}. Price: ${finalPrice}${repLabel}. Wardrobe updated.`;
         return { content: [{ type: "text", text: msg }] };
       },
     });
@@ -5768,6 +5909,24 @@ See source files in \`src/\`
       await writeJson(paths.social, socialState);
     }
 
+    // Phase 10: Load reputation state
+    let reputationState = await readJson<ReputationState>(paths.reputation);
+    if (!reputationState) {
+      reputationState = {
+        global_score: 0,
+        circles: [
+          { name: "Public", score: 0 },
+          { name: "Professional", score: 0 },
+          { name: "Family", score: 50 },
+          { name: "Friends", score: 30 },
+          { name: "Underground", score: 0 }
+        ],
+        events: [],
+        last_propagation: null
+      };
+      await writeJson(paths.reputation, reputationState);
+    }
+
     // Social decay is now handled in before_prompt_build hook with 24h guard
 
     // -------------------------------------------------------------------
@@ -5901,9 +6060,35 @@ See source files in \`src/\`
 
         await writeJson(paths.social, socialState);
 
+        // Phase 10: Update reputation based on action
+        const circleName = entity.circle || "Public";
+        const repChangeMap: Record<string, number> = {
+          gift: 5, support: 5, apologize: 3, talk: 1, conflict: -5, ignore: -3
+        };
+        const repChange = repChangeMap[action] || 0;
+        if (repChange !== 0 && reputationState) {
+          const circle = reputationState.circles.find(c => c.name === circleName);
+          if (circle) {
+            circle.score = Math.max(-100, Math.min(100, circle.score + repChange));
+            // Update global score
+            const sum = reputationState.circles.reduce((s, c) => s + c.score, 0);
+            reputationState.global_score = Math.round(sum / reputationState.circles.length);
+            // Add event
+            reputationState.events.unshift({
+              timestamp: now.toISOString(),
+              circle: circleName,
+              change: repChange,
+              reason: `${action} with ${entity.name}`
+            });
+            // Keep only last 50 events
+            reputationState.events = reputationState.events.slice(0, 50);
+            await writeJson(paths.reputation, reputationState);
+          }
+        }
+
         const msg = lang === "de"
-          ? `${action} mit ${entity.name}: Bond ${dynamics.bond >= 0 ? "+" : ""}${dynamics.bond}, Trust ${dynamics.trust >= 0 ? "+" : ""}${dynamics.trust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}`
-          : `${action} with ${entity.name}: Bond ${dynamics.bond >= 0 ? "+" : ""}${dynamics.bond}, Trust ${dynamics.trust >= 0 ? "+" : ""}${dynamics.trust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}`;
+          ? `${action} mit ${entity.name}: Bond ${dynamics.bond >= 0 ? "+" : ""}${dynamics.bond}, Trust ${dynamics.trust >= 0 ? "+" : ""}${dynamics.trust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}${repChange !== 0 ? `, ${circleName} Rep ${repChange >= 0 ? "+" : ""}${repChange}` : ""}`
+          : `${action} with ${entity.name}: Bond ${dynamics.bond >= 0 ? "+" : ""}${dynamics.bond}, Trust ${dynamics.trust >= 0 ? "+" : ""}${dynamics.trust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}${repChange !== 0 ? `, ${circleName} Rep ${repChange >= 0 ? "+" : ""}${repChange}` : ""}`;
 
         return { content: [{ type: "text", text: msg }] };
       },
@@ -5932,20 +6117,34 @@ See source files in \`src/\`
         switch (action) {
           case "search_contacts": {
             socialState.last_network_search = now.toISOString();
-            // Generate potential new contacts based on existing relationships
-            const potentials = [
-              { name: "Alex", type: "professional" as RelationshipType, desc: lang === "de" ? "Kollege bei der Arbeit" : "Work colleague" },
-              { name: "Sam", type: "friend" as RelationshipType, desc: lang === "de" ? "Freund eines Freundes" : "Friend of a friend" },
-              { name: "Jordan", type: "acquaintance" as RelationshipType, desc: lang === "de" ? "Nachbar" : "Neighbor" },
-              { name: "Casey", type: "friend" as RelationshipType, desc: lang === "de" ? "Online-Bekanntschaft" : "Online acquaintance" },
+            // Phase 10: Reputation affects network quality
+            const globalRep = reputationState?.global_score ?? 0;
+            const repBonus = globalRep >= 50 ? 2 : globalRep >= 20 ? 1 : 0;
+
+            // Generate potential new contacts based on existing relationships and reputation
+            const basePotentials = [
+              { name: "Alex", type: "professional" as RelationshipType, desc: lang === "de" ? "Kollege bei der Arbeit" : "Work colleague", circle: "Professional" },
+              { name: "Sam", type: "friend" as RelationshipType, desc: lang === "de" ? "Freund eines Freundes" : "Friend of a friend", circle: "Friends" },
+              { name: "Jordan", type: "acquaintance" as RelationshipType, desc: lang === "de" ? "Nachbar" : "Neighbor", circle: "Public" },
+              { name: "Casey", type: "friend" as RelationshipType, desc: lang === "de" ? "Online-Bekanntschaft" : "Online acquaintance", circle: "Friends" },
             ];
-            const available = potentials.filter(p => !socialState!.entities.find(e => e.name === p.name));
+
+            // High reputation adds better contacts
+            const premiumPotentials = globalRep >= 30 ? [
+              { name: "Director Chen", type: "professional" as RelationshipType, desc: lang === "de" ? "Geschaeftsfuehrer" : "Executive Director", circle: "Professional" },
+              { name: "Dr. Rivera", type: "professional" as RelationshipType, desc: lang === "de" ? "Forscherin" : "Research Scientist", circle: "Professional" },
+              { name: "Mayor Thompson", type: "professional" as RelationshipType, desc: lang === "de" ? "Stadtpolitiker" : "City Official", circle: "Public" },
+            ] : [];
+
+            const allPotentials = [...premiumPotentials, ...basePotentials];
+            const available = allPotentials.slice(0, 3 + repBonus).filter(p => !socialState!.entities.find(e => e.name === p.name));
             await writeJson(paths.social, socialState);
 
-            const list = available.map(p => `- ${p.name} (${p.type}): ${p.desc}`).join("\n");
-            return { content: [{ type: "text", text: lang === "de"
-              ? `Moegliche Kontakte:\n${list}`
-              : `Potential contacts:\n${list}` }] };
+            const list = available.map(p => `- ${p.name} (${p.type}, ${p.circle}): ${p.desc}`).join("\n");
+            const repNote = globalRep >= 30 ? (lang === "de" ? "\n[Dein Ruf lockt qualifizierte Kontakte an.]" : "\n[Your reputation attracts quality contacts.]") : "";
+            return { content: [{ type: "text", text: (lang === "de"
+              ? `Moegliche Kontakte:\n${list}${repNote}`
+              : `Potential contacts:\n${list}${repNote}`) }] };
           }
 
           case "manage_circles": {
@@ -5970,6 +6169,12 @@ See source files in \`src/\`
             const validTypes: RelationshipType[] = ["family", "friend", "romantic", "professional", "acquaintance", "stranger"];
             const entityType = validTypes.includes(params.entity_type as RelationshipType) ? params.entity_type as RelationshipType : "acquaintance";
 
+            // Phase 10: Determine circle from relationship type or explicit circle param
+            const circleFromType: Record<RelationshipType, string> = {
+              family: "Family", friend: "Friends", professional: "Professional", romantic: "Friends", acquaintance: "Public", stranger: "Public"
+            };
+            const entityCircle = params.circle || circleFromType[entityType] || "Public";
+
             const newEntity: SocialEntity = {
               id: `social_${Date.now()}`,
               name: params.entity_name,
@@ -5982,10 +6187,13 @@ See source files in \`src/\`
               history_summary: `Met ${params.entity_name} through networking.`,
               introduced_at: now.toISOString(),
               notes: "",
+              circle: entityCircle,
             };
             socialState.entities.push(newEntity);
             await writeJson(paths.social, socialState);
-            return { content: [{ type: "text", text: lang === "de" ? `${params.entity_name} zur Kontaktliste hinzugefuegt.` : `${params.entity_name} added to contacts.` }] };
+            return { content: [{ type: "text", text: lang === "de"
+              ? `${params.entity_name} zur Kontaktliste hinzugefuegt (Circle: ${entityCircle}).`
+              : `${params.entity_name} added to contacts (Circle: ${entityCircle}).` }] };
           }
 
           case "remove_entity": {
@@ -6134,10 +6342,10 @@ See source files in \`src/\`
 
         switch (action) {
           case "search": {
-            // Generate job listings based on social connections
-            currentJobListings = generateJobListings(socialState?.entities ?? []);
+            // Generate job listings based on social connections and reputation
+            currentJobListings = generateJobListings(socialState?.entities ?? [], reputationState?.global_score ?? 0);
             const jobs = currentJobListings.map(j =>
-              `- ${j.position} at ${j.company}: ${j.salary_per_month}/month (${j.job_type})`
+              `- ${j.position} at ${j.company}: ${j.salary_per_month}/month (${j.job_type})${j.min_reputation ? ` [Rep: ${j.min_reputation}+]` : ""}`
             ).join("\n");
             return { content: [{ type: "text", text: lang === "de"
               ? `Verfuegbare Stellen:\n${jobs}`
@@ -6161,6 +6369,15 @@ See source files in \`src/\`
             const job = currentJobListings.find(j => j.id === params.job_id);
             if (!job) {
               return { content: [{ type: "text", text: "Job not found. Use action 'search' first." }] };
+            }
+
+            // Phase 10: Check min_reputation requirement
+            const currentRep = reputationState?.global_score ?? 0;
+            const minRep = job.min_reputation ?? -100;
+            if (currentRep < minRep) {
+              return { content: [{ type: "text", text: lang === "de"
+                ? `Du brauchst mindestens ${minRep} Reputation um dich als ${job.position} zu bewerben. Aktuelle Reputation: ${currentRep}.`
+                : `You need at least ${minRep} reputation to apply for ${job.position}. Current reputation: ${currentRep}.` }] };
             }
 
             // Create new income source
@@ -6656,6 +6873,18 @@ See source files in \`src/\`
         genesisEnabled = runtimeSetting?.enabled ?? false;
       } catch { /* ignore - use config default */ }
     }
+
+    // Load model configuration for multi-model cluster
+    let modelConfig: { models?: Record<string, string>; api_key?: string } = {};
+    try {
+      const mc = await readJson<{ models?: Record<string, string>; api_key?: string }>(paths.modelConfig);
+      if (mc) modelConfig = mc;
+    } catch { /* ignore - use defaults */ }
+
+    // Helper to get model for role
+    const getModelForRole = (role: string): string => {
+      return modelConfig.models?.[role] ?? "gpt-4o-mini"; // default to lightweight
+    };
 
     if (genesisEnabled) {
       // Origin System Prompt - defines the JSON schemas for character generation

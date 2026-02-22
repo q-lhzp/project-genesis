@@ -1680,6 +1680,7 @@ body::after {{
   <button class="tab-btn" onclick="switchTab('world')">World</button>
   <button class="tab-btn" onclick="switchTab('skills')">Skills</button>
   <button class="tab-btn" onclick="switchTab('psychology')">Psychology</button>
+  <button class="tab-btn" onclick="switchTab('reputation')">Social Standing</button>
   <button class="tab-btn" onclick="switchTab('genesis')">Genesis Lab</button>
 </div>
 
@@ -1916,6 +1917,57 @@ body::after {{
   </div>
 </div>
 
+<!-- Social Standing Tab -->
+<div id="tab-reputation" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <h1>Social Standing</h1>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;">Your reputation across social circles and public perception.</p>
+
+    <!-- Reputation Meter -->
+    <div class="panel-card" style="margin-bottom:1.5rem;">
+      <h2>Global Reputation</h2>
+      <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem;">
+        <div style="flex:1;background:var(--bg-dim);height:24px;border-radius:12px;overflow:hidden;position:relative;">
+          <div id="rep-bar" style="width:50%;height:100%;background:linear-gradient(90deg,#4a9,#8c4,#c84);transition:width 0.5s;"></div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-weight:bold;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.5);" id="rep-text">Neutral</div>
+        </div>
+        <span id="rep-score" style="font-size:1.5rem;font-weight:bold;min-width:60px;text-align:right;">0</span>
+      </div>
+      <p style="color:var(--text-dim);margin-top:0.5rem;font-size:0.9rem;">Pariah (-100) &larr; Neutral (0) &rarr; Icon (+100)</p>
+    </div>
+
+    <!-- Social Circles -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem;">
+      <div class="panel-card">
+        <h3>Social Circles</h3>
+        <div id="circles-list" style="margin-top:1rem;">
+          <p style="color:var(--text-dim);">Loading circles...</p>
+        </div>
+      </div>
+
+      <!-- Reputation Events -->
+      <div class="panel-card">
+        <h3>Recent Events</h3>
+        <div id="events-list" style="margin-top:1rem;max-height:300px;overflow-y:auto;">
+          <p style="color:var(--text-dim);">No recent events.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Effects -->
+    <div class="panel-card">
+      <h3>Reputation Effects</h3>
+      <div id="rep-effects" style="margin-top:1rem;color:var(--text-dim);font-size:0.9rem;">
+        <ul style="margin:0;padding-left:1.2rem;">
+          <li>Job opportunities: Higher reputation unlocks better positions</li>
+          <li>Shopping prices: Pariahs pay +20%, Icons get -10% discount</li>
+          <li>Social network: High reputation attracts quality contacts</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Genesis Lab Tab -->
 <div id="tab-genesis" class="tab-content">
   <div style="max-width:800px;margin:0 auto;padding:1.5rem 2rem;">
@@ -1936,6 +1988,60 @@ body::after {{
         </label>
       </div>
       <div id="genesis-status" style="font-size:0.8rem;margin-top:0.5rem;"></div>
+
+      <!-- Model Configuration -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;">
+        <strong>Model Configuration</strong>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Select AI models for different roles (Multi-Model Cluster)</p>
+
+        <!-- Model Selection per Role -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
+          <div>
+            <label style="font-size:0.8rem;">Persona Model</label>
+            <select id="model-persona" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+              <option value="gpt-4o">GPT-4o</option>
+              <option value="gpt-4o-mini">GPT-4o Mini</option>
+              <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+              <option value="claude-haiku-3-20250514">Claude Haiku 3</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">Limbic Model (Lightweight)</label>
+            <select id="model-limbic" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+              <option value="gpt-4o-mini">GPT-4o Mini (Recommended)</option>
+              <option value="claude-haiku-3-20250514">Claude Haiku 3</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">Analyst Model</label>
+            <select id="model-analyst" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+              <option value="gpt-4o">GPT-4o</option>
+              <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">World Engine (Lightweight)</label>
+            <select id="model-world" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+              <option value="gpt-4o-mini">GPT-4o Mini (Recommended)</option>
+              <option value="claude-haiku-3-20250514">Claude Haiku 3</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- API Key -->
+        <div style="margin-top:0.75rem;">
+          <label style="font-size:0.8rem;">API Key</label>
+          <input type="password" id="api-key" placeholder="sk-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
+          <p style="font-size:0.7rem;color:var(--text-dim);margin:0.25rem 0 0 0;">Your API key is stored locally and never sent to external servers.</p>
+        </div>
+
+        <!-- Save Button -->
+        <button onclick="saveModelConfig()" style="margin-top:0.5rem;background:var(--core);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Save Model Config</button>
+        <span id="model-config-status" style="margin-left:0.5rem;font-size:0.8rem;"></span>
+      </div>
     </div>
 
     <!-- Danger Warning -->
@@ -2749,6 +2855,7 @@ function switchTab(tabId) {{
   if (tabId === 'world' && !window._worldRendered) {{ renderWorldPanel(); window._worldRendered = true; }}
   if (tabId === 'skills' && !window._skillsRendered) {{ renderSkillsPanel(); window._skillsRendered = true; }}
   if (tabId === 'psychology' && !window._psychRendered) {{ renderPsychPanel(); window._psychRendered = true; }}
+  if (tabId === 'reputation' && !window._repRendered) {{ renderReputationPanel(); window._repRendered = true; }}
   if (tabId === 'genesis' && !window._genesisRendered) {{ window._genesisRendered = true; loadGenesisStatus(); }}
 }}
 
@@ -3797,6 +3904,9 @@ async function loadGenesisStatus() {{
       statusDiv.innerHTML = '<span style="color:var(--text-dim);">Origin Engine is disabled</span>';
     }}
 
+    // Load model configuration
+    loadModelConfig();
+
     // Load profiles
     loadProfiles();
 
@@ -3804,6 +3914,54 @@ async function loadGenesisStatus() {{
     loadBackups();
   }} catch (e) {{
     console.log('Could not load genesis status:', e);
+  }}
+}}
+
+async function loadModelConfig() {{
+  try {{
+    const response = await fetch('/api/model/config');
+    const config = await response.json();
+
+    if (config.models) {{
+      if (config.models.persona) document.getElementById('model-persona').value = config.models.persona;
+      if (config.models.limbic) document.getElementById('model-limbic').value = config.models.limbic;
+      if (config.models.analyst) document.getElementById('model-analyst').value = config.models.analyst;
+      if (config.models.world_engine) document.getElementById('model-world').value = config.models.world_engine;
+    }}
+    if (config.api_key) {{
+      document.getElementById('api-key').value = config.api_key;
+    }}
+  }} catch (e) {{
+    console.log('Could not load model config:', e);
+  }}
+}}
+
+async function saveModelConfig() {{
+  const models = {{
+    persona: document.getElementById('model-persona').value,
+    limbic: document.getElementById('model-limbic').value,
+    analyst: document.getElementById('model-analyst').value,
+    world_engine: document.getElementById('model-world').value,
+  }};
+  const apiKey = document.getElementById('api-key').value;
+
+  try {{
+    const response = await fetch('/api/model/config', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ models, api_key: apiKey }})
+    }});
+    const result = await response.json();
+
+    const statusEl = document.getElementById('model-config-status');
+    if (result.success) {{
+      statusEl.innerHTML = '<span style="color:var(--growth);">✓ Saved!</span>';
+      setTimeout(() => statusEl.innerHTML = '', 2000);
+    }} else {{
+      statusEl.innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
+    }}
+  }} catch (e) {{
+    document.getElementById('model-config-status').innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
   }}
 }}
 
@@ -4056,6 +4214,80 @@ async function runGenesis() {{
   }} catch (error) {{
     alert('Error: ' + error.message);
     loading.style.display = 'none';
+  }}
+}}
+
+// ---------------------------------------------------------------------------
+// Social Standing Tab
+// ---------------------------------------------------------------------------
+function renderReputationPanel() {{
+  const rep = DATA.reputation || {{}};
+  const globalScore = rep.global_score || 0;
+  const circles = rep.circles || [];
+  const events = rep.events || [];
+
+  // Update global reputation meter
+  const bar = document.getElementById('rep-bar');
+  const text = document.getElementById('rep-text');
+  const score = document.getElementById('rep-score');
+
+  if (bar && text && score) {{
+    const pct = (globalScore + 100) / 2; // Convert -100..100 to 0..100
+    bar.style.width = pct + '%';
+    score.textContent = (globalScore >= 0 ? '+' : '') + globalScore;
+
+    // Color and label based on score
+    let rank = 'Neutral';
+    let color = '#888';
+    if (globalScore >= 80) {{ rank = 'Icon'; color = '#4a4'; }}
+    else if (globalScore >= 50) {{ rank = 'Respected'; color = '#8c4'; }}
+    else if (globalScore >= 20) {{ rank = 'Known'; color = '#ac8'; }}
+    else if (globalScore >= -20) {{ rank = 'Neutral'; color = '#888'; }}
+    else if (globalScore >= -50) {{ rank = 'Controversial'; color = '#c84'; }}
+    else {{ rank = 'Pariah'; color = '#e44'; }}
+
+    text.textContent = rank;
+    bar.style.background = `linear-gradient(90deg, ${color}, ${color})`;
+  }}
+
+  // Render circles
+  const circlesList = document.getElementById('circles-list');
+  if (circlesList) {{
+    if (circles.length === 0) {{
+      circlesList.innerHTML = '<p style="color:var(--text-dim);">No circles defined</p>';
+    }} else {{
+      const sortedCircles = [...circles].sort((a, b) => b.score - a.score);
+      circlesList.innerHTML = sortedCircles.map(c => {{
+        const score = c.score || 0;
+        const color = score >= 0 ? (score > 50 ? '#4a4' : '#8c4') : (score < -50 ? '#e44' : '#c84');
+        return \`<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem;margin-bottom:0.5rem;background:var(--bg-dim);border-radius:6px;">
+          <span>\${{c.name}}</span>
+          <span style="color:\${{color}};font-weight:bold;">\$(score >= 0 ? '+' : '')\${{score}}</span>
+        </div>\`;
+      }}).join('');
+    }}
+  }}
+
+  // Render events
+  const eventsList = document.getElementById('events-list');
+  if (eventsList) {{
+    if (events.length === 0) {{
+      eventsList.innerHTML = '<p style="color:var(--text-dim);">No recent events</p>';
+    }} else {{
+      eventsList.innerHTML = events.slice(0, 20).map(e => {{
+        const change = e.change || 0;
+        const color = change >= 0 ? '#4a4' : '#e44';
+        const date = e.timestamp ? new Date(e.timestamp).toLocaleDateString() : '';
+        return \`<div style="padding:0.5rem;margin-bottom:0.5rem;background:var(--bg-dim);border-radius:4px;font-size:0.85rem;">
+          <div style="display:flex;justify-content:space-between;">
+            <strong>\${{e.circle || 'Public'}}</strong>
+            <span style="color:\${{color}};">\$(change >= 0 ? '+' : '')\${{change}}</span>
+          </div>
+          <div style="color:var(--text-dim);font-size:0.75rem;">\${{e.reason || ''}}</div>
+          <div style="color:var(--text-dim);font-size:0.7rem;">\${{date}}</div>
+        </div>\`;
+      }}).join('');
+    }}
   }}
 }}
 
@@ -5145,6 +5377,54 @@ def main():
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
                     self.wfile.write(json.dumps({{"enabled": enabled}}).encode())
+
+                elif self.path == "/api/model/config":
+                    # Get or set model configuration
+                    model_config_path = os.path.join(workspace, "memory", "reality", "model_config.json")
+
+                    if self.command == 'GET':
+                        # Return current config
+                        config = {{"models": {{}}}}
+                        if os.path.exists(model_config_path):
+                            try:
+                                with open(model_config_path) as f:
+                                    config = json.load(f)
+                            except:
+                                pass
+                        # Don't send API key to frontend for security
+                        config_safe = {{"models": config.get("models", {{}})}}
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(config_safe).encode())
+                    else:
+                        # Save config
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        try:
+                            data = json.loads(body)
+                            models = data.get("models", {{}})
+                            api_key = data.get("api_key", "")
+
+                            # Save to file (API key stored locally only)
+                            config = {{"models": models}}
+                            if api_key:
+                                config["api_key"] = api_key
+
+                            os.makedirs(os.path.dirname(model_config_path), exist_ok=True)
+                            with open(model_config_path, "w") as f:
+                                json.dump(config, f, indent=2)
+
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"success": True}}).encode())
+                            print(f"  ✓ Model config saved")
+                        except Exception as e:
+                            self.send_response(500)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
 
                 elif self.path == "/api/genesis/request-status":
                     request_path = os.path.join(workspace, "memory", "reality", "genesis_request.json")

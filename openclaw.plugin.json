@@ -126,6 +126,11 @@
             "type": "array",
             "items": { "type": "string" },
             "default": ["limbic", "heart", "emotion", "feeling"]
+          },
+          "world_engine": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": ["world", "weather", "environment", "npc"]
           }
         }
       },
@@ -331,7 +336,11 @@
     },
     "roleMapping.limbic": {
       "label": "Limbic Agents",
-      "help": "Agent IDs mapped to Limbic (Heart) role"
+      "help": "Agent IDs mapped to Limbic (Heart) role - lightweight model for emotional processing"
+    },
+    "roleMapping.world_engine": {
+      "label": "World Engine Agents",
+      "help": "Agent IDs mapped to World Engine role - lightweight model for environment simulation"
     },
     "memoTTL": {
       "label": "Memo TTL (Days)",
