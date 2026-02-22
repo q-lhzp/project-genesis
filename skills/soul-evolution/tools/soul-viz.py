@@ -102,8 +102,11 @@ def load_json(filepath: str) -> dict:
     """Load a JSON file."""
     if not os.path.exists(filepath):
         return {}
-    with open(filepath, "r") as f:
-        return json.load(f)
+    try:
+        with open(filepath, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
 
 
 def collect_data(workspace: str) -> dict:
@@ -179,6 +182,12 @@ def collect_data(workspace: str) -> dict:
     # Phase 3: Prosperity & Labor - Economy
     finances = load_json(os.path.join(memory_dir, "reality", "finances.json"))
 
+    # Phase 6: Living World - Skills, World State, Psychology, Reputation
+    skills = load_json(os.path.join(memory_dir, "reality", "skills.json"))
+    world_state = load_json(os.path.join(memory_dir, "reality", "world_state.json"))
+    psychology = load_json(os.path.join(memory_dir, "reality", "psychology.json"))
+    reputation = load_json(os.path.join(memory_dir, "reality", "reputation.json"))
+
     # Phase 4: Analytics & Lab - Read telemetry for visualization
     telemetry_dir = os.path.join(memory_dir, "telemetry")
     vitality_data = []
@@ -195,7 +204,7 @@ def collect_data(workspace: str) -> dict:
                     if line.strip():
                         try:
                             vitality_data.append(json.loads(line))
-                        except:
+                        except (json.JSONDecodeError, ValueError):
                             pass
 
     # Read recent economy telemetry
@@ -211,7 +220,7 @@ def collect_data(workspace: str) -> dict:
                         if line.strip():
                             try:
                                 economy_data.append(json.loads(line))
-                            except:
+                            except (json.JSONDecodeError, ValueError):
                                 pass
 
     return {
@@ -236,6 +245,11 @@ def collect_data(workspace: str) -> dict:
         "lifecycle": lifecycle,
         "social": social,
         "finances": finances,
+        # Phase 6: Living World
+        "skills": skills,
+        "world_state": world_state,
+        "psychology": psychology,
+        "reputation": reputation,
         "telemetry_vitality": vitality_data[-100:] if len(vitality_data) > 100 else vitality_data,  # Last 100 entries
         "telemetry_economy": economy_data[-100:] if len(economy_data) > 100 else economy_data,
     }
@@ -1656,6 +1670,9 @@ body::after {{
   <button class="tab-btn" onclick="switchTab('wardrobe')">Wardrobe</button>
   <button class="tab-btn" onclick="switchTab('development')">Development</button>
   <button class="tab-btn" onclick="switchTab('cycle')">Cycle</button>
+  <button class="tab-btn" onclick="switchTab('world')">World</button>
+  <button class="tab-btn" onclick="switchTab('skills')">Skills</button>
+  <button class="tab-btn" onclick="switchTab('psychology')">Psychology</button>
 </div>
 
 <div id="tab-dashboard" class="tab-content active">
@@ -1823,6 +1840,74 @@ body::after {{
   </div>
 </div>
 
+<!-- World Tab -->
+<div id="tab-world" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;">
+      <div class="panel-card">
+        <h2>Weather & Environment</h2>
+        <div id="world-weather"></div>
+      </div>
+      <div class="panel-card">
+        <h2>Season</h2>
+        <div id="world-season"></div>
+      </div>
+      <div class="panel-card">
+        <h2>Market Conditions</h2>
+        <div id="world-market"></div>
+      </div>
+      <div class="panel-card">
+        <h2>Locations</h2>
+        <div id="world-locations"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Skills Tab -->
+<div id="tab-skills" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <div class="panel-card">
+      <h2>Skill Progression</h2>
+      <div id="skills-list"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+      <div class="panel-card">
+        <h2>Top Skills</h2>
+        <div id="skills-top"></div>
+      </div>
+      <div class="panel-card">
+        <h2>Total XP</h2>
+        <div id="skills-total"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Psychology Tab -->
+<div id="tab-psychology" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;">
+      <div class="panel-card">
+        <h2>Resilience</h2>
+        <div id="psych-resilience"></div>
+      </div>
+      <div class="panel-card">
+        <h2>Active Traumas</h2>
+        <div id="psych-traumas"></div>
+      </div>
+      <div class="panel-card">
+        <h2>Phobias</h2>
+        <div id="psych-phobias"></div>
+      </div>
+      <div class="panel-card">
+        <h2>Sources of Joy</h2>
+        <div id="psych-joys"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Lightbox -->
 <div class="lightbox-overlay" id="lightbox" onclick="if(event.target===this)closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
@@ -1947,7 +2032,7 @@ function renderSoulTree(revealUpTo) {{
     const header = document.createElement('div');
     header.className = 'section-header';
     header.style.background = color + '0d';
-    header.innerHTML = `<div class="dot" style="background:${{color}}"></div>${{sec.text}}<span class="arrow">▼</span>`;
+    header.innerHTML = `<div class="dot" style="background:${{color}}"></div>${{esc(sec.text)}}<span class="arrow">▼</span>`;
     header.onclick = () => block.classList.toggle('collapsed');
     block.appendChild(header);
 
@@ -1958,7 +2043,7 @@ function renderSoulTree(revealUpTo) {{
       if (child.type === 'subsection') {{
         const sub = document.createElement('div');
         sub.className = 'subsection';
-        sub.innerHTML = `<div class="subsection-title">${{child.text}}</div>`;
+        sub.innerHTML = `<div class="subsection-title">${{esc(child.text)}}</div>`;
 
         (child.children || []).forEach((b, bi) => {{
           const bEl = renderBullet(b, hiddenAfter, [si, ci, bi]);
@@ -2038,8 +2123,8 @@ function renderBullet(b, hiddenAfter, path) {{
     el.appendChild(del);
   }} else {{
     el.innerHTML = `
-      ${{tagClass ? `<span class="tag ${{tagClass}}">${{b.tag}}</span>` : ''}}
-      <span>${{b.text}}</span>
+      ${{tagClass ? `<span class="tag ${{tagClass}}">${{esc(b.tag)}}</span>` : ''}}
+      <span>${{esc(b.text)}}</span>
     `;
   }}
 
@@ -2230,10 +2315,10 @@ function renderChangesList(upTo) {{
     const cleanContent = content.replace(/\\s*\\[(CORE|MUTABLE)\\]\\s*/g, '').replace(/^- /, '');
 
     el.innerHTML = `
-      <div class="change-time">${{time}}</div>
-      <span class="change-type ${{c.change_type}}">${{c.change_type}}</span>
-      <div class="change-section">${{section}}</div>
-      <div class="change-content">${{cleanContent}}</div>
+      <div class="change-time">${{esc(time)}}</div>
+      <span class="change-type ${{esc(c.change_type)}}">${{esc(c.change_type)}}</span>
+      <div class="change-section">${{esc(section)}}</div>
+      <div class="change-content">${{esc(cleanContent)}}</div>
     `;
 
     container.appendChild(el);
@@ -2313,11 +2398,11 @@ function renderFeed() {{
     return `
       <div class="exp-entry">
         <div class="exp-meta">
-          <span class="exp-source ${{sourceClass}}">${{e.source}}</span>
-          <span class="exp-sig ${{sigClass}}">${{e.significance}}</span>
-          <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${{t}}</span>
+          <span class="exp-source ${{esc(sourceClass)}}">${{esc(e.source)}}</span>
+          <span class="exp-sig ${{esc(sigClass)}}">${{esc(e.significance)}}</span>
+          <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${{esc(t)}}</span>
         </div>
-        <div class="exp-content">${{content}}</div>
+        <div class="exp-content">${{esc(content)}}</div>
       </div>
     `;
   }}).join('');
@@ -2363,9 +2448,9 @@ function renderVitals() {{
   }}).join('');
 
   const metaLines = [];
-  if (ph.current_location) metaLines.push(`<span>📍 ${{ph.current_location}}</span>`);
-  if (ph.current_outfit && ph.current_outfit.length) metaLines.push(`<span>👔 ${{ph.current_outfit.join(', ')}}</span>`);
-  if (ph.last_tick) metaLines.push(`<span>⏱ ${{ph.last_tick.slice(0, 19).replace('T', ' ')}}</span>`);
+  if (ph.current_location) metaLines.push(`<span>📍 ${{esc(ph.current_location)}}</span>`);
+  if (ph.current_outfit && ph.current_outfit.length) metaLines.push(`<span>👔 ${{esc(ph.current_outfit.join(', '))}}</span>`);
+  if (ph.last_tick) metaLines.push(`<span>⏱ ${{esc(ph.last_tick.slice(0, 19).replace('T', ' '))}}</span>`);
   meta.innerHTML = metaLines.join('');
 }}
 
@@ -2387,12 +2472,12 @@ function renderProposals() {{
     return `
       <div class="proposal-card" id="proposal-${{i}}">
         <div class="proposal-header">
-          <span class="proposal-id">${{p.id || 'PROP-' + i}}</span>
-          <span class="proposal-type ${{changeType}}">${{changeType}}</span>
+          <span class="proposal-id">${{esc(p.id || 'PROP-' + i)}}</span>
+          <span class="proposal-type ${{esc(changeType)}}">${{esc(changeType)}}</span>
         </div>
-        <div class="proposal-section">${{p.section || ''}} ${{p.subsection ? '› ' + p.subsection : ''}}</div>
-        <div class="proposal-content">${{p.content || p.after || p.proposed || ''}}</div>
-        <div class="proposal-reason">${{p.reason || p.rationale || ''}}</div>
+        <div class="proposal-section">${{esc(p.section || '')}} ${{p.subsection ? '› ' + esc(p.subsection) : ''}}</div>
+        <div class="proposal-content">${{esc(p.content || p.after || p.proposed || '')}}</div>
+        <div class="proposal-reason">${{esc(p.reason || p.rationale || '')}}</div>
         <div class="proposal-actions">
           <button class="btn-approve" onclick="resolveProposal(${{i}}, 'approved')">Approve</button>
           <button class="btn-reject" onclick="resolveProposal(${{i}}, 'rejected')">Reject</button>
@@ -2441,14 +2526,14 @@ function renderReflections() {{
     return `
       <div class="reflection-card collapsed">
         <div class="reflection-header" onclick="this.parentElement.classList.toggle('collapsed')">
-          <span class="ref-type">${{refType}}</span>
-          <span style="color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${{summary.slice(0, 80)}}</span>
+          <span class="ref-type">${{esc(refType)}}</span>
+          <span style="color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${{esc(summary.slice(0, 80))}}</span>
           <span class="ref-arrow">▼</span>
         </div>
         <div class="reflection-body">
-          <div>${{summary}}</div>
-          ${{insights.length > 0 ? '<ul class="ref-insights">' + insights.map(ins => '<li>' + (typeof ins === 'string' ? ins : (ins.insight || JSON.stringify(ins))) + '</li>').join('') + '</ul>' : ''}}
-          ${{proposalDecision ? '<div style="margin-top:0.4rem;font-size:0.68rem;color:var(--accent)">Proposals: ' + proposalDecision + '</div>' : ''}}
+          <div>${{esc(summary)}}</div>
+          ${{insights.length > 0 ? '<ul class="ref-insights">' + insights.map(ins => '<li>' + esc(typeof ins === 'string' ? ins : (ins.insight || JSON.stringify(ins))) + '</li>').join('') + '</ul>' : ''}}
+          ${{proposalDecision ? '<div style="margin-top:0.4rem;font-size:0.68rem;color:var(--accent)">Proposals: ' + esc(String(proposalDecision)) + '</div>' : ''}}
         </div>
       </div>
     `;
@@ -2472,12 +2557,12 @@ function renderSignificant() {{
     return `
       <div class="sig-entry">
         <div class="exp-meta">
-          <span class="sig-badge">${{sig}}</span>
-          <span style="font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${{(s.id || '')}}</span>
-          <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${{(s.timestamp || '').slice(0, 16).replace('T', ' ')}}</span>
+          <span class="sig-badge">${{esc(sig)}}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${{esc(s.id || '')}}</span>
+          <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${{esc((s.timestamp || '').slice(0, 16).replace('T', ' '))}}</span>
         </div>
-        <div class="sig-content">${{content.slice(0, 200)}}</div>
-        ${{context ? '<div class="sig-context">' + context + '</div>' : ''}}
+        <div class="sig-content">${{esc(content.slice(0, 200))}}</div>
+        ${{context ? '<div class="sig-context">' + esc(context) + '</div>' : ''}}
       </div>
     `;
   }}).join('');
@@ -2500,8 +2585,8 @@ function renderPipelineState() {{
     const display = typeof v === 'object' ? JSON.stringify(v) : String(v);
     return `
       <div class="state-card">
-        <div class="sc-value">${{display.length > 12 ? display.slice(0, 12) + '…' : display}}</div>
-        <div class="sc-label">${{k.replace(/_/g, ' ')}}</div>
+        <div class="sc-value">${{esc(display.length > 12 ? display.slice(0, 12) + '…' : display)}}</div>
+        <div class="sc-label">${{esc(k.replace(/_/g, ' '))}}</div>
       </div>
     `;
   }}).join('');
@@ -2511,7 +2596,7 @@ function renderPipelineState() {{
       pipeline.slice(-10).reverse().map(p => {{
         const ts = (p.timestamp || p.completed_at || '').slice(0, 16).replace('T', ' ');
         const status = p.status || p.result || 'done';
-        return `<div class="pipeline-run">${{ts}} — ${{status}}</div>`;
+        return `<div class="pipeline-run">${{esc(ts)}} — ${{esc(status)}}</div>`;
       }}).join('');
   }}
 }}
@@ -2544,6 +2629,9 @@ function switchTab(tabId) {{
   if (tabId === 'wardrobe' && !window._wardrobeRendered) {{ renderWardrobePanel(); window._wardrobeRendered = true; }}
   if (tabId === 'development' && !window._devRendered) {{ renderDevPanel(); window._devRendered = true; }}
   if (tabId === 'cycle' && !window._cycleRendered) {{ renderCyclePanel(); window._cycleRendered = true; }}
+  if (tabId === 'world' && !window._worldRendered) {{ renderWorldPanel(); window._worldRendered = true; }}
+  if (tabId === 'skills' && !window._skillsRendered) {{ renderSkillsPanel(); window._skillsRendered = true; }}
+  if (tabId === 'psychology' && !window._psychRendered) {{ renderPsychPanel(); window._psychRendered = true; }}
 }}
 
 // ---------------------------------------------------------------------------
@@ -2733,14 +2821,14 @@ function renderInterior() {{
 
   tabsEl.innerHTML = interior.rooms.map(r => {{
     const cnt = r.objects ? r.objects.length : 0;
-    return `<button class="room-tab ${{r.id === _currentRoom ? 'active' : ''}}" onclick="_currentRoom='${{r.id}}';renderInterior();">${{r.name}} (${{cnt}})</button>`;
-  }}).join('') + `<button class="room-tab" style="color:var(--core);" onclick="removeRoom('${{_currentRoom}}')">- Remove</button>`;
+    return `<button class="room-tab ${{r.id === _currentRoom ? 'active' : ''}}" onclick="_currentRoom='${{esc(r.id)}}';renderInterior();">${{esc(r.name)}} (${{cnt}})</button>`;
+  }}).join('') + `<button class="room-tab" style="color:var(--core);" onclick="removeRoom('${{esc(_currentRoom)}}')">- Remove</button>`;
 
   const room = interior.rooms.find(r => r.id === _currentRoom);
   if (!room) return;
 
-  detailEl.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.5rem;">${{room.description || ''}}</div>
-    <button class="btn-crud" onclick="addObject('${{room.id}}')">+ Object</button>`;
+  detailEl.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.5rem;">${{esc(room.description || '')}}</div>
+    <button class="btn-crud" onclick="addObject('${{esc(room.id)}}')">+ Object</button>`;
 
   const topLevel = room.objects.filter(o => !o.located_on);
   gridEl.innerHTML = topLevel.map(obj => {{
@@ -2751,12 +2839,12 @@ function renderInterior() {{
     const subHtml = subs.length > 0
       ? `<div style="font-size:0.65rem;color:var(--text-dim);margin-top:0.3rem;">Items: ${{subs.map(s => esc(s.name)).join(', ')}}</div>`
       : '';
-    return `<div class="item-card" onclick="openLightbox('interior','${{obj.id}}',${{JSON.stringify(obj.images||[])}},0)">
+    return `<div class="item-card" onclick="openLightbox('interior','${{esc(obj.id)}}',${{JSON.stringify(obj.images||[])}},0)">
       <div class="thumb">${{thumb}}</div>
       <div class="card-name">${{esc(obj.name)}}</div>
       <div class="card-meta">${{esc(obj.category)}}${{subHtml}}</div>
       <div style="margin-top:0.4rem;display:flex;gap:0.3rem;">
-        <button class="btn-crud danger" onclick="event.stopPropagation();removeObject('${{room.id}}','${{obj.id}}')">Remove</button>
+        <button class="btn-crud danger" onclick="event.stopPropagation();removeObject('${{esc(room.id)}}','${{esc(obj.id)}}')">Remove</button>
       </div>
     </div>`;
   }}).join('');
@@ -3442,6 +3530,121 @@ function renderCycleEducation() {{
       </div>
       <div class="cycle-edu-body">${{p.text}}</div>
     </div>`).join('');
+}}
+
+// ---------------------------------------------------------------------------
+// World Tab
+// ---------------------------------------------------------------------------
+function renderWorldPanel() {{
+  const ws = DATA.world_state || {{}};
+  const locs = DATA.physique?.world?.locations || [];
+
+  // Weather
+  const weatherIcons = {{ sunny: '☀️', cloudy: '☁️', rainy: '🌧️', stormy: '⛈️', snowy: '❄️' }};
+  const weatherIcon = weatherIcons[ws.weather] || '🌤️';
+  document.getElementById('world-weather').innerHTML = `
+    <div style="font-size:3rem;text-align:center;">${{weatherIcon}}</div>
+    <p style="text-align:center;text-transform:capitalize;">${{ws.weather || 'unknown'}}</p>
+    <p style="text-align:center;font-size:1.5rem;">${{ws.temperature !== undefined ? ws.temperature + '°C' : 'N/A'}}</p>`;
+
+  // Season
+  const seasonIcons = {{ spring: '🌸', summer: '☀️', autumn: '🍂', winter: '❄️' }};
+  const seasonIcon = seasonIcons[ws.season] || '🌍';
+  document.getElementById('world-season').innerHTML = `
+    <div style="font-size:3rem;text-align:center;">${{seasonIcon}}</div>
+    <p style="text-align:center;text-transform:capitalize;">${{ws.season || 'unknown'}}</p>`;
+
+  // Market
+  const marketMod = ws.market_modifier || 1.0;
+  const marketColor = marketMod > 1 ? 'var(--growth)' : (marketMod < 1 ? 'var(--danger)' : 'var(--text)');
+  document.getElementById('world-market').innerHTML = `
+    <p style="font-size:1.5rem;text-align:center;color:${{marketColor}};">${{(marketMod * 100).toFixed(0)}}%</p>
+    <p style="text-align:center;font-size:0.8rem;color:var(--text-dim);">of base price</p>`;
+
+  // Locations
+  document.getElementById('world-locations').innerHTML = locs.length > 0
+    ? locs.map(l => `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);">
+        <strong>${{l.name}}</strong><br><span style="color:var(--text-dim);font-size:0.8rem;">${{l.description || 'No description'}}</span>
+      </div>`).join('')
+    : '<p style="color:var(--text-dim);">No locations defined</p>';
+}}
+
+// ---------------------------------------------------------------------------
+// Skills Tab
+// ---------------------------------------------------------------------------
+function renderSkillsPanel() {{
+  const skills = DATA.skills?.skills || [];
+  const totalXp = DATA.skills?.total_xp || 0;
+
+  // Skills list
+  if (skills.length === 0) {{
+    document.getElementById('skills-list').innerHTML = '<p style="color:var(--text-dim);">No skills learned yet</p>';
+  }} else {{
+    const sorted = [...skills].sort((a, b) => b.level - a.level || b.xp - a.xp);
+    document.getElementById('skills-list').innerHTML = sorted.map(s => `
+      <div style="padding:0.5rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <span><strong>${{s.name}}</strong></span>
+        <span style="color:var(--core);">Lv.${{s.level}} <span style="color:var(--text-dim);font-size:0.8rem;">(${{s.xp}}/${{s.xp_to_next}} XP)</span></span>
+      </div>`).join('');
+  }}
+
+  // Top skills
+  const top3 = skills.slice(0, 3).sort((a, b) => b.level - a.level);
+  document.getElementById('skills-top').innerHTML = top3.length > 0
+    ? top3.map((s, i) => `<div style="padding:0.3rem 0;">
+        <span style="color:var(--core);">#{{i+1}}</span> <strong>${{s.name}}</strong> (Lv.${{s.level}})
+      </div>`).join('')
+    : '<p style="color:var(--text-dim);">No skills yet</p>';
+
+  // Total XP
+  document.getElementById('skills-total').innerHTML = `
+    <p style="font-size:2rem;text-align:center;color:var(--growth);">${{totalXp}}</p>
+    <p style="text-align:center;font-size:0.8rem;color:var(--text-dim);">Total XP earned</p>`;
+}}
+
+// ---------------------------------------------------------------------------
+// Psychology Tab
+// ---------------------------------------------------------------------------
+function renderPsychPanel() {{
+  const psych = DATA.psychology || {{}};
+
+  // Resilience
+  const res = psych.resilience || 0;
+  const resColor = res > 70 ? 'var(--growth)' : (res < 30 ? 'var(--danger)' : 'var(--text)');
+  document.getElementById('psych-resilience').innerHTML = `
+    <div style="width:100%;height:20px;background:var(--border);border-radius:10px;overflow:hidden;">
+      <div style="width:${{res}}%;height:100%;background:${{resColor}};transition:width 0.5s;"></div>
+    </div>
+    <p style="text-align:center;margin-top:0.5rem;">${{res}}/100</p>`;
+
+  // Traumas
+  const traumas = psych.traumas || [];
+  if (traumas.length === 0) {{
+    document.getElementById('psych-traumas').innerHTML = '<p style="color:var(--text-dim);">No active traumas</p>';
+  }} else {{
+    document.getElementById('psych-traumas').innerHTML = traumas.map(t => `
+      <div style="padding:0.5rem;margin-bottom:0.5rem;background:rgba(224,80,80,0.1);border-left:3px solid var(--danger);border-radius:4px;">
+        <div style="display:flex;justify-content:space-between;">
+          <strong>${{t.description?.slice(0, 50) || 'Trauma'}}${{t.description?.length > 50 ? '...' : ''}}</strong>
+          <span style="color:var(--danger);">${{t.severity}}/100</span>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.2rem;">
+          Trigger: ${{t.trigger || 'unknown'}} · Decay: ${{t.decay_rate}}/day
+        </div>
+      </div>`).join('');
+  }}
+
+  // Phobias
+  const phobias = psych.phobias || [];
+  document.getElementById('psych-phobias').innerHTML = phobias.length > 0
+    ? phobias.map(p => `<span style="display:inline-block;padding:0.2rem 0.5rem;margin:0.2rem;background:var(--border);border-radius:4px;font-size:0.85rem;">${{p}}</span>`).join('')
+    : '<p style="color:var(--text-dim);">No phobias recorded</p>';
+
+  // Joys
+  const joys = psych.joys || [];
+  document.getElementById('psych-joys').innerHTML = joys.length > 0
+    ? joys.map(j => `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);">${{j}}</div>`).join('')
+    : '<p style="color:var(--text-dim);">No joys recorded</p>';
 }}
 </script>
 </body>
@@ -4465,6 +4668,9 @@ def main():
                     self.send_response(200)
                     self.send_header("Content-Type", ct)
                     self.send_header("Content-Length", str(len(data)))
+                    # Force download for SVG files to prevent XSS
+                    if ext == ".svg":
+                        self.send_header("Content-Disposition", "attachment")
                     self.end_headers()
                     self.wfile.write(data)
                 else:
@@ -4550,6 +4756,11 @@ def main():
 
                         if category not in ("wardrobe", "interior", "inventory"):
                             raise ValueError("Invalid category")
+
+                        # Reject SVG uploads (XSS risk)
+                        ext_check = os.path.splitext(filename)[1].lower()
+                        if ext_check == ".svg":
+                            raise ValueError("SVG uploads are not allowed")
 
                         # Determine next image number
                         cat_dir = os.path.join(media_base, category)
@@ -4735,6 +4946,17 @@ def main():
                     body = self.rfile.read(length).decode("utf-8")
                     try:
                         data = json.loads(body)
+                        # Schema validation
+                        if not isinstance(data, dict):
+                            raise ValueError("Cycle data must be a JSON object")
+                        for required_key in ("cycle_length", "current_day", "phase"):
+                            if required_key not in data:
+                                raise ValueError(f"Missing required field: {required_key}")
+                        if data["cycle_length"] != 28:
+                            raise ValueError("cycle_length must be 28")
+                        if not isinstance(data["current_day"], (int, float)) or not (1 <= int(data["current_day"]) <= 28):
+                            raise ValueError("current_day must be between 1 and 28")
+                        data["current_day"] = int(data["current_day"])
                         cycle_path = os.path.join(workspace, "memory", "reality", "cycle.json")
                         os.makedirs(os.path.dirname(cycle_path), exist_ok=True)
                         with open(cycle_path, "w") as f:
@@ -4744,6 +4966,11 @@ def main():
                         self.end_headers()
                         self.wfile.write(b"OK")
                         print(f"  \u2713 Cycle state saved")
+                    except (json.JSONDecodeError, ValueError) as e:
+                        self.send_response(400)
+                        self.send_header("Content-Type", "text/plain")
+                        self.end_headers()
+                        self.wfile.write(str(e).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "text/plain")

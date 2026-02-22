@@ -313,6 +313,177 @@ def check(workspace_root='.'):
                     'message': f'dream_state.json is invalid JSON: {e}'
                 })
 
+        # Phase 6: Living World - world.json (locations)
+        world_loc_path = os.path.join(reality_dir, 'world.json')
+        if os.path.exists(world_loc_path):
+            try:
+                with open(world_loc_path) as f:
+                    world_loc = json.load(f)
+                if not isinstance(world_loc, dict):
+                    warnings.append({
+                        'check': 'world_schema',
+                        'message': 'world.json must be a JSON object'
+                    })
+                elif 'locations' in world_loc and not isinstance(world_loc['locations'], list):
+                    warnings.append({
+                        'check': 'world_locations',
+                        'message': 'world.json "locations" must be an array'
+                    })
+            except json.JSONDecodeError as e:
+                warnings.append({
+                    'check': 'world_json',
+                    'message': f'world.json is invalid JSON: {e}'
+                })
+
+        # Phase 6: Living World - world_state.json (weather, season)
+        world_state_path = os.path.join(reality_dir, 'world_state.json')
+        if os.path.exists(world_state_path):
+            try:
+                with open(world_state_path) as f:
+                    ws_data = json.load(f)
+                if not isinstance(ws_data, dict):
+                    warnings.append({
+                        'check': 'world_state_schema',
+                        'message': 'world_state.json must be a JSON object'
+                    })
+                else:
+                    required_ws = {'weather', 'temperature', 'season', 'market_modifier', 'last_update'}
+                    missing_fields = required_ws - set(ws_data.keys())
+                    if missing_fields:
+                        warnings.append({
+                            'check': 'world_state_schema',
+                            'message': f'world_state.json missing required fields: {sorted(missing_fields)}'
+                        })
+                    valid_weathers = {'sunny', 'cloudy', 'rainy', 'stormy', 'snowy'}
+                    if ws_data.get('weather') not in valid_weathers:
+                        warnings.append({
+                            'check': 'world_state_weather',
+                            'message': f'world_state.json weather must be one of {sorted(valid_weathers)}, got: {ws_data.get("weather")}'
+                        })
+                    valid_seasons = {'spring', 'summer', 'autumn', 'winter'}
+                    if ws_data.get('season') not in valid_seasons:
+                        warnings.append({
+                            'check': 'world_state_season',
+                            'message': f'world_state.json season must be one of {sorted(valid_seasons)}, got: {ws_data.get("season")}'
+                        })
+            except json.JSONDecodeError as e:
+                warnings.append({
+                    'check': 'world_state_json',
+                    'message': f'world_state.json is invalid JSON: {e}'
+                })
+
+        # Phase 6: Living World - skills.json
+        skills_path = os.path.join(reality_dir, 'skills.json')
+        if os.path.exists(skills_path):
+            try:
+                with open(skills_path) as f:
+                    skills_data = json.load(f)
+                if not isinstance(skills_data, dict):
+                    warnings.append({
+                        'check': 'skills_schema',
+                        'message': 'skills.json must be a JSON object'
+                    })
+                elif 'skills' in skills_data and not isinstance(skills_data['skills'], list):
+                    warnings.append({
+                        'check': 'skills_array',
+                        'message': 'skills.json "skills" must be an array'
+                    })
+                elif 'skills' in skills_data:
+                    for i, s in enumerate(skills_data['skills']):
+                        if not isinstance(s, dict):
+                            warnings.append({
+                                'check': 'skills_entry',
+                                'message': f'skills.json entry {i} must be an object'
+                            })
+                            continue
+                        required_skill = {'id', 'name', 'level', 'xp', 'xp_to_next', 'last_trained'}
+                        missing = required_skill - set(s.keys())
+                        if missing:
+                            warnings.append({
+                                'check': 'skills_entry',
+                                'message': f'skills.json entry {i} ("{s.get("name", "?")}") missing fields: {sorted(missing)}'
+                            })
+            except json.JSONDecodeError as e:
+                warnings.append({
+                    'check': 'skills_json',
+                    'message': f'skills.json is invalid JSON: {e}'
+                })
+
+        # Phase 6: Living World - psychology.json
+        psychology_path = os.path.join(reality_dir, 'psychology.json')
+        if os.path.exists(psychology_path):
+            try:
+                with open(psychology_path) as f:
+                    psych_data = json.load(f)
+                if not isinstance(psych_data, dict):
+                    warnings.append({
+                        'check': 'psychology_schema',
+                        'message': 'psychology.json must be a JSON object'
+                    })
+                else:
+                    required_psych = {'resilience', 'traumas', 'phobias', 'joys'}
+                    missing_fields = required_psych - set(psych_data.keys())
+                    if missing_fields:
+                        warnings.append({
+                            'check': 'psychology_schema',
+                            'message': f'psychology.json missing required fields: {sorted(missing_fields)}'
+                        })
+                    if not isinstance(psych_data.get('resilience'), (int, float)):
+                        warnings.append({
+                            'check': 'psychology_resilience',
+                            'message': f'psychology.json "resilience" must be a number, got: {type(psych_data.get("resilience")).__name__}'
+                        })
+                    if not isinstance(psych_data.get('traumas'), list):
+                        warnings.append({
+                            'check': 'psychology_traumas',
+                            'message': 'psychology.json "traumas" must be an array'
+                        })
+                    if not isinstance(psych_data.get('phobias'), list):
+                        warnings.append({
+                            'check': 'psychology_phobias',
+                            'message': 'psychology.json "phobias" must be an array'
+                        })
+                    if not isinstance(psych_data.get('joys'), list):
+                        warnings.append({
+                            'check': 'psychology_joys',
+                            'message': 'psychology.json "joys" must be an array'
+                        })
+            except json.JSONDecodeError as e:
+                warnings.append({
+                    'check': 'psychology_json',
+                    'message': f'psychology.json is invalid JSON: {e}'
+                })
+
+        # Phase 6: Living World - reputation.json
+        reputation_path = os.path.join(reality_dir, 'reputation.json')
+        if os.path.exists(reputation_path):
+            try:
+                with open(reputation_path) as f:
+                    rep_data = json.load(f)
+                if not isinstance(rep_data, dict):
+                    warnings.append({
+                        'check': 'reputation_schema',
+                        'message': 'reputation.json must be a JSON object'
+                    })
+                else:
+                    required_rep = {'global_score', 'circles'}
+                    missing_fields = required_rep - set(rep_data.keys())
+                    if missing_fields:
+                        warnings.append({
+                            'check': 'reputation_schema',
+                            'message': f'reputation.json missing required fields: {sorted(missing_fields)}'
+                        })
+                    if not isinstance(rep_data.get('circles'), list):
+                        warnings.append({
+                            'check': 'reputation_circles',
+                            'message': 'reputation.json "circles" must be an array'
+                        })
+            except json.JSONDecodeError as e:
+                warnings.append({
+                    'check': 'reputation_json',
+                    'message': f'reputation.json is invalid JSON: {e}'
+                })
+
     # development/manifest.json
     dev_manifest_path = os.path.join(workspace_root, 'memory', 'development', 'manifest.json')
     if os.path.exists(dev_manifest_path):

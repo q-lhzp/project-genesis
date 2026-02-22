@@ -60,11 +60,27 @@ Each milestone represents a major leap in capability and will be tagged in Git f
 | `v0.3.0-labor` | **Prosperity & Labor** | Autonomous Job Market | ✅ Complete |
 | `v0.4.0-chronos` | **The Lifecycle** | Full Aging & Health Engine | ✅ Complete |
 | `v0.5.0-lab` | **The Visual Lab** | Integrated Graphing & Analysis | ✅ Complete |
-| `v1.0.0-gold` | **Project Genesis 1.0** | Full Autonomous Human Life | ✅ **RELEASED** |
+| `v1.0.0-gold` | **Project Genesis 1.0** | Full Autonomous Human Life | ✅ Complete |
+| `v1.4.0-world` | **The Living World** | Skills, World Events, Psychology | ⏳ In Progress |
 
 ---
 
-## 6. Technical Specifications
+## 6. Phase 6: The Living World & Sovereignty (Current)
+
+**Goal:** Transform the simulation into a responsive, integrated, and deeply psychological system.
+
+### New Modules:
+1.  **Utility & Physics:** Consumable items with stats, clothing buffs.
+2.  **Psychology:** Long-term trauma, memory scars, phobias, and joys.
+3.  **Competence (Skills):** XP-based progression, skill trees affecting success rates.
+4.  **Environment (World):** Weather, seasons, economy fluctuations.
+5.  **Reputation:** Global social standing and circle dynamics.
+6.  **Desktop Sovereignty:** Autonomous wallpaper control and environment interaction.
+7.  **Legacy:** Mortality mechanics and inheritance.
+
+---
+
+## 7. Technical Specifications
 - **Plugin ID:** `project_genesis`
 - **Shortname:** `genesis`
 - **Namespace:** `reality_*`

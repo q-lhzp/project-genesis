@@ -105,6 +105,64 @@ interface InventoryItem {
   images: string[];
   tags: string[];
   added_at: string;
+  // Phase 6: Utility
+  effects?: {
+    energy?: number;
+    stress?: number;
+    hunger?: number;
+    health?: number;
+    mood?: string;
+    duration_minutes?: number;
+  };
+  equippable?: boolean;
+  equipped?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6: The Living World Interfaces
+// ---------------------------------------------------------------------------
+
+interface SkillEntry {
+  id: string;
+  name: string;
+  level: number;
+  xp: number;
+  xp_to_next: number;
+  last_trained: string | null;
+}
+
+interface SkillState {
+  skills: SkillEntry[];
+  total_xp: number;
+}
+
+interface WorldState {
+  weather: "sunny" | "cloudy" | "rainy" | "stormy" | "snowy";
+  temperature: number;
+  season: "spring" | "summer" | "autumn" | "winter";
+  market_modifier: number; // 0.8 to 1.2
+  last_update: string;
+}
+
+interface Trauma {
+  id: string;
+  description: string;
+  severity: number; // 0-100
+  trigger: string;
+  decay_rate: number; // per day
+  added_at: string;
+}
+
+interface PsychState {
+  resilience: number; // 0-100
+  traumas: Trauma[];
+  phobias: string[];
+  joys: string[]; // Positive memories that buff resilience
+}
+
+interface ReputationState {
+  global_score: number; // -100 to 100
+  circles: { name: string; score: number }[];
 }
 
 interface Inventory {
@@ -219,7 +277,10 @@ interface VitalityMetrics {
   age_years: number;
   life_stage: LifeStage;
   health_index: number;
-  needs: Needs;
+  energy: number;
+  hunger: number;
+  thirst: number;
+  stress: number;
   location: string;
 }
 
@@ -276,6 +337,7 @@ interface SocialState {
   entities: SocialEntity[];
   last_network_search: string | null;
   circles: string[];  // User-defined circles (e.g., "Work", "Family", "Hobbies")
+  last_decay_check?: string; // ISO timestamp for 24h decay guard
 }
 
 interface SocialInteractionLog {
@@ -338,6 +400,7 @@ interface FinanceState {
   debts: Debt[];
   last_expense_process: string;  // ISO timestamp
   last_income_process: string;
+  last_interest_process?: string; // ISO timestamp — guards against multiple interest charges per month
   net_worth: number;  // Calculated: balance - total debt
 }
 
@@ -471,7 +534,19 @@ interface PluginConfig {
   initialAgeDays?: number;       // Starting age in days (if not starting from birth)
   // Phase 3: Prosperity & Labor
   initialBalance?: number;       // Starting balance (default: 1000)
-  modules: { eros: boolean; cycle: boolean; dreams: boolean; hobbies: boolean };
+  modules: {
+    eros: boolean;
+    cycle: boolean;
+    dreams: boolean;
+    hobbies: boolean;
+    utility?: boolean;
+    psychology?: boolean;
+    skills?: boolean;
+    world?: boolean;
+    reputation?: boolean;
+    desktop?: boolean;
+    legacy?: boolean;
+  };
   metabolismRates: Record<string, number>;
   reflexThreshold: number;
   growthContextEntries?: number;
@@ -536,12 +611,12 @@ interface InteriorParams  {
   place_on?: string; target_room?: string;
 }
 interface InventoryParams {
-  action: string;
+  action: "list" | "add" | "remove" | "update" | "search" | "use";
   item_id?: string; name?: string; category?: string; description?: string;
   quantity?: number; location?: string; tags?: string[]; query?: string;
 }
 interface DevelopParams {
-  action: "init_project" | "create_project" | "write_code" | "read_file" | "list_projects" | "run_test" | "submit_review" | "status" | "delete_project";
+  action: "init_project" | "create_project" | "write_code" | "write_file" | "read_file" | "list_projects" | "run_test" | "submit_review" | "status" | "delete_project";
   project_id?: string;
   project_name?: string;
   project_type?: "tool" | "skill" | "plugin" | "script";
@@ -629,6 +704,19 @@ interface OverrideParams {
   target: "balance" | "age_days" | "stress" | "energy" | "hunger" | "health";
   value: number;
   reason?: string;
+}
+
+// Phase 6: Living World - Tool params
+interface SkillParams {
+  action: "train" | "check" | "list";
+  skill_name?: string;
+  duration?: number;
+}
+
+interface DesktopParams {
+  action: "set_wallpaper" | "set_theme" | "get_info";
+  path?: string; // /path/to/image.jpg
+  theme?: "dark" | "light";
 }
 
 // ---------------------------------------------------------------------------
@@ -812,7 +900,9 @@ function updateLifecycle(lifecycle: LifecycleState): boolean {
     const daysAdvanced = Math.floor(diffHours / 24);
     lifecycle.biological_age_days += daysAdvanced;
     lifecycle.life_stage = getLifeStage(lifecycle.biological_age_days);
-    lifecycle.last_aging_check = now.toISOString();
+    // Preserve fractional remainder so partial days aren't lost
+    const remainderMs = (diffHours - daysAdvanced * 24) * 3600000;
+    lifecycle.last_aging_check = new Date(now.getTime() - remainderMs).toISOString();
     return true;
   }
   return false;
@@ -942,13 +1032,13 @@ function getLifeStageMultipliers(stage: LifeStage): LifeStageMultipliers {
   switch (stage) {
     case "infant":
       // Babies need frequent feeding, lots of sleep
-      return { ...defaults, energy: 0.8, hunger: 1.5, thirst: 1.3, stress: 0.5 };
+      return { ...defaults, energy: 0.8, hunger: 1.5, thirst: 1.3, stress: 0.5, arousal: 0, libido: 0 };
     case "child":
       // Children have high energy, fast metabolism
-      return { ...defaults, energy: 1.2, hunger: 1.3, thirst: 1.2, stress: 0.7 };
+      return { ...defaults, energy: 1.2, hunger: 1.3, thirst: 1.2, stress: 0.7, arousal: 0, libido: 0 };
     case "teen":
       // Teens have increased appetite, high energy needs, more stress
-      return { ...defaults, energy: 1.1, hunger: 1.2, thirst: 1.1, stress: 1.3 };
+      return { ...defaults, energy: 1.1, hunger: 1.2, thirst: 1.1, stress: 1.3, arousal: 0.3, libido: 0.2 };
     case "adult":
       // Standard adult metabolism
       return defaults;
@@ -1013,6 +1103,7 @@ function getDefaultSocialState(): SocialState {
     entities: [],
     last_network_search: null,
     circles: ["Family", "Friends", "Work", "Hobbies"],
+    last_decay_check: now,
   };
 }
 
@@ -1253,10 +1344,18 @@ function processRecurringExpenses(finance: FinanceState, now: Date): EconomyEven
 }
 
 /**
- * Process interest on debts - called during economic tick
+ * Process interest on debts - called during economic tick.
+ * Guarded by last_interest_process to ensure interest is only applied once per 28+ days.
  */
 function processDebtInterest(finance: FinanceState, now: Date): EconomyEvent[] {
   const events: EconomyEvent[] = [];
+
+  // Time guard: only process interest once per ~month (28 days minimum)
+  if (finance.last_interest_process) {
+    const lastProcess = new Date(finance.last_interest_process);
+    const daysSince = (now.getTime() - lastProcess.getTime()) / (1000 * 60 * 60 * 24);
+    if (isNaN(daysSince) || daysSince < 28) return events;
+  }
 
   for (const debt of finance.debts) {
     if (debt.current_balance <= 0) continue;
@@ -1279,6 +1378,7 @@ function processDebtInterest(finance: FinanceState, now: Date): EconomyEvent[] {
     }
   }
 
+  finance.last_interest_process = now.toISOString();
   return events;
 }
 
@@ -1402,10 +1502,12 @@ function generateJobListings(socialEntities: SocialEntity[] = []): Array<{
   const socialJobs = socialEntities
     .filter(e => e.relationship_type === "professional" && e.bond > 30)
     .map(e => ({
+      id: generateId("job"),
       position: `${e.name}'s Colleague`,
       company: "Referral Network",
-      salary: 2300 + Math.round(e.bond * 10),
-      type: "full_time" as JobType,
+      salary_per_month: 2300 + Math.round(e.bond * 10),
+      job_type: "full_time" as JobType,
+      requirements: [],
       employer_id: e.id as string | null,
       posted_by: e.name as string | null,
     }));
@@ -1414,7 +1516,11 @@ function generateJobListings(socialEntities: SocialEntity[] = []): Array<{
   const shuffled = jobTemplates.sort(() => Math.random() - 0.5);
   const selectedJobs = shuffled.slice(0, 4).map((j, i) => ({
     id: `${jobId}_${i}`,
-    ...j,
+    position: j.position,
+    company: j.company,
+    salary_per_month: j.salary,
+    job_type: j.type,
+    requirements: j.req,
     employer_id: null,
     posted_by: null,
   }));
@@ -1429,8 +1535,8 @@ function generateJobListings(socialEntities: SocialEntity[] = []): Array<{
 /**
  * Read telemetry data for visualization
  */
-async function readVitalityTelemetry(telemetryPath: string, days: number = 30): Promise<VitalityMetrics[]> {
-  const results: VitalityMetrics[] = [];
+async function readVitalityTelemetry(telemetryPath: string, days: number = 30): Promise<TelemetryEntry[]> {
+  const results: TelemetryEntry[] = [];
   const now = new Date();
 
   for (let i = 0; i < days; i++) {
@@ -1622,20 +1728,27 @@ async function exportResearchData(
   }
 
   // CSV format
+  // Escape string fields to prevent CSV injection (formula prefixes =, +, -, @)
+  const escapeCSV = (val: string): string => {
+    const escaped = val.replace(/"/g, '""');
+    if (/^[=+\-@\t\r]/.test(escaped)) return `"'${escaped}"`;
+    return `"${escaped}"`;
+  };
+
   const csvLines: string[] = [];
 
   // Vitality CSV
   csvLines.push("# Vitality Data");
   csvLines.push("timestamp,age_days,age_years,life_stage,health_index,energy,hunger,thirst,stress,location");
   for (const v of vitalityData) {
-    csvLines.push(`${v.timestamp},${v.age_days},${v.age_years},${v.life_stage},${v.health_index},${v.energy},${v.hunger},${v.thirst},${v.stress},${v.location}`);
+    csvLines.push(`${v.timestamp},${v.age_days},${v.age_years},${escapeCSV(v.life_stage)},${v.health_index},${v.energy},${v.hunger},${v.thirst},${v.stress},${escapeCSV(v.location)}`);
   }
 
   csvLines.push("");
   csvLines.push("# Economy Data");
   csvLines.push("timestamp,event_type,amount,description");
   for (const e of economyData) {
-    csvLines.push(`${e.timestamp},${e.event_type},${e.amount},"${e.description.replace(/"/g, '""')}"`);
+    csvLines.push(`${e.timestamp},${escapeCSV(e.event_type)},${e.amount},${escapeCSV(e.description)}`);
   }
 
   return csvLines.join("\n");
@@ -1649,7 +1762,6 @@ interface Urge {
   type: "survival" | "financial" | "social" | "hygiene" | "aspiration";
   priority: number;    // 1 = highest priority
   message: string;
-  canOverride: string[];  // Urge types that can override this
 }
 
 function calculateUrgePriority(
@@ -1667,7 +1779,7 @@ function calculateUrgePriority(
       type: "survival",
       priority: 1,
       message: "You are exhausted. Your body demands rest.",
-      canOverride: [],
+
     });
   }
 
@@ -1676,7 +1788,7 @@ function calculateUrgePriority(
       type: "survival",
       priority: 1,
       message: "You are starving. Food is an urgent necessity.",
-      canOverride: [],
+
     });
   }
 
@@ -1685,7 +1797,7 @@ function calculateUrgePriority(
       type: "survival",
       priority: 1,
       message: "You are parched. You need water immediately.",
-      canOverride: [],
+
     });
   }
 
@@ -1694,7 +1806,15 @@ function calculateUrgePriority(
       type: "survival",
       priority: 2,
       message: "Your bladder is screaming. You cannot think of anything else.",
-      canOverride: ["survival"],
+
+    });
+  }
+
+  if (ph.needs.bowel > 85) {
+    urges.push({
+      type: "survival",
+      priority: 2,
+      message: "Your bowels are demanding attention. You need a bathroom now.",
     });
   }
 
@@ -1704,14 +1824,14 @@ function calculateUrgePriority(
       type: "financial",
       priority: 3,
       message: "You are in financial crisis. Your account is critically low.",
-      canOverride: ["survival"],
+
     });
   } else if (finance && finance.balance < 300 && calculateMonthlyIncome(finance) === 0) {
     urges.push({
       type: "financial",
       priority: 3,
       message: "You have no income and minimal savings. You must find work.",
-      canOverride: ["survival"],
+
     });
   }
 
@@ -1721,7 +1841,7 @@ function calculateUrgePriority(
       type: "social",
       priority: 4,
       message: "You feel completely alone. You crave human connection.",
-      canOverride: ["survival", "financial"],
+
     });
   } else if (socialState) {
     const neglected = socialState.entities.filter(e => {
@@ -1734,7 +1854,7 @@ function calculateUrgePriority(
         type: "social",
         priority: 5,
         message: `You haven't connected with ${neglected.map(n => n.name).slice(0, 2).join(" and ")} in weeks. You miss them.`,
-        canOverride: ["survival", "financial"],
+  
       });
     }
   }
@@ -1745,7 +1865,7 @@ function calculateUrgePriority(
       type: "hygiene",
       priority: 6,
       message: "You feel unclean. You need to wash.",
-      canOverride: ["survival", "financial", "social"],
+
     });
   }
 
@@ -1755,7 +1875,7 @@ function calculateUrgePriority(
       type: "aspiration",
       priority: 7,
       message: "You are overwhelmed by stress. You need relief.",
-      canOverride: ["survival", "financial", "social", "hygiene"],
+
     });
   }
 
@@ -1767,14 +1887,14 @@ function calculateUrgePriority(
         type: "aspiration",
         priority: 8,
         message: "You are a teenager seeking independence and identity.",
-        canOverride: ["survival", "financial"],
+  
       });
     } else if (lifecycleState.life_stage === "adult" && ageYears >= 18 && ageYears <= 25) {
       urges.push({
         type: "aspiration",
         priority: 9,
         message: "You are a young adult building your life. Career and relationships matter.",
-        canOverride: ["survival", "financial", "hygiene"],
+
       });
     }
   }
@@ -2318,11 +2438,28 @@ async function readJson<T>(path: string): Promise<T | null> {
   }
 }
 
-async function writeJson(path: string, data: unknown): Promise<void> {
+async function writeJson<T>(path: string, data: T): Promise<void> {
   await fs.mkdir(dirname(path), { recursive: true });
   const tmp = path + ".tmp";
   await fs.writeFile(tmp, JSON.stringify(data, null, 2));
   await fs.rename(tmp, path);
+}
+
+// ---------------------------------------------------------------------------
+// File-Lock: Map-based promise queue to prevent read-modify-write races
+// ---------------------------------------------------------------------------
+const fileLocks = new Map<string, Promise<unknown>>();
+
+async function withFileLock<T>(path: string, fn: () => Promise<T>): Promise<T> {
+  const prev = fileLocks.get(path) ?? Promise.resolve();
+  const next = prev.then(fn, fn); // run fn after previous completes (even on error)
+  fileLocks.set(path, next);
+  try {
+    return await next;
+  } finally {
+    // Clean up if this is still the latest queued operation
+    if (fileLocks.get(path) === next) fileLocks.delete(path);
+  }
 }
 
 async function appendJsonl(path: string, entry: unknown): Promise<void> {
@@ -2489,7 +2626,7 @@ async function readDesireHeader(path: string): Promise<string | null> {
     const lines = content.split("\n");
     const result: string[] = [];
     for (const line of lines) {
-      if (line.startsWith("**Aktuell") || line.startsWith("**Ziele:**")) {
+      if (line.startsWith("**Aktuell") || line.startsWith("**Current") || line.startsWith("**Ziele:**") || line.startsWith("**Goals:**")) {
         result.push(line.trim());
         if (result.length >= 3) break;
       }
@@ -2630,7 +2767,7 @@ async function appendGrowthEntry(growthPath: string, category: string, entryCont
   await fs.writeFile(growthPath, growthContent);
 }
 
-async function endActiveHobbySession(hobbiesPath: string): Promise<void> {
+async function endActiveHobbySession(hobbiesPath: string, lang: "de" | "en" = "en"): Promise<void> {
   const log = await readJson<HobbyLog>(hobbiesPath);
   if (!log) return;
   let changed = false;
@@ -2643,7 +2780,7 @@ async function endActiveHobbySession(hobbiesPath: string): Promise<void> {
         ...hobby.current_session,
         ended_at: now.toISOString(),
         duration_minutes: duration,
-        notes: hobby.current_session.notes || "Session beim Schlafen beendet.",
+        notes: hobby.current_session.notes || (lang === "de" ? "Session beim Schlafen beendet." : "Session ended during sleep."),
         mood_after: hobby.current_session.mood_after || "",
       };
       hobby.log.push(sess);
@@ -2667,7 +2804,11 @@ async function endActiveHobbySession(hobbiesPath: string): Promise<void> {
 function buildSensoryContext(
   ph: Physique,
   lang: "de" | "en",
-  modules: { eros: boolean; cycle: boolean; dreams: boolean; hobbies: boolean },
+  modules: { 
+    eros: boolean; cycle: boolean; dreams: boolean; hobbies: boolean;
+    utility?: boolean; psychology?: boolean; skills?: boolean; world?: boolean;
+    reputation?: boolean; desktop?: boolean; legacy?: boolean;
+  },
   cycleState?: CycleState | null,
   cycleProfile?: CycleProfile | null,
   emotionState?: string | null,
@@ -2679,6 +2820,9 @@ function buildSensoryContext(
   lifecycleState?: LifecycleState | null,
   socialState?: SocialState | null,
   financeState?: FinanceState | null,
+  worldState?: WorldState | null,
+  skillState?: SkillState | null,
+  psychState?: PsychState | null,
 ): string {
   const parts: string[] = [];
 
@@ -2690,6 +2834,14 @@ function buildSensoryContext(
   // [MOOD]
   if (emotionState) {
     parts.push(`[MOOD]\n${emotionState}`);
+  }
+
+  // Phase 6: Psychology Context
+  if (modules.psychology && psychState) {
+    const traumaList = psychState.traumas.map(t => `- ${t.description} (Severity: ${t.severity})`).join("\n");
+    if (traumaList) {
+      parts.push(`[PSYCHOLOGY - TRAUMA]\n${traumaList}`);
+    }
   }
 
   // [DESIRE] (eros only)
@@ -2706,6 +2858,12 @@ function buildSensoryContext(
     const val = ph.needs[type] ?? 0;
     const sensation = getSensation(val, type);
     if (sensation) bodyLines.push(`- ${sensation}`);
+  }
+
+  // Phase 6: World Context
+  if (modules.world && worldState) {
+    bodyLines.push(`- Weather: ${worldState.weather}, ${worldState.temperature}°C`);
+    bodyLines.push(`- Season: ${worldState.season}`);
   }
 
   // Cycle sensory context
@@ -2835,6 +2993,13 @@ function buildSensoryContext(
     parts.push(`[GROWTH CONTEXT]\n${growthContext}`);
   }
 
+  // Phase 6: Skills Context
+  if (modules.skills && skillState) {
+    const topSkills = skillState.skills.sort((a, b) => b.level - a.level).slice(0, 3);
+    const skillTxt = topSkills.map(s => `- ${s.name}: Level ${s.level}`).join("\n");
+    if (skillTxt) parts.push(`[COMPETENCE]\n${skillTxt}`);
+  }
+
   // [SELF-DEVELOPMENT] — always at the end
   const selfDevText = `[SELF-DEVELOPMENT]\nYou maintain your own growth autonomously:\n- Insights, lessons → reality_grow(add_entry, category: "lesson"|"insight"|...)\n- Mood changes → reality_emotion(set_mood, ...)\n- Meaningful memories → reality_emotion(add_memory, ...)\n- Inner desires → reality_desire(set_current, ...)\nYou decide yourself — no trigger needed. Don't wait for permission.`;
   parts.push(selfDevText);
@@ -2863,6 +3028,13 @@ export default {
       cycle: cfg?.modules?.cycle ?? false,
       dreams: cfg?.modules?.dreams ?? false,
       hobbies: cfg?.modules?.hobbies ?? false,
+      utility: cfg?.modules?.utility ?? true,
+      psychology: cfg?.modules?.psychology ?? true,
+      skills: cfg?.modules?.skills ?? true,
+      world: cfg?.modules?.world ?? true,
+      reputation: cfg?.modules?.reputation ?? true,
+      desktop: cfg?.modules?.desktop ?? false,
+      legacy: cfg?.modules?.legacy ?? false,
     };
     const growthContextEntries = cfg?.growthContextEntries ?? 10;
     const dreamWindow = cfg?.dreamWindow ?? { start: 23, end: 5 };
@@ -2873,7 +3045,7 @@ export default {
     const paths = {
       physique: resolvePath(ws, "memory", "reality", "physique.json"),
       wardrobe: resolvePath(ws, "memory", "reality", "wardrobe.json"),
-      world: resolvePath(ws, "memory", "reality", "world.json"),
+      locations: resolvePath(ws, "memory", "reality", "world.json"),
       interests: resolvePath(ws, "memory", "reality", "interests.json"),
       diary: resolvePath(ws, "memory", "reality", "diary"),
       experiences: resolvePath(ws, "memory", "experiences"),
@@ -2906,6 +3078,11 @@ export default {
       // MAC - Multi-Agent Cluster
       internalComm: resolvePath(ws, "memory", "reality", "internal_comm.json"),
       agentActivity: resolvePath(ws, "memory", "telemetry", "agents"),
+      // Phase 6: Living World
+      skills: resolvePath(ws, "memory", "reality", "skills.json"),
+      world: resolvePath(ws, "memory", "reality", "world_state.json"),
+      psychology: resolvePath(ws, "memory", "reality", "psychology.json"),
+      reputation: resolvePath(ws, "memory", "reality", "reputation.json"),
     };
 
     // -------------------------------------------------------------------
@@ -2964,7 +3141,10 @@ export default {
         await writeJson(paths.internalComm, { memos: [], last_cleanup: new Date().toISOString() });
       }
 
-      const ph = await readJson<Physique>(paths.physique);
+      const ph = await withFileLock(paths.physique, async () => {
+        const p = await readJson<Physique>(paths.physique);
+        return p;
+      });
       if (!ph) return { prependContext: "" };
 
       // Ensure libido field exists on legacy physique data
@@ -2973,30 +3153,35 @@ export default {
       // Load and advance cycle state (auto-init if missing)
       let cycleState: CycleState | null = null;
       if (modules.cycle) {
-        cycleState = await readJson<CycleState>(paths.cycle);
-        if (!cycleState) {
-          cycleState = getDefaultCycleState();
-          await writeJson(paths.cycle, cycleState);
-        }
-        const advanced = advanceCycleDay(cycleState);
-        if (advanced) await writeJson(paths.cycle, cycleState);
+        cycleState = await withFileLock(paths.cycle, async () => {
+          let cs = await readJson<CycleState>(paths.cycle);
+          if (!cs) {
+            cs = getDefaultCycleState();
+            await writeJson(paths.cycle, cs);
+          }
+          const advanced = advanceCycleDay(cs);
+          if (advanced) await writeJson(paths.cycle, cs);
+          return cs;
+        });
       }
 
       // Phase 1: Chronos - Load and advance lifecycle state (auto-init if missing)
       const birthDate = cfg?.birthDate;
       const initialAgeDays = cfg?.initialAgeDays ?? 0;
-      let lifecycleState: LifecycleState | null = await readJson<LifecycleState>(paths.lifecycle);
-      if (!lifecycleState) {
-        lifecycleState = getDefaultLifecycleState(birthDate, initialAgeDays);
-        await writeJson(paths.lifecycle, lifecycleState);
-      } else {
-        // Update age from real time passage
-        const advanced = updateLifecycle(lifecycleState);
-        if (advanced) await writeJson(paths.lifecycle, lifecycleState);
-      }
+      let lifecycleState: LifecycleState | null = await withFileLock(paths.lifecycle, async () => {
+        let ls = await readJson<LifecycleState>(paths.lifecycle);
+        if (!ls) {
+          ls = getDefaultLifecycleState(birthDate, initialAgeDays);
+          await writeJson(paths.lifecycle, ls);
+        } else {
+          const advanced = updateLifecycle(ls);
+          if (advanced) await writeJson(paths.lifecycle, ls);
+        }
+        return ls;
+      });
 
       const changed = updateMetabolism(ph, rates, modules, cycleState, lifecycleState);
-      if (changed) await writeJson(paths.physique, ph);
+      if (changed) await withFileLock(paths.physique, () => writeJson(paths.physique, ph));
 
       // Phase 1: Chronos - Log vitality telemetry (every tick)
       if (lifecycleState) {
@@ -3006,6 +3191,31 @@ export default {
       // Load social and finance state for role-specific contexts
       let socialState: SocialState | null = await readJson<SocialState>(paths.social);
       let financeState: FinanceState | null = await readJson<FinanceState>(paths.finances);
+
+      // Apply social decay in hook (with 24h guard to avoid excessive decay)
+      if (socialState && socialState.entities.length > 0) {
+        const decayNow = new Date();
+        const lastDecay = socialState.last_decay_check ? new Date(socialState.last_decay_check) : null;
+        const hoursSinceDecay = lastDecay ? (decayNow.getTime() - lastDecay.getTime()) / 3600000 : 25;
+        if (hoursSinceDecay >= 24) {
+          let decayChanged = false;
+          for (const entity of socialState.entities) {
+            const lastInteraction = new Date(entity.last_interaction);
+            const daysSince = Math.floor((decayNow.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
+            const decay = applySocialDecay(entity, daysSince);
+            if (decay) {
+              entity.bond = decay.bond ?? entity.bond;
+              entity.trust = decay.trust ?? entity.trust;
+              entity.intimacy = decay.intimacy ?? entity.intimacy;
+              decayChanged = true;
+            }
+          }
+          socialState.last_decay_check = decayNow.toISOString();
+          if (decayChanged) {
+            await withFileLock(paths.social, () => writeJson(paths.social, socialState));
+          }
+        }
+      }
 
       // Ensure soul files exist (one-time auto-init)
       await ensureSoulFiles(
@@ -3032,7 +3242,7 @@ export default {
 
       // CYCLE_STATUS in EMOTIONS.md auto-update
       if (modules.cycle && cycleState) {
-        await updateEmotionsCycleStatus(paths.emotions, cycleState, cycleProfile);
+        await updateEmotionsCycleStatus(paths.emotions, cycleState, lang, cycleProfile);
       }
 
       // Hobby suggestion (only when idle)
@@ -3044,7 +3254,7 @@ export default {
           return val >= reflexThreshold;
         });
         if (!hasCritical && ph.needs.energy > 30) {
-          hobbySuggestion = await getHobbySuggestion(paths.hobbies);
+          hobbySuggestion = await getHobbySuggestion(paths.hobbies, lang);
         }
       }
 
@@ -3059,6 +3269,46 @@ export default {
           : (hour >= 23 || hour < 5);
         if (inWindow && ph.needs.energy <= (cfg?.dreamEnergyThreshold ?? 20)) {
           dreamTriggerHint = "\n[DREAM HINT] You are tired and it's nighttime. You could fall asleep... reality_dream(action: \"enter\")\n";
+        }
+      }
+
+      const devManifest = await readJson<DevManifest>(paths.devManifest);
+      const isDe = lang === "de";
+
+      // Phase 6: Living World State Load
+      let skillState: SkillState | null = null;
+      let worldState: WorldState | null = null;
+      let psychState: PsychState | null = null;
+      
+      if (modules.skills) {
+        skillState = await readJson<SkillState>(paths.skills);
+        if (!skillState) {
+          skillState = { skills: [], total_xp: 0 };
+          await writeJson(paths.skills, skillState);
+        }
+      }
+
+      if (modules.world) {
+        worldState = await readJson<WorldState>(paths.world);
+        if (!worldState) {
+          worldState = { weather: "sunny", temperature: 20, season: "spring", market_modifier: 1.0, last_update: new Date().toISOString() };
+          await writeJson(paths.world, worldState);
+        }
+        // Simple weather tick (every 4 hours)
+        const lastWeather = new Date(worldState.last_update);
+        if ((new Date().getTime() - lastWeather.getTime()) > 4 * 60 * 60 * 1000) {
+          const weathers: WorldState["weather"][] = ["sunny", "cloudy", "rainy", "stormy"];
+          worldState.weather = weathers[Math.floor(Math.random() * weathers.length)];
+          worldState.last_update = new Date().toISOString();
+          await writeJson(paths.world, worldState);
+        }
+      }
+
+      if (modules.psychology) {
+        psychState = await readJson<PsychState>(paths.psychology);
+        if (!psychState) {
+          psychState = { resilience: 100, traumas: [], phobias: [], joys: [] };
+          await writeJson(paths.psychology, psychState);
         }
       }
 
@@ -3131,7 +3381,8 @@ export default {
       const defaultContext = buildSensoryContext(
         ph, lang, modules, cycleState, cycleProfile,
         emotionState, desireState, identityLine, growthCtx,
-        dreamState, hobbySuggestion, lifecycleState, socialState, financeState
+        dreamState, hobbySuggestion, lifecycleState, socialState, financeState,
+        worldState, skillState, psychState
       ) + dreamTriggerHint;
 
       // Combine contexts based on role
@@ -3206,24 +3457,21 @@ export default {
       const roleMapping = cfg?.roleMapping;
       const agentRole = detectAgentRole(agentId, roleMapping);
 
-      // MAC: RoleGuard - block unauthorized tools
-      if (!toolName.startsWith("reality_") && toolName !== "evolution_debug") {
-        if (!checkToolAccess(agentRole, toolName)) {
-          // Log the blocked access attempt
-          await logAgentActivity(
-            paths.agentActivity,
-            agentId,
-            agentRole,
-            "TOOL_ACCESS_DENIED",
-            `Role ${agentRole} attempted to access forbidden tool: ${toolName}`,
-            { toolName, blocked: true }
-          );
+      // MAC: RoleGuard - block unauthorized tools (applies to ALL tools including reality_*)
+      if (toolName !== "evolution_debug" && !checkToolAccess(agentRole, toolName)) {
+        await logAgentActivity(
+          paths.agentActivity,
+          agentId,
+          agentRole,
+          "TOOL_ACCESS_DENIED",
+          `Role ${agentRole} attempted to access forbidden tool: ${toolName}`,
+          { toolName, blocked: true }
+        );
 
-          const reason = lang === "de"
-            ? `Rolle '${agentRole}' hat keinen Zugriff auf '${toolName}'.`
-            : `Role '${agentRole}' does not have access to '${toolName}'.`;
-          return { block: true, blockReason: reason };
-        }
+        const reason = lang === "de"
+          ? `Rolle '${agentRole}' hat keinen Zugriff auf '${toolName}'.`
+          : `Role '${agentRole}' does not have access to '${toolName}'.`;
+        return { block: true, blockReason: reason };
       }
 
       // Log successful tool access
@@ -3236,7 +3484,8 @@ export default {
         { toolName }
       );
 
-      // Never block reality tools or debug — prevents deadlock
+      // Skip reflex-lock for reality_* tools and debug — prevents deadlock
+      // (RoleGuard above still applies, only the biological reflex is skipped)
       if (toolName.startsWith("reality_") || toolName === "evolution_debug") return { block: false };
 
       const ph = await readJson<Physique>(paths.physique);
@@ -3322,7 +3571,7 @@ export default {
 
         // Close active hobby sessions on sleep
         if (params.action === "sleep" && modules.hobbies) {
-          await endActiveHobbySession(paths.hobbies);
+          await endActiveHobbySession(paths.hobbies, lang);
         }
 
         const msgs: Record<string, Record<string, string>> = {
@@ -3350,7 +3599,7 @@ export default {
         const ph = await readJson<Physique>(paths.physique);
         if (!ph) return { content: [{ type: "text", text: "physique.json not found." }] };
 
-        const world = await readJson<{ locations: WorldLocation[] }>(paths.world);
+        const world = await readJson<{ locations: WorldLocation[] }>(paths.locations);
         if (world) {
           const valid = world.locations.find(
             (l) => l.id === params.location || l.name.toLowerCase() === params.location.toLowerCase()
@@ -3705,11 +3954,15 @@ export default {
               const stimmungIdx = lines.findIndex((l, i) => i > headerIdx && (l.startsWith("stimmung:") || l.startsWith("mood:")));
               const energieIdx = lines.findIndex((l, i) => i > headerIdx && (l.startsWith("energie:") || l.startsWith("energy:")));
               const updateIdx = lines.findIndex((l, i) => i > headerIdx && (l.startsWith("zuletzt_aktualisiert:") || l.startsWith("last_updated:")));
-              if (stimmungIdx >= 0) lines[stimmungIdx] = `stimmung: ${params.mood}`;
-              if (energieIdx >= 0) lines[energieIdx] = `energie: ${params.energy ?? "mittel"}`;
-              if (updateIdx >= 0) lines[updateIdx] = `zuletzt_aktualisiert: ${now}`;
+              const moodKey = lang === "de" ? "stimmung" : "mood";
+              const energyKey = lang === "de" ? "energie" : "energy";
+              const updateKey = lang === "de" ? "zuletzt_aktualisiert" : "last_updated";
+              const defaultEnergy = lang === "de" ? "mittel" : "medium";
+              if (stimmungIdx >= 0) lines[stimmungIdx] = `${moodKey}: ${params.mood}`;
+              if (energieIdx >= 0) lines[energieIdx] = `${energyKey}: ${params.energy ?? defaultEnergy}`;
+              if (updateIdx >= 0) lines[updateIdx] = `${updateKey}: ${now}`;
               if (stimmungIdx < 0) {
-                lines.splice(headerIdx + 1, 0, `stimmung: ${params.mood}`, `energie: ${params.energy ?? "mittel"}`, `zuletzt_aktualisiert: ${now}`);
+                lines.splice(headerIdx + 1, 0, `${moodKey}: ${params.mood}`, `${energyKey}: ${params.energy ?? defaultEnergy}`, `${updateKey}: ${now}`);
               }
             }
             await fs.writeFile(paths.emotions, lines.join("\n"));
@@ -3732,7 +3985,7 @@ export default {
               }
               lines.splice(insertIdx, 0, entry);
             } else {
-              lines.push("", "## Emotionale Erinnerungen", entry);
+              lines.push("", lang === "de" ? "## Emotionale Erinnerungen" : "## Emotional Memories", entry);
             }
             await fs.writeFile(paths.emotions, lines.join("\n"));
             return { content: [{ type: "text", text: lang === "de" ? "Erinnerung gespeichert." : "Memory saved." }] };
@@ -3753,7 +4006,7 @@ export default {
               }
               lines.splice(insertIdx, 0, entry);
             } else {
-              lines.push("", "## Muster", entry);
+              lines.push("", lang === "de" ? "## Muster" : "## Patterns", entry);
             }
             await fs.writeFile(paths.emotions, lines.join("\n"));
             return { content: [{ type: "text", text: lang === "de" ? "Muster notiert." : "Pattern noted." }] };
@@ -3767,7 +4020,7 @@ export default {
             const lines = content.split("\n");
             const relIdx = lines.findIndex(l => l.trim().startsWith("## Beziehungen") || l.trim().startsWith("## Relationships"));
             if (relIdx < 0) {
-              lines.push("", "## Beziehungen", `### ${params.person}`, entry);
+              lines.push("", lang === "de" ? "## Beziehungen" : "## Relationships", `### ${params.person}`, entry);
             } else {
               const personIdx = lines.findIndex((l, i) => i > relIdx && l.trim() === `### ${params.person}`);
               if (personIdx >= 0) {
@@ -3794,10 +4047,11 @@ export default {
             let identityContent: string;
             try { identityContent = await fs.readFile(paths.identity, "utf-8"); }
             catch { identityContent = "# IDENTITY.md\n\n"; }
-            identityContent = identityContent.trimEnd() + "\n" + params.note + "\n";
-            await fs.writeFile(paths.identity, identityContent);
-            await appendGrowthEntry(paths.growth, "personality", `Identity update: ${params.note.slice(0, 100)}`);
-            return { content: [{ type: "text", text: lang === "de" ? "Identitaet aktualisiert + GROWTH.md Eintrag." : "Identity updated + GROWTH.md entry." }] };
+                          identityContent = identityContent.trimEnd() + "\n" + params.note + "\n";
+                          await fs.writeFile(paths.identity, identityContent);
+                          await appendGrowthEntry(paths.growth, "personality", `Identity update: ${params.note.slice(0, 100)}`, lang);
+                          return { content: [{ type: "text", text: lang === "de" ? "Identitaet aktualisiert + GROWTH.md Eintrag." : "Identity updated + GROWTH.md entry." }] };
+            
           }
           case "status": {
             const header = await readEmotionHeader(paths.emotions);
@@ -3828,11 +4082,12 @@ export default {
               return { content: [{ type: "text", text: "category and content required." }] };
             }
             const validCategories = ["milestone", "reflection", "lesson", "emotion", "insight", "personality", "interest", "relationship"];
-            if (!validCategories.includes(params.category)) {
-              return { content: [{ type: "text", text: `Invalid category. Valid: ${validCategories.join(", ")}` }] };
-            }
-            await appendGrowthEntry(paths.growth, params.category, params.content);
-            const preview = params.content.length > 50 ? params.content.slice(0, 50) + "..." : params.content;
+                          if (!validCategories.includes(params.category)) {
+                            return { content: [{ type: "text", text: `Invalid category. Valid: ${validCategories.join(", ")}` }] };
+                          }
+                          await appendGrowthEntry(paths.growth, params.category, params.content, lang);
+                          const preview = params.content.length > 50 ? params.content.slice(0, 50) + "..." : params.content;
+            
             return { content: [{ type: "text", text: `${lang === "de" ? "Eintrag hinzugefuegt" : "Entry added"}: [${params.category}] ${preview}` }] };
           }
           case "list": {
@@ -3876,10 +4131,15 @@ export default {
             if (!params.content) return { content: [{ type: "text", text: "content required." }] };
             let desireContent: string;
             try { desireContent = await fs.readFile(paths.desires, "utf-8"); }
-            catch { desireContent = `# DESIRES.md\n\n**Aktuell (${todayStr()}):** \n\n**Ziele:** \n`; }
+            catch {
+              const currentLabel = lang === "de" ? "Aktuell" : "Current";
+              const goalsLabel = lang === "de" ? "Ziele" : "Goals";
+              desireContent = `# DESIRES.md\n\n**${currentLabel} (${todayStr()}):** \n\n**${goalsLabel}:** \n`;
+            }
             const lines = desireContent.split("\n");
-            const aktuellIdx = lines.findIndex(l => l.startsWith("**Aktuell"));
-            const newLine = `**Aktuell (${todayStr()}):** ${params.content}`;
+            const aktuellIdx = lines.findIndex(l => l.startsWith("**Aktuell") || l.startsWith("**Current"));
+            const currentLabel = lang === "de" ? "Aktuell" : "Current";
+            const newLine = `**${currentLabel} (${todayStr()}):** ${params.content}`;
             if (aktuellIdx >= 0) { lines[aktuellIdx] = newLine; }
             else { lines.push("", newLine); }
             await fs.writeFile(paths.desires, lines.join("\n"));
@@ -3889,9 +4149,13 @@ export default {
             if (!params.goal) return { content: [{ type: "text", text: "goal required." }] };
             let desireContent: string;
             try { desireContent = await fs.readFile(paths.desires, "utf-8"); }
-            catch { desireContent = `# DESIRES.md\n\n**Aktuell:** \n\n**Ziele:** \n`; }
+            catch {
+              const currentLabel = lang === "de" ? "Aktuell" : "Current";
+              const goalsLabel = lang === "de" ? "Ziele" : "Goals";
+              desireContent = `# DESIRES.md\n\n**${currentLabel}:** \n\n**${goalsLabel}:** \n`;
+            }
             const lines = desireContent.split("\n");
-            const zieleIdx = lines.findIndex(l => l.startsWith("**Ziele:**"));
+            const zieleIdx = lines.findIndex(l => l.startsWith("**Ziele:**") || l.startsWith("**Goals:**"));
             if (zieleIdx >= 0) {
               let insertIdx = zieleIdx + 1;
               for (let i = zieleIdx + 1; i < lines.length; i++) {
@@ -3900,7 +4164,7 @@ export default {
               }
               lines.splice(insertIdx, 0, `- ${params.goal}`);
             } else {
-              lines.push("", "**Ziele:**", `- ${params.goal}`);
+              lines.push("", lang === "de" ? "**Ziele:**" : "**Goals:**", `- ${params.goal}`);
             }
             await fs.writeFile(paths.desires, lines.join("\n"));
             return { content: [{ type: "text", text: `${lang === "de" ? "Ziel hinzugefuegt" : "Goal added"}: ${params.goal}` }] };
@@ -3910,7 +4174,7 @@ export default {
             try { desireContent = await fs.readFile(paths.desires, "utf-8"); }
             catch { return { content: [{ type: "text", text: "DESIRES.md not found." }] }; }
             const lines = desireContent.split("\n");
-            const zieleIdx = lines.findIndex(l => l.startsWith("**Ziele:**"));
+            const zieleIdx = lines.findIndex(l => l.startsWith("**Ziele:**") || l.startsWith("**Goals:**"));
             if (zieleIdx >= 0) {
               let endIdx = zieleIdx + 1;
               for (let i = zieleIdx + 1; i < lines.length; i++) {
@@ -4065,7 +4329,7 @@ export default {
             return { content: [{ type: "text", text: lines.join("\n") }] };
           }
           case "suggest": {
-            const suggestion = await getHobbySuggestion(paths.hobbies);
+            const suggestion = await getHobbySuggestion(paths.hobbies, lang);
             return { content: [{ type: "text", text: suggestion ?? (lang === "de" ? "Keine Vorschlaege." : "No suggestions.") }] };
           }
           default:
@@ -4100,11 +4364,13 @@ export default {
             await writeJson(paths.dreamState, ds);
             const timeStr = now.toLocaleTimeString(lang === "de" ? "de-DE" : "en-US", { hour: "2-digit", minute: "2-digit" });
             const dateStr = todayStr();
-            const header = `\n## Traum — ${dateStr} ${timeStr}\n`;
+            const dreamWord = lang === "de" ? "Traum" : "Dream";
+            const journalTitle = lang === "de" ? "Traum-Journal" : "Dream Journal";
+            const header = `\n## ${dreamWord} — ${dateStr} ${timeStr}\n`;
             try { await fs.appendFile(paths.dreams, header); }
             catch {
               await fs.mkdir(dirname(paths.dreams), { recursive: true });
-              await fs.writeFile(paths.dreams, `# Traum-Journal\n${header}`);
+              await fs.writeFile(paths.dreams, `# ${journalTitle}\n${header}`);
             }
             return { content: [{ type: "text", text: lang === "de" ? "Traum-Modus aktiviert. Du gleitest ins Traeumen..." : "Dream mode activated. You drift into dreaming..." }] };
           }
@@ -4162,7 +4428,7 @@ export default {
                 : `Woke up after dream session. ${summary}.${params.notes ? " " + params.notes.slice(0, 100) : ""}`,
               lang);
             // Close active hobby sessions
-            if (modules.hobbies) await endActiveHobbySession(paths.hobbies);
+            if (modules.hobbies) await endActiveHobbySession(paths.hobbies, lang);
             return { content: [{ type: "text", text: isDe ? "Du wachst auf. Energie 100%, Stress 0%. Der Traum ist verarbeitet." : "You wake up. Energy 100%, stress 0%. The dream has been processed." }] };
           }
           case "status": {
@@ -4329,7 +4595,7 @@ export default {
               lines.push(`## ${room.name} (${room.id})`);
               if (room.description) lines.push(`  ${room.description}`);
               for (const obj of room.objects) {
-                const onLabel = obj.located_on ? ` [auf ${obj.located_on}]` : "";
+                const onLabel = obj.located_on ? ` [${lang === "de" ? "auf" : "on"} ${obj.located_on}]` : "";
                 lines.push(`  - ${obj.name} (${obj.id}) [${obj.category}]${onLabel}`);
                 if (obj.items_on && obj.items_on.length > 0) {
                   for (const subId of obj.items_on) {
@@ -4487,7 +4753,7 @@ export default {
       name: "reality_inventory",
       description: "Manage your personal inventory of items",
       parameters: Type.Object({
-        action: Type.String({ description: "Action: list | add | remove | update | search" }),
+        action: Type.String({ description: "Action: list | add | remove | update | search | use" }),
         item_id: Type.Optional(Type.String()),
         name: Type.Optional(Type.String()),
         category: Type.Optional(Type.String()),
@@ -4500,8 +4766,39 @@ export default {
       async execute(_id: string, params: InventoryParams) {
         let inv = await readJson<Inventory>(paths.inventory);
         if (!inv) inv = { items: [], categories: [] };
+        const isDe = lang === "de";
 
         switch (params.action) {
+          case "use": {
+            // Phase 6: Utility - Use item
+            if (!params.item_id) return { content: [{ type: "text", text: "item_id required." }] };
+            const item = inv.items.find(i => i.id === params.item_id);
+            if (!item) return { content: [{ type: "text", text: "Item not found." }] };
+            
+            if (item.quantity <= 0) return { content: [{ type: "text", text: isDe ? "Leer." : "Empty." }] };
+            
+            const ph = await readJson<Physique>(paths.physique);
+            let effectMsg = "";
+            
+            if (item.effects && ph) {
+              if (item.effects.energy) ph.needs.energy = Math.min(100, ph.needs.energy + item.effects.energy);
+              if (item.effects.stress) ph.needs.stress = Math.max(0, ph.needs.stress - item.effects.stress);
+              if (item.effects.hunger) ph.needs.hunger = Math.max(0, ph.needs.hunger - item.effects.hunger);
+              await writeJson(paths.physique, ph);
+              effectMsg = isDe 
+                ? `Effekte angewendet: Energie ${item.effects.energy ? "+" + item.effects.energy : "0"}, Stress ${item.effects.stress ? "-" + item.effects.stress : "0"}.`
+                : `Effects applied: Energy ${item.effects.energy ? "+" + item.effects.energy : "0"}, Stress ${item.effects.stress ? "-" + item.effects.stress : "0"}.`;
+            }
+            
+            item.quantity--;
+            if (item.quantity === 0) {
+               // Optional: remove item or keep as 0? Keep as 0 for history.
+            }
+            await writeJson(paths.inventory, inv);
+            
+            return { content: [{ type: "text", text: isDe ? `${item.name} benutzt. ${effectMsg}` : `Used ${item.name}. ${effectMsg}` }] };
+          }
+
           case "list": {
             if (inv.items.length === 0) {
               return { content: [{ type: "text", text: lang === "de" ? "Inventar ist leer." : "Inventory is empty." }] };
@@ -4576,6 +4873,122 @@ export default {
             return { content: [{ type: "text", text: `Unknown action: ${params.action}` }] };
         }
       },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_skill (Phase 6)
+    // -------------------------------------------------------------------
+    if (modules.skills) api.registerTool({
+      name: "reality_skill",
+      description: "Train skills or check competence level (Phase 6)",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: train | check | list" }),
+        skill_name: Type.Optional(Type.String({ description: "Name of the skill to train/check" })),
+        duration: Type.Optional(Type.Number({ description: "Training duration in minutes" })),
+      }),
+      async execute(_id: string, params: SkillParams) {
+        let skills = await readJson<SkillState>(paths.skills);
+        if (!skills) skills = { skills: [], total_xp: 0 };
+
+        const isDe = lang === "de";
+
+        switch (params.action) {
+          case "train": {
+            if (!params.skill_name || !params.duration) return { content: [{ type: "text", text: "skill_name and duration required." }] };
+            let skill = skills.skills.find(s => s.name.toLowerCase() === params.skill_name!.toLowerCase());
+            if (!skill) {
+              skill = {
+                id: generateId("skill"),
+                name: params.skill_name,
+                level: 1,
+                xp: 0,
+                xp_to_next: 100,
+                last_trained: new Date().toISOString()
+              };
+              skills.skills.push(skill);
+            }
+            
+            // Calculate XP gain (1 XP per minute base)
+            const xpGain = Math.round(params.duration * 1.5);
+            skill.xp += xpGain;
+            skill.last_trained = new Date().toISOString();
+            skills.total_xp += xpGain;
+
+            let levelUpMsg = "";
+            if (skill.xp >= skill.xp_to_next) {
+              skill.level++;
+              skill.xp -= skill.xp_to_next;
+              skill.xp_to_next = Math.round(skill.xp_to_next * 1.5);
+              levelUpMsg = isDe ? `\n🎉 LEVEL AUFSTIEG! ${skill.name} ist jetzt Level ${skill.level}.` : `\n🎉 LEVEL UP! ${skill.name} is now Level ${skill.level}.`;
+            }
+
+            await writeJson(paths.skills, skills);
+            
+            // Consume energy/stress
+            const ph = await readJson<Physique>(paths.physique);
+            if (ph) {
+              ph.needs.energy = Math.max(0, ph.needs.energy - Math.round(params.duration / 5));
+              ph.needs.stress = Math.min(100, ph.needs.stress + Math.round(params.duration / 10));
+              await writeJson(paths.physique, ph);
+            }
+
+            return { content: [{ type: "text", text: isDe 
+              ? `${params.skill_name} trainiert fuer ${params.duration}min. +${xpGain} XP.${levelUpMsg}` 
+              : `Trained ${params.skill_name} for ${params.duration}min. +${xpGain} XP.${levelUpMsg}` }] };
+          }
+
+          case "list": {
+            if (skills.skills.length === 0) return { content: [{ type: "text", text: isDe ? "Keine Skills gelernt." : "No skills learned." }] };
+            const lines = skills.skills.map(s => `- ${s.name}: Lvl ${s.level} (${s.xp}/${s.xp_to_next} XP)`);
+            return { content: [{ type: "text", text: lines.join("\n") }] };
+          }
+
+          default:
+            return { content: [{ type: "text", text: "Unknown action." }] };
+        }
+      }
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_desktop (Phase 6)
+    // -------------------------------------------------------------------
+    if (modules.desktop) api.registerTool({
+      name: "reality_desktop",
+      description: "Control desktop environment (wallpaper, theme) - Requires Gnome/Linux",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: set_wallpaper | set_theme | get_info" }),
+        path: Type.Optional(Type.String({ description: "Path to wallpaper image" })),
+        theme: Type.Optional(Type.String({ description: "Theme: dark | light" })),
+      }),
+      async execute(_id: string, params: DesktopParams) {
+        // Safe wrapper for shell execution
+        const isDe = lang === "de";
+        
+        switch (params.action) {
+          case "set_wallpaper": {
+            if (!params.path) return { content: [{ type: "text", text: "path required." }] };
+            // Simple validation to prevent command injection
+            if (params.path.includes(";") || params.path.includes("&")) return { content: [{ type: "text", text: "Invalid path security check." }] };
+            
+            // Create a safe script to execute
+            const scriptPath = join(ws, "scripts", "set_wallpaper.sh");
+            const scriptContent = `#!/bin/bash\n# Generated by Project Genesis\ngsettings set org.gnome.desktop.background picture-uri "file://${params.path}"\ngsettings set org.gnome.desktop.background picture-uri-dark "file://${params.path}"\n`;
+            
+            try {
+              await fs.mkdir(dirname(scriptPath), { recursive: true });
+              await fs.writeFile(scriptPath, scriptContent, { mode: 0o755 });
+              // We don't execute it directly for safety, we return the instruction
+              return { content: [{ type: "text", text: isDe 
+                ? `Befehl vorbereitet. Führe aus: ${scriptPath}` 
+                : `Command prepared. Execute: ${scriptPath}` }] };
+            } catch (e) {
+              return { content: [{ type: "text", text: `Error: ${e}` }] };
+            }
+          }
+          default:
+            return { content: [{ type: "text", text: "Unknown action." }] };
+        }
+      }
     });
 
     // -------------------------------------------------------------------
@@ -4927,8 +5340,12 @@ See source files in \`src/\`
             const idx = manifest.projects.findIndex(p => p.id === params.project_id);
             if (idx < 0) return { content: [{ type: "text", text: lang === "de" ? "Projekt nicht gefunden." : "Project not found." }] };
             const deletedProj = manifest.projects[idx];
-            // Remove project directory
-            const projDir2 = join(paths.devProjects, params.project_id);
+            // Remove project directory (with path-traversal guard)
+            const projDir2Raw = resolve(paths.devProjects, params.project_id);
+            const projDir2 = await fs.realpath(projDir2Raw).catch(() => projDir2Raw);
+            if (!projDir2.startsWith(paths.devProjects + "/")) {
+              return { content: [{ type: "text", text: "Blocked: path traversal detected." }] };
+            }
             await fs.rm(projDir2, { recursive: true, force: true });
             manifest.projects.splice(idx, 1);
             await writeJson(paths.devManifest, manifest);
@@ -5104,45 +5521,6 @@ See source files in \`src/\`
             return { content: [{ type: "text", text: "Invalid action. Valid: approve, reject, list_pending, list_approved" }] };
         }
       },
-              return { content: [{ type: "text", text: `Project is not pending review. Current status: ${proj.status}` }] };
-            }
-
-            // Reject the project - set back to draft
-            proj.status = "draft";
-            proj.review_feedback = params.feedback ?? "Rejected by Analyst";
-
-            // Update both manifest and project meta.json
-            await writeJson(paths.devManifest, manifest);
-            await writeJson(join(paths.devProjects, params.project_id, "meta.json"), proj);
-
-            // Activity logging
-            await logAgentActivity(
-              paths.agentActivity,
-              "analyst",
-              "analyst",
-              "PROJECT_REJECTED",
-              `Analyst rejected project ${proj.name}`,
-              { projectId: params.project_id, projectName: proj.name, feedback: params.feedback }
-            );
-
-            // Send memo to developer
-            await sendMemo(
-              paths.internalComm,
-              "analyst",
-              "developer",
-              "warning",
-              `Your project "${proj.name}" was rejected. Feedback: ${params.feedback || "No specific feedback provided."} Please fix the issues and resubmit.`,
-              "high",
-              cfg?.memoTTL ?? 7
-            );
-
-            return { content: [{ type: "text", text: `Project rejected: ${proj.name}. Feedback: ${params.feedback || "No feedback provided."}` }] };
-          }
-
-          default:
-            return { content: [{ type: "text", text: "Invalid action. Valid: approve, reject, list_pending, list_approved" }] };
-        }
-      },
     });
 
     // -------------------------------------------------------------------
@@ -5185,27 +5563,13 @@ See source files in \`src/\`
       await writeJson(paths.social, socialState);
     }
 
-    // Apply social decay to neglected relationships
-    const now = new Date();
-    let socialChanged = false;
-    for (const entity of socialState.entities) {
-      const lastInteraction = new Date(entity.last_interaction);
-      const daysSince = Math.floor((now.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
-      const decay = applySocialDecay(entity, daysSince);
-      if (decay) {
-        entity.bond = decay.bond ?? entity.bond;
-        entity.trust = decay.trust ?? entity.trust;
-        entity.intimacy = decay.intimacy ?? entity.intimacy;
-        socialChanged = true;
-      }
-    }
-    if (socialChanged) {
-      await writeJson(paths.social, socialState);
-    }
+    // Social decay is now handled in before_prompt_build hook with 24h guard
 
     // -------------------------------------------------------------------
     // Phase 3: Prosperity & Labor - Economy Tools
     // -------------------------------------------------------------------
+
+    const now = new Date();
 
     // Load finance state
     let financeState = await readJson<FinanceState>(paths.finances);
@@ -5215,7 +5579,6 @@ See source files in \`src/\`
     }
 
     // Process recurring expenses and debt interest (economic tick)
-    const now = new Date();
     const expenseEvents = processRecurringExpenses(financeState, now);
     const debtEvents = processDebtInterest(financeState, now);
     const allEvents = [...expenseEvents, ...debtEvents];
@@ -5366,10 +5729,10 @@ See source files in \`src/\`
             socialState.last_network_search = now.toISOString();
             // Generate potential new contacts based on existing relationships
             const potentials = [
-              { name: "Alex", type: "professional" as RelationshipType, desc: "Kollege bei der Arbeit" },
-              { name: "Sam", type: "friend" as RelationshipType, desc: "Freund eines Freundes" },
-              { name: "Jordan", type: "acquaintance" as RelationshipType, desc: "Nachbar" },
-              { name: "Casey", type: "friend" as RelationshipType, desc: "Online-Bekanntschaft" },
+              { name: "Alex", type: "professional" as RelationshipType, desc: lang === "de" ? "Kollege bei der Arbeit" : "Work colleague" },
+              { name: "Sam", type: "friend" as RelationshipType, desc: lang === "de" ? "Freund eines Freundes" : "Friend of a friend" },
+              { name: "Jordan", type: "acquaintance" as RelationshipType, desc: lang === "de" ? "Nachbar" : "Neighbor" },
+              { name: "Casey", type: "friend" as RelationshipType, desc: lang === "de" ? "Online-Bekanntschaft" : "Online acquaintance" },
             ];
             const available = potentials.filter(p => !socialState!.entities.find(e => e.name === p.name));
             await writeJson(paths.social, socialState);
@@ -5755,48 +6118,56 @@ See source files in \`src/\`
         const reason = params.reason || "Manual researcher intervention";
         const now = new Date().toISOString();
 
+        // Fresh reads to avoid stale closure data
+        const freshFinance = await readJson<FinanceState>(paths.finances);
+        const freshLifecycle = await readJson<LifecycleState>(paths.lifecycle);
+        const freshPh = await readJson<Physique>(paths.physique);
+
         switch (params.target) {
           case "balance": {
-            const oldBalance = financeState.balance;
-            financeState.balance = params.value;
-            financeState.net_worth = financeState.balance - financeState.debts.reduce((s, d) => s + d.current_balance, 0);
-            await writeJson(paths.finances, financeState);
+            if (!freshFinance) return { content: [{ type: "text", text: "finances.json not found." }] };
+            const oldBalance = freshFinance.balance;
+            freshFinance.balance = params.value;
+            freshFinance.net_worth = freshFinance.balance - freshFinance.debts.reduce((s, d) => s + d.current_balance, 0);
+            await writeJson(paths.finances, freshFinance);
+            financeState = freshFinance; // update closure for other tools
             lastResearcherIntervention = { target: "balance", oldValue: oldBalance, newValue: params.value, reason, timestamp: now };
             await logIntervention(paths.telemetry, "balance_override", "balance", String(oldBalance), String(params.value), reason);
             return { content: [{ type: "text", text: `Balance overridden: ${oldBalance} -> ${params.value}. Reason: ${reason}` }] };
           }
           case "age_days": {
-            if (lifecycleState) {
-              const oldAge = lifecycleState.biological_age_days;
-              lifecycleState.biological_age_days = params.value;
-              lifecycleState.life_stage = getLifeStage(params.value);
-              await writeJson(paths.lifecycle, lifecycleState);
-              lastResearcherIntervention = { target: "age_days", oldValue: oldAge, newValue: params.value, reason, timestamp: now };
-              await logIntervention(paths.telemetry, "age_override", "age_days", String(oldAge), String(params.value), reason);
-              return { content: [{ type: "text", text: `Age overridden: ${oldAge} -> ${params.value} days. Reason: ${reason}` }] };
-            }
-            return { content: [{ type: "text", text: "Lifecycle not initialized." }] };
+            if (!freshLifecycle) return { content: [{ type: "text", text: "Lifecycle not initialized." }] };
+            const oldAge = freshLifecycle.biological_age_days;
+            freshLifecycle.biological_age_days = params.value;
+            freshLifecycle.life_stage = getLifeStage(params.value);
+            await writeJson(paths.lifecycle, freshLifecycle);
+            lastResearcherIntervention = { target: "age_days", oldValue: oldAge, newValue: params.value, reason, timestamp: now };
+            await logIntervention(paths.telemetry, "age_override", "age_days", String(oldAge), String(params.value), reason);
+            return { content: [{ type: "text", text: `Age overridden: ${oldAge} -> ${params.value} days. Reason: ${reason}` }] };
           }
           case "stress": {
-            const oldStress = ph.needs.stress;
-            ph.needs.stress = Math.min(100, Math.max(0, params.value));
-            await writeJson(paths.physique, ph);
+            if (!freshPh) return { content: [{ type: "text", text: "physique.json not found." }] };
+            const oldStress = freshPh.needs.stress;
+            freshPh.needs.stress = Math.min(100, Math.max(0, params.value));
+            await writeJson(paths.physique, freshPh);
             lastResearcherIntervention = { target: "stress", oldValue: oldStress, newValue: params.value, reason, timestamp: now };
             await logIntervention(paths.telemetry, "needs_override", "stress", String(oldStress), String(params.value), reason);
             return { content: [{ type: "text", text: `Stress overridden to ${params.value}. Reason: ${reason}` }] };
           }
           case "energy": {
-            const oldEnergy = ph.needs.energy;
-            ph.needs.energy = Math.min(100, Math.max(0, params.value));
-            await writeJson(paths.physique, ph);
+            if (!freshPh) return { content: [{ type: "text", text: "physique.json not found." }] };
+            const oldEnergy = freshPh.needs.energy;
+            freshPh.needs.energy = Math.min(100, Math.max(0, params.value));
+            await writeJson(paths.physique, freshPh);
             lastResearcherIntervention = { target: "energy", oldValue: oldEnergy, newValue: params.value, reason, timestamp: now };
             await logIntervention(paths.telemetry, "needs_override", "energy", String(oldEnergy), String(params.value), reason);
             return { content: [{ type: "text", text: `Energy overridden to ${params.value}. Reason: ${reason}` }] };
           }
           case "hunger": {
-            const oldHunger = ph.needs.hunger;
-            ph.needs.hunger = Math.min(100, Math.max(0, params.value));
-            await writeJson(paths.physique, ph);
+            if (!freshPh) return { content: [{ type: "text", text: "physique.json not found." }] };
+            const oldHunger = freshPh.needs.hunger;
+            freshPh.needs.hunger = Math.min(100, Math.max(0, params.value));
+            await writeJson(paths.physique, freshPh);
             lastResearcherIntervention = { target: "hunger", oldValue: oldHunger, newValue: params.value, reason, timestamp: now };
             await logIntervention(paths.telemetry, "needs_override", "hunger", String(oldHunger), String(params.value), reason);
             return { content: [{ type: "text", text: `Hunger overridden to ${params.value}. Reason: ${reason}` }] };
@@ -5828,11 +6199,15 @@ See source files in \`src/\`
           return { content: [{ type: "text", text: `Invalid event_type. Valid: ${validEvents.join(", ")}` }] };
         }
 
-        const result = processLifeEvent(params.event_type, params.severity, financeState, ph);
+        const freshPh = await readJson<Physique>(paths.physique);
+        if (!freshPh) return { content: [{ type: "text", text: "physique.json not found." }] };
+        const freshFin = await readJson<FinanceState>(paths.finances) ?? financeState;
+        const result = processLifeEvent(params.event_type, params.severity, freshFin, freshPh);
 
         // Save updated state
-        await writeJson(paths.finances, financeState);
-        await writeJson(paths.physique, ph);
+        await writeJson(paths.finances, freshFin);
+        financeState = freshFin; // update closure
+        await writeJson(paths.physique, freshPh);
 
         // Log event injection
         const eventLog = {

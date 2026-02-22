@@ -23,7 +23,14 @@
           "hobbies": { "type": "boolean", "default": false },
           "economy": { "type": "boolean", "default": true },
           "social": { "type": "boolean", "default": true },
-          "statistics": { "type": "boolean", "default": true }
+          "statistics": { "type": "boolean", "default": true },
+          "utility": { "type": "boolean", "default": true },
+          "psychology": { "type": "boolean", "default": true },
+          "skills": { "type": "boolean", "default": true },
+          "world": { "type": "boolean", "default": true },
+          "reputation": { "type": "boolean", "default": true },
+          "desktop": { "type": "boolean", "default": false },
+          "legacy": { "type": "boolean", "default": false }
         }
       },
       "metabolismRates": {
@@ -260,6 +267,34 @@
       "label": "Statistics & Analytics",
       "help": "Enable telemetry logging and web-based analytics dashboard"
     },
+    "modules.utility": {
+      "label": "Physical Utility",
+      "help": "Enable consumable items and equipment buffs"
+    },
+    "modules.psychology": {
+      "label": "Psychology Engine",
+      "help": "Enable long-term trauma, phobias, and mental scars"
+    },
+    "modules.skills": {
+      "label": "Skill System",
+      "help": "Enable XP-based progression and skill mastery"
+    },
+    "modules.world": {
+      "label": "Living World",
+      "help": "Enable dynamic weather, seasons, and market fluctuations"
+    },
+    "modules.reputation": {
+      "label": "Social Reputation",
+      "help": "Enable global reputation score and social circles"
+    },
+    "modules.desktop": {
+      "label": "Desktop Sovereignty",
+      "help": "Allow the agent to modify desktop wallpaper/theme (Requires Linux/Gnome)"
+    },
+    "modules.legacy": {
+      "label": "Legacy & Mortality",
+      "help": "Enable aging effects, mortality, and inheritance mechanics"
+    },
     "enableLifeEditor": {
       "label": "Enable Life Editor",
       "help": "Allow manual overrides of age, balance, and needs via WebUI"
@@ -340,6 +375,16 @@
       "label": "Analyst: Review Projects",
       "category": "Developer",
       "help": "Review and approve/reject developer project submissions"
+    },
+    "reality_skill": {
+      "label": "Skill: Train/Check",
+      "category": "Life Simulation",
+      "help": "Train skills or check competence level"
+    },
+    "reality_desktop": {
+      "label": "Desktop Control",
+      "category": "System",
+      "help": "Modify desktop environment (wallpaper, theme)"
     }
   }
 }
