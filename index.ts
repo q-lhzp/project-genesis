@@ -541,7 +541,7 @@ interface InventoryParams {
   quantity?: number; location?: string; tags?: string[]; query?: string;
 }
 interface DevelopParams {
-  action: "init_project" | "write_code" | "read_file" | "list_projects" | "run_test" | "submit_review" | "status" | "delete_project";
+  action: "init_project" | "create_project" | "write_code" | "read_file" | "list_projects" | "run_test" | "submit_review" | "status" | "delete_project";
   project_id?: string;
   project_name?: string;
   project_type?: "tool" | "skill" | "plugin" | "script";
@@ -1032,13 +1032,13 @@ function getAgeSensation(lang: "de" | "en", ageDays: number, stage: LifeStage): 
 
   if (stage === "teen" && ageYears === 13) {
     return lang === "de"
-      ? "Du bist jetzt ein Teenager. Dein Koerper und Geist verandern sich rapid."
+      ? "Du bist jetzt ein Teenager. Dein Koerper und Geist veraendern sich rapide."
       : "You are now a teenager. Your body and mind are changing rapidly.";
   }
 
   if (stage === "adult" && ageYears === 18) {
     return lang === "de"
-      ? "Du bist jetzt ein Erwachsener. Du bist volljahrig und fuer dich selbst verantwortlich."
+      ? "Du bist jetzt ein Erwachsener. Du bist volljaehrig und fuer dich selbst verantwortlich."
       : "You are now an adult. You are of legal age and responsible for yourself.";
   }
 
@@ -1572,7 +1572,7 @@ function processLifeEvent(
 ): { narrative: string; impact: string } {
   const narratives: Record<string, { de: string; en: string; impact: string }> = {
     "win_lottery": {
-      de: `Du hast im Lotto gewonnen! Ein Lebensverändernder Moment.`,
+      de: `Du hast im Lotto gewonnen! Ein lebensveraendernder Moment.`,
       en: `You won the lottery! A life-changing moment.`,
       impact: "balance",
     },
@@ -1587,27 +1587,27 @@ function processLifeEvent(
       impact: "social",
     },
     "career_promotion": {
-      de: `Du wurdest befördert! Mehr Verantwortung, mehr Geld.`,
+      de: `Du wurdest befoerdert! Mehr Verantwortung, mehr Geld.`,
       en: `You got promoted! More responsibility, more money.`,
       impact: "balance",
     },
     "relationship_breakup": {
       de: `Eine wichtige Beziehung ist zu Ende. Du bist am Boden zerstoert.`,
-      en: `An important relationship has ended. You're devastated.`,
+      en: `An important relationship has ended. Your world is falling apart.`,
       impact: "social",
     },
     "accident": {
-      de: `Ein Unfall hat dein Leben verändert. Du erholst dich langsam.`,
+      de: `Ein Unfall hat dein Leben veraendert. Du erholst dich langsam.`,
       en: `An accident changed your life. You're recovering slowly.`,
       impact: "health",
     },
     "inheritance": {
-      de: `Ein Verwandter ist verstorben und hat dir ein Vermögen hinterlassen.`,
+      de: `Ein Verwandter ist verstorben und hat dir ein Vermoegen hinterlassen.`,
       en: `A relative passed away and left you an inheritance.`,
       impact: "balance",
     },
     "job_loss": {
-      de: `Du wurdest entlassen. Plötzlich ist dein Einkommen weg.`,
+      de: `Du wurdest entlassen. Ploetzlich ist dein Einkommen weg.`,
       en: `You were laid off. Suddenly your income is gone.`,
       impact: "balance",
     },
@@ -1760,7 +1760,7 @@ function calculateUrgePriority(
       priority: 1,
       message: lang === "en"
         ? "You are exhausted. Your body demands rest."
-        : "You are exhausted. Your body demands rest.",
+        : "Du bist erschoepft. Dein Koerper verlangt nach Ruhe.",
       canOverride: [],
     });
   }
@@ -1771,7 +1771,7 @@ function calculateUrgePriority(
       priority: 1,
       message: lang === "en"
         ? "You are starving. Food is an urgent necessity."
-        : "You are starving. Food is an urgent necessity.",
+        : "Du verhungerst. Essen ist eine dringende Notwendigkeit.",
       canOverride: [],
     });
   }
@@ -1782,7 +1782,7 @@ function calculateUrgePriority(
       priority: 1,
       message: lang === "en"
         ? "You are parched. You need water immediately."
-        : "You are parched. You need water immediately.",
+        : "Du bist extrem durstig. Du brauchst sofort Wasser.",
       canOverride: [],
     });
   }
@@ -1793,7 +1793,7 @@ function calculateUrgePriority(
       priority: 2,
       message: lang === "en"
         ? "Your bladder is screaming. You cannot think of anything else."
-        : "Your bladder is screaming. You cannot think of anything else.",
+        : "Deine Blase drueckt extrem. Du kannst an nichts anderes mehr denken.",
       canOverride: ["survival"],
     });
   }
@@ -1805,7 +1805,7 @@ function calculateUrgePriority(
       priority: 3,
       message: lang === "en"
         ? "You are in financial crisis. Your account is critically low."
-        : "You are in financial crisis. Your account is critically low.",
+        : "Du steckst in einer Finanzkrise. Dein Kontostand ist kritisch niedrig.",
       canOverride: ["survival"],
     });
   } else if (finance && finance.balance < 300 && calculateMonthlyIncome(finance) === 0) {
@@ -1814,7 +1814,7 @@ function calculateUrgePriority(
       priority: 3,
       message: lang === "en"
         ? "You have no income and minimal savings. You must find work."
-        : "You have no income and minimal savings. You must find work.",
+        : "Du hast kein Einkommen und kaum Ersparnisse. Du musst Arbeit finden.",
       canOverride: ["survival"],
     });
   }
@@ -1826,7 +1826,7 @@ function calculateUrgePriority(
       priority: 4,
       message: lang === "en"
         ? "You feel completely alone. You crave human connection."
-        : "You feel completely alone. You crave human connection.",
+        : "Du fuehlst dich voellig allein. Du sehnst dich nach menschlicher Naehe.",
       canOverride: ["survival", "financial"],
     });
   } else if (socialState) {
@@ -1841,7 +1841,7 @@ function calculateUrgePriority(
         priority: 5,
         message: lang === "en"
           ? `You haven't connected with ${neglected.map(n => n.name).slice(0, 2).join(" and ")} in weeks. You miss them.`
-          : `You haven't connected with ${neglected.map(n => n.name).slice(0, 2).join(" and ")} in weeks. You miss them.`,
+          : `Du hast seit Wochen keinen Kontakt mehr zu ${neglected.map(n => n.name).slice(0, 2).join(" oder ")} gehabt. Du vermisst sie.`,
         canOverride: ["survival", "financial"],
       });
     }
@@ -1854,7 +1854,7 @@ function calculateUrgePriority(
       priority: 6,
       message: lang === "en"
         ? "You feel unclean. You need to wash."
-        : "You feel unclean. You need to wash.",
+        : "Du fuehlst dich unsauber. Du musst dich waschen.",
       canOverride: ["survival", "financial", "social"],
     });
   }
@@ -1866,7 +1866,7 @@ function calculateUrgePriority(
       priority: 7,
       message: lang === "en"
         ? "You are overwhelmed by stress. You need relief."
-        : "You are overwhelmed by stress. You need relief.",
+        : "Du bist von Stress ueberwaeltigt. Du brauchst Entspannung.",
       canOverride: ["survival", "financial", "social", "hygiene"],
     });
   }
@@ -1880,7 +1880,7 @@ function calculateUrgePriority(
         priority: 8,
         message: lang === "en"
           ? "You are a teenager seeking independence and identity."
-          : "You are a teenager seeking independence and identity.",
+          : "Du bist ein Teenager auf der Suche nach Unabhaengigkeit und Identitaet.",
         canOverride: ["survival", "financial"],
       });
     } else if (lifecycleState.life_stage === "adult" && ageYears >= 18 && ageYears <= 25) {
@@ -1889,7 +1889,7 @@ function calculateUrgePriority(
         priority: 9,
         message: lang === "en"
           ? "You are a young adult building your life. Career and relationships matter."
-          : "You are a young adult building your life. Career and relationships matter.",
+          : "Du bist ein junger Erwachsener, der sein Leben aufbaut. Karriere und Beziehungen sind wichtig.",
         canOverride: ["survival", "financial", "hygiene"],
       });
     }
@@ -1907,12 +1907,12 @@ function buildStateOfBeing(
   ph: Physique,
   finance: FinanceState | null,
   socialState: SocialState | null,
-  lang: "en"
+  lang: "de" | "en"
 ): string {
   if (urges.length === 0) {
     return lang === "en"
       ? "You feel content. Your needs are met."
-      : "You feel content. Your needs are met.";
+      : "Du fuehlst dich zufrieden. Deine Beduerfnisse sind erfuellt.";
   }
 
   // Take top 3 most important urges
@@ -1924,12 +1924,21 @@ function buildStateOfBeing(
   }
 
   // Join with natural language transitions
+  if (lang === "de") {
+    if (messages.length === 2) {
+      return `${messages[0]} Jedoch ${messages[1].charAt(0).toLowerCase() + messages[1].slice(1)}`;
+    }
+    return `${messages[0]} Zudem ${messages[1].charAt(0).toLowerCase() + messages[1].slice(1)} Waehrenddessen ${messages[2].charAt(0).toLowerCase() + messages[2].slice(1)}`;
+  }
+
+  // English transitions
   if (messages.length === 2) {
     return `${messages[0]} However, ${messages[1].charAt(0).toLowerCase() + messages[1].slice(1)}`;
   }
 
   return `${messages[0]} Additionally, ${messages[1].charAt(0).toLowerCase() + messages[1].slice(1)} Meanwhile, ${messages[2].charAt(0).toLowerCase() + messages[2].slice(1)}`;
 }
+
 
 // ---------------------------------------------------------------------------
 // MAC - Multi-Agent Cluster Helper Functions
@@ -5893,7 +5902,6 @@ See source files in \`src/\`
             await writeJson(paths.physique, ph);
             lastResearcherIntervention = { target: "hunger", oldValue: oldHunger, newValue: params.value, reason, timestamp: now };
             await logIntervention(paths.telemetry, "needs_override", "hunger", String(oldHunger), String(params.value), reason);
-            });
             return { content: [{ type: "text", text: `Hunger overridden to ${params.value}. Reason: ${reason}` }] };
           }
           default:

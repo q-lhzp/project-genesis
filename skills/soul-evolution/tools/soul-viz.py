@@ -3328,7 +3328,7 @@ function renderCycleSimulator(day, cycle) {{
 
   symptoms.forEach(s => {{
     const val = symMods[s] !== undefined ? symMods[s] : 1;
-    const label = s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const label = s.replace(/_/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase());
     html += `<div class="cycle-sim-row">
       <label>${{label}}</label>
       <input type="range" min="0" max="3" step="0.1" value="${{val}}" id="sim-${{s}}-input"

@@ -153,12 +153,12 @@
       "help": "Enable 28-day hormonal cycle"
     },
     "modules.dreams": {
-      "label": "Traum-Modus",
-      "help": "Traum-Modus bei niedriger Energie nachts aktivierbar"
+      "label": "Dream Mode",
+      "help": "Enable Dream Mode which activates at night when energy is low"
     },
     "modules.hobbies": {
-      "label": "Hobby-Logbuch",
-      "help": "Hobby-Tracking und Idle-Vorschlaege"
+      "label": "Hobby Logbook",
+      "help": "Enable hobby tracking and idle activity suggestions"
     },
     "reflexThreshold": {
       "label": "Reflex Threshold",
@@ -233,20 +233,20 @@
       "help": "Libido increase per hour (default: 2, requires eros module)"
     },
     "growthContextEntries": {
-      "label": "GROWTH.md Kontext-Eintraege",
-      "help": "Wie viele GROWTH.md Eintraege in jeden Prompt injiziert werden (0 = deaktiviert)"
+      "label": "GROWTH.md Context Entries",
+      "help": "How many GROWTH.md entries are injected into each prompt (0 = disabled)"
     },
     "dreamWindow.start": {
-      "label": "Traum-Fenster Start",
-      "help": "Stunde (0-23) ab der der Traum-Modus moeglich ist (default: 23)"
+      "label": "Dream Window: Start",
+      "help": "Hour (0-23) when Dream Mode becomes available (default: 23)"
     },
     "dreamWindow.end": {
-      "label": "Traum-Fenster Ende",
-      "help": "Stunde (0-23) bis zu der der Traum-Modus moeglich ist (default: 5)"
+      "label": "Dream Window: End",
+      "help": "Hour (0-23) when Dream Mode ends (default: 5)"
     },
     "dreamEnergyThreshold": {
-      "label": "Traum-Energie-Schwelle",
-      "help": "Energie-Wert unter dem der Traum-Hinweis erscheint (default: 20)"
+      "label": "Dream Energy Threshold",
+      "help": "Energy value below which the dream prompt appears (default: 20)"
     },
     "development.enabled": {
       "label": "Self-Dev Engine",
