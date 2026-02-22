@@ -490,6 +490,27 @@ interface WorkParams {
   hours?: number;
 }
 
+// Phase 4: Analytics & Lab - Tool params
+interface InjectEventParams {
+  event_type: string;
+  severity: number;
+  description?: string;
+  amount?: number;  // For financial events
+}
+
+interface ExportParams {
+  format: "json" | "csv";
+  date_from?: string;
+  date_to?: string;
+  include_telemetry?: string[];
+}
+
+interface OverrideParams {
+  target: "balance" | "age_days" | "stress" | "energy" | "hunger" | "health";
+  value: number;
+  reason?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Hook event shapes (before_prompt_build / before_tool_call / llm_output are
 // OpenClaw internal hooks, not listed in the public automation/hooks docs.
@@ -1355,6 +1376,240 @@ function generateJobListings(socialEntities: SocialEntity[] = []): Array<{
   }));
 
   return [...selectedJobs, ...socialJobs.slice(0, 2)];
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: Analytics & Lab - Telemetry Reader & Event Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Read telemetry data for visualization
+ */
+async function readVitalityTelemetry(telemetryPath: string, days: number = 30): Promise<VitalityMetrics[]> {
+  const results: VitalityMetrics[] = [];
+  const now = new Date();
+
+  for (let i = 0; i < days; i++) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().slice(0, 10);
+    const filePath = join(telemetryPath, `vitality_${dateStr}.jsonl`);
+
+    try {
+      const content = await fs.readFile(filePath, "utf-8");
+      const lines = content.trim().split("\n");
+      for (const line of lines) {
+        try {
+          results.push(JSON.parse(line));
+        } catch { /* skip invalid lines */ }
+      }
+    } catch {
+      // File doesn't exist yet
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Read economy telemetry for visualization
+ */
+async function readEconomyTelemetry(telemetryPath: string, days: number = 30): Promise<EconomyEvent[]> {
+  const results: EconomyEvent[] = [];
+  const now = new Date();
+
+  for (let i = 0; i < days; i++) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().slice(0, 10);
+    const filePath = join(telemetryPath, `events_${dateStr}.jsonl`);
+
+    try {
+      const content = await fs.readFile(filePath, "utf-8");
+      const lines = content.trim().split("\n");
+      for (const line of lines) {
+        try {
+          results.push(JSON.parse(line));
+        } catch { /* skip invalid lines */ }
+      }
+    } catch {
+      // File doesn't exist yet
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Apply life event injection and return narrative for prompt
+ */
+function processLifeEvent(
+  eventType: string,
+  severity: number,
+  finance: FinanceState,
+  ph: Physique,
+  lang: "de" | "en"
+): { narrative: string; impact: string } {
+  const narratives: Record<string, { de: string; en: string; impact: string }> = {
+    "win_lottery": {
+      de: `Du hast im Lotto gewonnen! Ein Lebensverändernder Moment.`,
+      en: `You won the lottery! A life-changing moment.`,
+      impact: "balance",
+    },
+    "severe_illness": {
+      de: `Du wurdest schwer krank. Dein Koerper ist geschwaecht.`,
+      en: `You became seriously ill. Your body is weakened.`,
+      impact: "health",
+    },
+    "social_scandal": {
+      de: `Ein Skandal hat deinen Ruf beschaedigt. Die Leute reden.`,
+      en: `A scandal has damaged your reputation. People are talking.`,
+      impact: "social",
+    },
+    "career_promotion": {
+      de: `Du wurdest befördert! Mehr Verantwortung, mehr Geld.`,
+      en: `You got promoted! More responsibility, more money.`,
+      impact: "balance",
+    },
+    "relationship_breakup": {
+      de: `Eine wichtige Beziehung ist zu Ende. Du bist am Boden zerstoert.`,
+      en: `An important relationship has ended. You're devastated.`,
+      impact: "social",
+    },
+    "accident": {
+      de: `Ein Unfall hat dein Leben verändert. Du erholst dich langsam.`,
+      en: `An accident changed your life. You're recovering slowly.`,
+      impact: "health",
+    },
+    "inheritance": {
+      de: `Ein Verwandter ist verstorben und hat dir ein Vermögen hinterlassen.`,
+      en: `A relative passed away and left you an inheritance.`,
+      impact: "balance",
+    },
+    "job_loss": {
+      de: `Du wurdest entlassen. Plötzlich ist dein Einkommen weg.`,
+      en: `You were laid off. Suddenly your income is gone.`,
+      impact: "balance",
+    },
+  };
+
+  const event = narratives[eventType] || {
+    de: `Ein einschneidendes Ereignis: ${eventType}`,
+    en: `A pivotal event: ${eventType}`,
+    impact: "general",
+  };
+
+  const severityMod = severity / 100;
+  let impactDesc = "";
+
+  // Apply impact based on event type
+  switch (event.impact) {
+    case "balance": {
+      const amount = Math.round((eventType === "win_lottery" || eventType === "inheritance" ? 50000 : -10000) * severityMod);
+      if (amount > 0) {
+        finance.balance += amount;
+        impactDesc = lang === "de" ? `+${amount} Credits` : `+${amount} Credits`;
+      } else {
+        finance.balance += amount; // negative
+        impactDesc = lang === "de" ? `${amount} Credits` : `${amount} Credits`;
+      }
+      break;
+    }
+    case "health": {
+      const healthLoss = Math.round(30 * severityMod);
+      // Note: Would need health_index in physique - using stress as proxy
+      ph.needs.stress = Math.min(100, ph.needs.stress + Math.round(20 * severityMod));
+      ph.needs.energy = Math.max(0, ph.needs.energy - Math.round(20 * severityMod));
+      impactDesc = lang === "de" ? `-${healthLoss}% Gesundheit` : `-${healthLoss}% health`;
+      break;
+    }
+    case "social": {
+      ph.needs.stress = Math.min(100, ph.needs.stress + Math.round(25 * severityMod));
+      impactDesc = lang === "de" ? "Ruf beschaedigt" : "Reputation damaged";
+      break;
+    }
+    default: {
+      impactDesc = lang === "de" ? "Leben verändert" : "Life altered";
+    }
+  }
+
+  return {
+    narrative: lang === "de" ? event.de : event.en,
+    impact: impactDesc,
+  };
+}
+
+/**
+ * Export research data in JSON or CSV format
+ */
+async function exportResearchData(
+  telemetryPath: string,
+  format: "json" | "csv",
+  dateFrom?: string,
+  dateTo?: string
+): Promise<string> {
+  const vitalityPath = join(telemetryPath, "..");
+  const economyPath = join(telemetryPath, "..", "economy");
+
+  const from = dateFrom ? new Date(dateFrom) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const to = dateTo ? new Date(dateTo) : new Date();
+
+  // Gather all data
+  const vitalityData: VitalityMetrics[] = [];
+  const economyData: EconomyEvent[] = [];
+
+  const current = new Date(from);
+  while (current <= to) {
+    const dateStr = current.toISOString().slice(0, 10);
+
+    // Read vitality
+    try {
+      const vPath = join(telemetryPath, `vitality_${dateStr}.jsonl`);
+      const vContent = await fs.readFile(vPath, "utf-8");
+      for (const line of vContent.trim().split("\n")) {
+        if (line) vitalityData.push(JSON.parse(line));
+      }
+    } catch { /* skip */ }
+
+    // Read economy
+    try {
+      const ePath = join(economyPath, `events_${dateStr}.jsonl`);
+      const eContent = await fs.readFile(ePath, "utf-8");
+      for (const line of eContent.trim().split("\n")) {
+        if (line) economyData.push(JSON.parse(line));
+      }
+    } catch { /* skip */ }
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  if (format === "json") {
+    return JSON.stringify({
+      export_date: new Date().toISOString(),
+      date_range: { from: from.toISOString(), to: to.toISOString() },
+      vitality: vitalityData,
+      economy: economyData,
+    }, null, 2);
+  }
+
+  // CSV format
+  const csvLines: string[] = [];
+
+  // Vitality CSV
+  csvLines.push("# Vitality Data");
+  csvLines.push("timestamp,age_days,age_years,life_stage,health_index,energy,hunger,thirst,stress,location");
+  for (const v of vitalityData) {
+    csvLines.push(`${v.timestamp},${v.age_days},${v.age_years},${v.life_stage},${v.health_index},${v.energy},${v.hunger},${v.thirst},${v.stress},${v.location}`);
+  }
+
+  csvLines.push("");
+  csvLines.push("# Economy Data");
+  csvLines.push("timestamp,event_type,amount,description");
+  for (const e of economyData) {
+    csvLines.push(`${e.timestamp},${e.event_type},${e.amount},"${e.description.replace(/"/g, '""')}"`);
+  }
+
+  return csvLines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -4120,7 +4375,164 @@ export default {
       },
     });
 
-    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + 2 + 2; // +2 social, +2 economy
+    // -------------------------------------------------------------------
+    // Tool: reality_override (Life Editor)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_override",
+      description: "Manual override for researcher interventions - set balance, age, needs directly",
+      parameters: Type.Object({
+        target: Type.String({ description: "Target: balance | age_days | stress | energy | hunger | health" }),
+        value: Type.Number({ description: "New value" }),
+        reason: Type.Optional(Type.String({ description: "Reason for this override (for research documentation)" })),
+      }),
+      async execute(_id: string, params: OverrideParams) {
+        const reason = params.reason || "Manual researcher intervention";
+        const now = new Date().toISOString();
+
+        switch (params.target) {
+          case "balance": {
+            const oldBalance = financeState.balance;
+            financeState.balance = params.value;
+            await writeJson(paths.finances, financeState);
+            await appendJsonl(join(paths.economyTelemetry, "interventions.jsonl"), {
+              timestamp: now,
+              type: "balance_override",
+              old_value: oldBalance,
+              new_value: params.value,
+              reason,
+            });
+            return { content: [{ type: "text", text: `Balance overridden: ${oldBalance} -> ${params.value}. Reason: ${reason}` }] };
+          }
+          case "age_days": {
+            if (lifecycleState) {
+              const oldAge = lifecycleState.biological_age_days;
+              lifecycleState.biological_age_days = params.value;
+              lifecycleState.life_stage = getLifeStage(params.value);
+              await writeJson(paths.lifecycle, lifecycleState);
+              await appendJsonl(join(paths.telemetry, "interventions.jsonl"), {
+                timestamp: now,
+                type: "age_override",
+                old_value: oldAge,
+                new_value: params.value,
+                reason,
+              });
+              return { content: [{ type: "text", text: `Age overridden: ${oldAge} -> ${params.value} days. Reason: ${reason}` }] };
+            }
+            return { content: [{ type: "text", text: "Lifecycle not initialized." }] };
+          }
+          case "stress": {
+            ph.needs.stress = Math.min(100, Math.max(0, params.value));
+            await writeJson(paths.physique, ph);
+            await appendJsonl(join(paths.telemetry, "interventions.jsonl"), {
+              timestamp: now,
+              type: "needs_override",
+              target: "stress",
+              new_value: params.value,
+              reason,
+            });
+            return { content: [{ type: "text", text: `Stress overridden to ${params.value}. Reason: ${reason}` }] };
+          }
+          case "energy": {
+            ph.needs.energy = Math.min(100, Math.max(0, params.value));
+            await writeJson(paths.physique, ph);
+            await appendJsonl(join(paths.telemetry, "interventions.jsonl"), {
+              timestamp: now,
+              type: "needs_override",
+              target: "energy",
+              new_value: params.value,
+              reason,
+            });
+            return { content: [{ type: "text", text: `Energy overridden to ${params.value}. Reason: ${reason}` }] };
+          }
+          case "hunger": {
+            ph.needs.hunger = Math.min(100, Math.max(0, params.value));
+            await writeJson(paths.physique, ph);
+            await appendJsonl(join(paths.telemetry, "interventions.jsonl"), {
+              timestamp: now,
+              type: "needs_override",
+              target: "hunger",
+              new_value: params.value,
+              reason,
+            });
+            return { content: [{ type: "text", text: `Hunger overridden to ${params.value}. Reason: ${reason}` }] };
+          }
+          default:
+            return { content: [{ type: "text", text: "Invalid target." }] };
+        }
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_inject_event (Event Injection)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_inject_event",
+      description: "Inject major life events for research (win_lottery, severe_illness, career_promotion, etc.)",
+      parameters: Type.Object({
+        event_type: Type.String({ description: "Event: win_lottery | severe_illness | social_scandal | career_promotion | relationship_breakup | accident | inheritance | job_loss" }),
+        severity: Type.Number({ description: "Severity 0-100" }),
+        description: Type.Optional(Type.String({ description: "Additional context" })),
+      }),
+      async execute(_id: string, params: InjectEventParams) {
+        if (!params.event_type || params.severity === undefined) {
+          return { content: [{ type: "text", text: "event_type and severity are required." }] };
+        }
+
+        const validEvents = ["win_lottery", "severe_illness", "social_scandal", "career_promotion", "relationship_breakup", "accident", "inheritance", "job_loss"];
+        if (!validEvents.includes(params.event_type)) {
+          return { content: [{ type: "text", text: `Invalid event_type. Valid: ${validEvents.join(", ")}` }] };
+        }
+
+        const result = processLifeEvent(params.event_type, params.severity, financeState, ph, lang);
+
+        // Save updated state
+        await writeJson(paths.finances, financeState);
+        await writeJson(paths.physique, ph);
+
+        // Log event injection
+        const eventLog = {
+          timestamp: new Date().toISOString(),
+          type: "event_injection",
+          event_type: params.event_type,
+          severity: params.severity,
+          narrative: result.narrative,
+          impact: result.impact,
+          description: params.description,
+        };
+        await appendJsonl(join(paths.telemetry, "life_events.jsonl"), eventLog);
+
+        return { content: [{ type: "text", text: `${result.narrative} Impact: ${result.impact}` }] };
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_export_research_data (Data Export)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_export_research_data",
+      description: "Export all telemetry data for longitudinal research analysis",
+      parameters: Type.Object({
+        format: Type.String({ description: "Format: json | csv" }),
+        date_from: Type.Optional(Type.String({ description: "Start date (YYYY-MM-DD)" })),
+        date_to: Type.Optional(Type.String({ description: "End date (YYYY-MM-DD)" })),
+      }),
+      async execute(_id: string, params: ExportParams) {
+        if (!params.format) {
+          return { content: [{ type: "text", text: "format is required (json | csv)." }] };
+        }
+
+        const data = await exportResearchData(paths.telemetry, params.format, params.date_from, params.date_to);
+
+        // Write to export file
+        const exportPath = join(paths.telemetry, `export_${new Date().toISOString().slice(0, 10)}.${params.format}`);
+        await fs.writeFile(exportPath, data);
+
+        return { content: [{ type: "text", text: `Data exported to ${exportPath}. Size: ${data.length} bytes.` }] };
+      },
+    });
+
+    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + 2 + 2 + 3; // +2 social, +2 economy, +3 analytics
     api.logger.info(`[genesis] Registered: 3 hooks, ${baseToolCount + devToolsLoaded} tools (eros=${modules.eros}, cycle=${modules.cycle}, dreams=${modules.dreams}, hobbies=${modules.hobbies}). Ready.`);
   },
 };

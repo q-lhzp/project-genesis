@@ -224,6 +224,18 @@
     "development.auto_load_approved": {
       "label": "Auto-Load Dev Tools",
       "help": "Automatically load approved dev tools on startup"
+    },
+    "modules.statistics": {
+      "label": "Statistics & Analytics",
+      "help": "Enable telemetry logging and web-based analytics dashboard"
+    },
+    "enableLifeEditor": {
+      "label": "Enable Life Editor",
+      "help": "Allow manual overrides of age, balance, and needs via WebUI"
+    },
+    "enableEventInjection": {
+      "label": "Enable Event Injection",
+      "help": "Allow researchers to inject major life events"
     }
   }
 }

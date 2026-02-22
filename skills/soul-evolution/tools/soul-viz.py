@@ -16,6 +16,7 @@ import re
 import sys
 import os
 import glob
+from datetime import datetime, timedelta
 
 def parse_soul_md(content: str) -> list:
     """Parse SOUL.md into a tree of sections → subsections → bullets."""
@@ -178,6 +179,41 @@ def collect_data(workspace: str) -> dict:
     # Phase 3: Prosperity & Labor - Economy
     finances = load_json(os.path.join(memory_dir, "reality", "finances.json"))
 
+    # Phase 4: Analytics & Lab - Read telemetry for visualization
+    telemetry_dir = os.path.join(memory_dir, "telemetry")
+    vitality_data = []
+    economy_data = []
+
+    # Read recent vitality telemetry (last 30 days)
+    for i in range(30):
+        date = datetime.now() - timedelta(days=i)
+        date_str = date.strftime("%Y-%m-%d")
+        vitality_file = os.path.join(telemetry_dir, f"vitality_{date_str}.jsonl")
+        if os.path.exists(vitality_file):
+            with open(vitality_file, "r") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            vitality_data.append(json.loads(line))
+                        except:
+                            pass
+
+    # Read recent economy telemetry
+    economy_dir = os.path.join(telemetry_dir, "economy")
+    if os.path.exists(economy_dir):
+        for i in range(30):
+            date = datetime.now() - timedelta(days=i)
+            date_str = date.strftime("%Y-%m-%d")
+            economy_file = os.path.join(economy_dir, f"events_{date_str}.jsonl")
+            if os.path.exists(economy_file):
+                with open(economy_file, "r") as f:
+                    for line in f:
+                        if line.strip():
+                            try:
+                                economy_data.append(json.loads(line))
+                            except:
+                                pass
+
     return {
         "soul_tree": soul_tree,
         "soul_raw": soul_content,
@@ -200,6 +236,8 @@ def collect_data(workspace: str) -> dict:
         "lifecycle": lifecycle,
         "social": social,
         "finances": finances,
+        "telemetry_vitality": vitality_data[-100:] if len(vitality_data) > 100 else vitality_data,  # Last 100 entries
+        "telemetry_economy": economy_data[-100:] if len(economy_data) > 100 else economy_data,
     }
 
 
