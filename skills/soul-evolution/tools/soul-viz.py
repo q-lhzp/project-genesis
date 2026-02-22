@@ -3545,21 +3545,42 @@ function renderWorldPanel() {{
   document.getElementById('world-weather').innerHTML = `
     <div style="font-size:3rem;text-align:center;">${{weatherIcon}}</div>
     <p style="text-align:center;text-transform:capitalize;">${{ws.weather || 'unknown'}}</p>
-    <p style="text-align:center;font-size:1.5rem;">${{ws.temperature !== undefined ? ws.temperature + '°C' : 'N/A'}}</p>`;
+    <p style="text-align:center;font-size:1.5rem;">${{ws.temperature !== undefined ? ws.temperature + '°C' : 'N/A'}}</p>
+    <div style="margin-top:1rem;display:flex;flex-direction:column;gap:0.5rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:0.75rem;color:var(--text-dim);">Real-World Sync</span>
+        <input type="checkbox" ${{ws.sync_to_real_world ? 'checked' : ''}} 
+          onchange="updateWorld({{sync_to_real_world: this.checked}})">
+      </div>
+      <select class="btn-crud" style="width:100%;text-align:center;" onchange="updateWorld({{weather: this.value, sync_to_real_world: false}})">
+        <option value="">-- Override Weather --</option>
+        ${{Object.keys(weatherIcons).map(w => `<option value="${{w}}" ${{ws.weather === w ? 'selected' : ''}}>${{w.toUpperCase()}}</option>`).join('')}}
+      </select>
+    </div>`;
 
   // Season
   const seasonIcons = {{ spring: '🌸', summer: '☀️', autumn: '🍂', winter: '❄️' }};
   const seasonIcon = seasonIcons[ws.season] || '🌍';
   document.getElementById('world-season').innerHTML = `
     <div style="font-size:3rem;text-align:center;">${{seasonIcon}}</div>
-    <p style="text-align:center;text-transform:capitalize;">${{ws.season || 'unknown'}}</p>`;
+    <p style="text-align:center;text-transform:capitalize;">${{ws.season || 'unknown'}}</p>
+    <div style="margin-top:1rem;">
+      <select class="btn-crud" style="width:100%;text-align:center;" onchange="updateWorld({{season: this.value, sync_to_real_world: false}})">
+        <option value="">-- Override Season --</option>
+        ${{Object.keys(seasonIcons).map(s => `<option value="${{s}}" ${{ws.season === s ? 'selected' : ''}}>${{s.toUpperCase()}}</option>`).join('')}}
+      </select>
+    </div>`;
 
   // Market
   const marketMod = ws.market_modifier || 1.0;
   const marketColor = marketMod > 1 ? 'var(--growth)' : (marketMod < 1 ? 'var(--danger)' : 'var(--text)');
   document.getElementById('world-market').innerHTML = `
     <p style="font-size:1.5rem;text-align:center;color:${{marketColor}};">${{(marketMod * 100).toFixed(0)}}%</p>
-    <p style="text-align:center;font-size:0.8rem;color:var(--text-dim);">of base price</p>`;
+    <p style="text-align:center;font-size:0.8rem;color:var(--text-dim);">of base price</p>
+    <div style="margin-top:1rem;text-align:center;">
+      <input type="range" min="0.5" max="1.5" step="0.05" value="${{marketMod}}" 
+        style="width:100%;" onchange="updateWorld({{market_modifier: parseFloat(this.value)}})">
+    </div>`;
 
   // Locations
   document.getElementById('world-locations').innerHTML = locs.length > 0
@@ -3567,6 +3588,24 @@ function renderWorldPanel() {{
         <strong>${{l.name}}</strong><br><span style="color:var(--text-dim);font-size:0.8rem;">${{l.description || 'No description'}}</span>
       </div>`).join('')
     : '<p style="color:var(--text-dim);">No locations defined</p>';
+}}
+
+function updateWorld(data) {{
+  fetch('/update-world', {{
+    method: 'POST',
+    headers: {{ 'Content-Type': 'application/json' }},
+    body: JSON.stringify(data)
+  }})
+  .then(r => r.text())
+  .then(txt => {{
+    if (txt === 'OK') {{
+      showToast('World updated');
+      setTimeout(() => window.location.reload(), 500);
+    }} else {{
+      showToast(txt, true);
+    }}
+  }})
+  .catch(e => showToast(e, true));
 }}
 
 // ---------------------------------------------------------------------------
@@ -4935,6 +4974,41 @@ def main():
                         self.end_headers()
                         self.wfile.write(b"OK")
                         print(f"  \u2713 Wardrobe saved")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "text/plain")
+                        self.end_headers()
+                        self.wfile.write(str(e).encode())
+
+                elif self.path == "/update-world":
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        data = json.loads(body)
+                        # Minimal validation
+                        if not isinstance(data, dict):
+                            raise ValueError("World data must be a JSON object")
+                        
+                        world_path = os.path.join(workspace, "memory", "reality", "world_state.json")
+                        os.makedirs(os.path.dirname(world_path), exist_ok=True)
+                        
+                        # Merge with existing if available
+                        current = {}
+                        if os.path.exists(world_path):
+                            with open(world_path, "r") as f:
+                                current = json.load(f)
+                        
+                        current.update(data)
+                        current["last_update"] = __import__("datetime").datetime.now().isoformat()
+                        
+                        with open(world_path, "w") as f:
+                            json.dump(current, f, indent=2)
+                            
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/plain")
+                        self.end_headers()
+                        self.wfile.write(b"OK")
+                        print(f"  \u2713 World state updated")
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "text/plain")

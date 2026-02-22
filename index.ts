@@ -142,6 +142,35 @@ interface WorldState {
   season: "spring" | "summer" | "autumn" | "winter";
   market_modifier: number; // 0.8 to 1.2
   last_update: string;
+  sync_to_real_world: boolean;
+}
+
+/**
+ * Determine the current season based on the real-world date.
+ */
+function getRealWorldSeason(): WorldState["season"] {
+  const month = new Date().getMonth() + 1; // 0-indexed
+  if (month >= 3 && month <= 5) return "spring";
+  if (month >= 6 && month <= 8) return "summer";
+  if (month >= 9 && month <= 11) return "autumn";
+  return "winter";
+}
+
+/**
+ * Approximate weather based on season if no API is available.
+ */
+function getEstimatedWeather(season: WorldState["season"]): { weather: WorldState["weather"], temp: number } {
+  const rand = Math.random();
+  switch (season) {
+    case "summer":
+      return rand > 0.3 ? { weather: "sunny", temp: 25 + Math.round(rand * 10) } : { weather: "cloudy", temp: 20 };
+    case "winter":
+      return rand > 0.5 ? { weather: "snowy", temp: -2 - Math.round(rand * 5) } : { weather: "cloudy", temp: 2 };
+    case "autumn":
+      return rand > 0.4 ? { weather: "rainy", temp: 10 } : { weather: "stormy", temp: 8 };
+    default:
+      return { weather: "sunny", temp: 18 };
+  }
 }
 
 interface Trauma {
@@ -3290,17 +3319,42 @@ export default {
 
       if (modules.world) {
         worldState = await readJson<WorldState>(paths.world);
+        const nowIso = new Date().toISOString();
+        const currentSeason = getRealWorldSeason();
+
         if (!worldState) {
-          worldState = { weather: "sunny", temperature: 20, season: "spring", market_modifier: 1.0, last_update: new Date().toISOString() };
+          const { weather, temp } = getEstimatedWeather(currentSeason);
+          worldState = { 
+            weather, 
+            temperature: temp, 
+            season: currentSeason, 
+            market_modifier: 1.0, 
+            last_update: nowIso,
+            sync_to_real_world: true 
+          };
           await writeJson(paths.world, worldState);
         }
-        // Simple weather tick (every 4 hours)
-        const lastWeather = new Date(worldState.last_update);
-        if ((new Date().getTime() - lastWeather.getTime()) > 4 * 60 * 60 * 1000) {
-          const weathers: WorldState["weather"][] = ["sunny", "cloudy", "rainy", "stormy"];
-          worldState.weather = weathers[Math.floor(Math.random() * weathers.length)];
-          worldState.last_update = new Date().toISOString();
-          await writeJson(paths.world, worldState);
+
+        // Real-World Sync Tick
+        if (worldState.sync_to_real_world) {
+          const lastUpdate = new Date(worldState.last_update);
+          const hoursSinceUpdate = (new Date().getTime() - lastUpdate.getTime()) / 3600000;
+
+          // Sync season always (if changed)
+          if (worldState.season !== currentSeason) {
+            worldState.season = currentSeason;
+            await writeJson(paths.world, worldState);
+          }
+
+          // Weather tick (every 4 hours)
+          if (hoursSinceUpdate >= 4) {
+            const { weather, temp } = getEstimatedWeather(currentSeason);
+            worldState.weather = weather;
+            worldState.temperature = temp;
+            worldState.last_update = nowIso;
+            await writeJson(paths.world, worldState);
+            api.logger.info(`[genesis] World synced with real-world: ${weather}, ${temp}°C, ${currentSeason}`);
+          }
         }
       }
 

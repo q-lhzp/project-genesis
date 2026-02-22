@@ -13,6 +13,15 @@
       "birthDate": { "type": "string", "format": "date", "description": "The simulated birthday of the human entity (YYYY-MM-DD)" },
       "initialAgeDays": { "type": "number", "default": 0, "description": "Start aging from this many days if not starting from birth" },
       "initialBalance": { "type": "number", "default": 1000, "description": "Starting balance in Credits" },
+      "location": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "city": { "type": "string", "default": "Berlin" },
+          "country": { "type": "string", "default": "Germany" },
+          "syncWeather": { "type": "boolean", "default": true }
+        }
+      },
       "modules": {
         "type": "object",
         "additionalProperties": false,
