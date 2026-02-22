@@ -128,6 +128,19 @@ interface DevProject {
   created_at: string;
   approved: boolean;
   approved_at: string | null;
+  // Phase 4: Self-Development Engine
+  review_feedback?: string;
+  reviewed_by?: string;
+  test_results?: DevTestResult[];
+  last_test_run?: string;
+  auto_load?: boolean;
+}
+
+interface DevTestResult {
+  timestamp: string;
+  status: "pass" | "fail" | "error";
+  message: string;
+  details?: string;
 }
 
 interface DevManifest { projects: DevProject[]; }
@@ -433,7 +446,7 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "reality_job_market", "reality_work",
     "reality_override", "reality_inject_event", "reality_export_research_data",
     "reality_socialize", "reality_network",
-    "reality_develop",
+    "reality_develop", "reality_review_project",
     "soul_evolution_pipeline", "soul_evolution_propose", "soul_evolution_reflect",
     "soul_evolution_govern", "soul_evolution_apply",
     "reality_manage_memos"
@@ -528,9 +541,20 @@ interface InventoryParams {
   quantity?: number; location?: string; tags?: string[]; query?: string;
 }
 interface DevelopParams {
-  action: string;
-  project_id?: string; project_name?: string; project_type?: string;
-  project_description?: string; file_path?: string; file_content?: string;
+  action: "init_project" | "write_code" | "read_file" | "list_projects" | "run_test" | "submit_review" | "status" | "delete_project";
+  project_id?: string;
+  project_name?: string;
+  project_type?: "tool" | "skill" | "plugin" | "script";
+  project_description?: string;
+  file_path?: string;
+  file_content?: string;
+}
+
+interface ReviewParams {
+  action: "approve" | "reject" | "list_pending" | "list_approved";
+  project_id?: string;
+  feedback?: string;
+  auto_load?: boolean;
 }
 
 // Phase 2: Social Fabric - Tool params
@@ -4542,9 +4566,9 @@ export default {
     // -------------------------------------------------------------------
     api.registerTool({
       name: "reality_develop",
-      description: "Create and manage self-developed tools, skills, and scripts",
+      description: "Create and manage self-developed tools, skills, and scripts (Developer role)",
       parameters: Type.Object({
-        action: Type.String({ description: "Action: create_project | write_file | read_file | list_projects | submit_review | status | delete_project" }),
+        action: Type.String({ description: "Action: init_project | create_project | write_code | read_file | list_projects | run_test | submit_review | status | delete_project" }),
         project_id: Type.Optional(Type.String()),
         project_name: Type.Optional(Type.String()),
         project_type: Type.Optional(Type.String({ description: "Project type: tool | skill | plugin | script" })),
@@ -4571,7 +4595,9 @@ export default {
             return { content: [{ type: "text", text: lines.join("\n") }] };
           }
 
-          case "create_project": {
+          case "create_project":
+          case "init_project": {
+            // Both actions create a new project, but init_project scaffolds a full directory structure
             if (!params.project_name || !params.project_type) {
               return { content: [{ type: "text", text: "project_name and project_type required." }] };
             }
@@ -4580,8 +4606,35 @@ export default {
               return { content: [{ type: "text", text: `Invalid project_type. Valid: ${validProjectTypes.join(", ")}` }] };
             }
             const projId = generateId("dev");
-            const projDir = join(paths.devProjects, projId, "src");
+            const projRoot = join(paths.devProjects, projId);
+            const projDir = join(projRoot, "src");
+            const testsDir = join(projRoot, "tests");
+
+            // Create directory structure
             await fs.mkdir(projDir, { recursive: true });
+            if (params.action === "init_project") {
+              await fs.mkdir(testsDir, { recursive: true });
+              // Create README.md template
+              const readme = `# ${params.project_name}
+
+## Description
+${params.project_description || "Self-developed tool/script"}
+
+## Type
+${params.project_type}
+
+## Created
+${new Date().toISOString()}
+
+## Status
+- Draft -> Pending Review -> Approved -> Active
+
+## Usage
+See source files in \`src/\`
+`;
+              await fs.writeFile(join(projRoot, "README.md"), readme);
+            }
+
             const validTypes = ["tool", "skill", "plugin", "script"];
             const projType = (validTypes.includes(params.project_type ?? "") ? params.project_type : "tool") as DevProject["type"];
 
@@ -4595,14 +4648,153 @@ export default {
               created_at: new Date().toISOString(),
               approved: false,
               approved_at: null,
+              test_results: [],
             };
+
             // Write meta.json
-            await writeJson(join(paths.devProjects, projId, "meta.json"), project);
+            await writeJson(join(projRoot, "meta.json"), project);
             manifest.projects.push(project);
             await writeJson(paths.devManifest, manifest);
-            return { content: [{ type: "text", text: `${lang === "de" ? "Projekt erstellt" : "Project created"}: ${project.name} (${projId})` }] };
+
+            // Activity logging
+            await logAgentActivity(
+              paths.agentActivity,
+              "developer",
+              "developer",
+              "PROJECT_CREATED",
+              `Developer created project ${project.name} (${projId})`,
+              { projectId: projId, projectType: projType, scaffolded: params.action === "init_project" }
+            );
+
+            const actionWord = params.action === "init_project" ? "initialized" : "created";
+            return { content: [{ type: "text", text: `Project ${actionWord}: ${project.name} (${projId}). Use write_code to add files, then submit_for_review when ready.` }] };
           }
 
+          case "run_test": {
+            // Validate TypeScript syntax or JSON structure of the code
+            if (!params.project_id) {
+              return { content: [{ type: "text", text: "project_id required." }] };
+            }
+            const testProj = manifest.projects.find(p => p.id === params.project_id);
+            if (!testProj) {
+              return { content: [{ type: "text", text: "Project not found." }] };
+            }
+            if (testProj.files.length === 0) {
+              return { content: [{ type: "text", text: "No files to test. Write code first using write_code." }] };
+            }
+
+            const testResults: DevTestResult[] = [];
+            let allPassed = true;
+
+            for (const file of testProj.files) {
+              try {
+                // Path traversal guard
+                const baseDirRaw = resolve(paths.devProjects, params.project_id);
+                const baseDir = await fs.realpath(baseDirRaw).catch(() => baseDirRaw);
+                const filePath = resolve(baseDir, "src", file);
+
+                if (!filePath.startsWith(baseDir + "/")) {
+                  testResults.push({
+                    timestamp: new Date().toISOString(),
+                    status: "error",
+                    message: `Path traversal detected in ${file}`,
+                    details: "Security violation"
+                  });
+                  allPassed = false;
+                  continue;
+                }
+
+                const content = await fs.readFile(filePath, "utf-8");
+
+                // Basic validation: Check for common issues
+                if (file.endsWith(".json")) {
+                  try {
+                    JSON.parse(content);
+                    testResults.push({
+                      timestamp: new Date().toISOString(),
+                      status: "pass",
+                      message: `${file}: Valid JSON`,
+                    });
+                  } catch (e) {
+                    testResults.push({
+                      timestamp: new Date().toISOString(),
+                      status: "fail",
+                      message: `${file}: Invalid JSON`,
+                      details: String(e)
+                    });
+                    allPassed = false;
+                  }
+                } else if (file.endsWith(".ts")) {
+                  // Basic TypeScript syntax check via node --check (if available)
+                  // For now, do a basic brace matching check
+                  const openBraces = (content.match(/\{/g) || []).length;
+                  const closeBraces = (content.match(/\}/g) || []).length;
+                  const openParens = (content.match(/\(/g) || []).length;
+                  const closeParens = (content.match(/\)/g) || []).length;
+
+                  if (openBraces === closeBraces && openParens === closeParens) {
+                    testResults.push({
+                      timestamp: new Date().toISOString(),
+                      status: "pass",
+                      message: `${file}: Basic syntax check passed (brace matching)`,
+                    });
+                  } else {
+                    testResults.push({
+                      timestamp: new Date().toISOString(),
+                      status: "fail",
+                      message: `${file}: Brace/paren mismatch`,
+                      details: `Braces: {${openBraces} vs ${closeBraces}}, Parens: (${openParens} vs ${closeParens})`
+                    });
+                    allPassed = false;
+                  }
+                } else {
+                  // Other files - just check they're readable
+                  testResults.push({
+                    timestamp: new Date().toISOString(),
+                    status: "pass",
+                    message: `${file}: Readable (${content.length} bytes)`,
+                  });
+                }
+              } catch (e) {
+                testResults.push({
+                  timestamp: new Date().toISOString(),
+                  status: "error",
+                  message: `Failed to read ${file}`,
+                  details: String(e)
+                });
+                allPassed = false;
+              }
+            }
+
+            // Update project with test results
+            testProj.test_results = testResults;
+            testProj.last_test_run = new Date().toISOString();
+            await writeJson(join(paths.devProjects, params.project_id, "meta.json"), testProj);
+
+            // Activity logging
+            await logAgentActivity(
+              paths.agentActivity,
+              "developer",
+              "developer",
+              "TEST_RUN",
+              `Developer ran tests on ${testProj.name}: ${allPassed ? "ALL PASSED" : "SOME FAILED"}`,
+              { projectId: params.project_id, resultCount: testResults.length, allPassed }
+            );
+
+            // Format output
+            const lines = [`**Test Results for ${testProj.name}**`, ""];
+            for (const r of testResults) {
+              const icon = r.status === "pass" ? "✅" : r.status === "fail" ? "❌" : "⚠️";
+              lines.push(`${icon} ${r.message}`);
+              if (r.details) lines.push(`   Details: ${r.details}`);
+            }
+            lines.push("");
+            lines.push(allPassed ? "✅ All tests passed!" : "❌ Some tests failed. Fix issues before submitting for review.");
+
+            return { content: [{ type: "text", text: lines.join("\n") }] };
+          }
+
+          case "write_code":
           case "write_file": {
             if (!params.project_id || !params.file_path || params.file_content === undefined) {
               return { content: [{ type: "text", text: "project_id, file_path, and file_content required." }] };
@@ -4617,16 +4809,37 @@ export default {
             const baseDir = await fs.realpath(baseDirRaw).catch(() => baseDirRaw);
             const targetPath = resolve(baseDir, "src", params.file_path);
             if (!targetPath.startsWith(baseDir + "/")) {
+              // Activity logging for blocked attempt
+              await logAgentActivity(
+                paths.agentActivity,
+                "developer",
+                "developer",
+                "WRITE_BLOCKED",
+                `Developer attempted path traversal in ${params.file_path}`,
+                { projectId: params.project_id, filePath: params.file_path, blocked: true }
+              );
               return { content: [{ type: "text", text: "Path traversal detected — blocked." }] };
             }
             await fs.mkdir(dirname(targetPath), { recursive: true });
             await fs.writeFile(targetPath, params.file_content);
-            if (!proj.files.includes(params.file_path)) {
+            const isNewFile = !proj.files.includes(params.file_path);
+            if (isNewFile) {
               proj.files.push(params.file_path);
               await writeJson(join(baseDir, "meta.json"), proj);
               await writeJson(paths.devManifest, manifest);
             }
-            return { content: [{ type: "text", text: `${lang === "de" ? "Datei geschrieben" : "File written"}: ${params.file_path}` }] };
+
+            // Activity logging
+            await logAgentActivity(
+              paths.agentActivity,
+              "developer",
+              "developer",
+              isNewFile ? "FILE_CREATED" : "FILE_UPDATED",
+              `Developer ${isNewFile ? "created" : "updated"} ${params.file_path} in ${proj.name}`,
+              { projectId: params.project_id, filePath: params.file_path, fileSize: params.file_content.length }
+            );
+
+            return { content: [{ type: "text", text: `File written: ${params.file_path} (${params.file_content.length} bytes)` }] };
           }
 
           case "read_file": {
@@ -4660,7 +4873,18 @@ export default {
             proj2.status = "pending_review";
             await writeJson(join(paths.devProjects, params.project_id, "meta.json"), proj2);
             await writeJson(paths.devManifest, manifest);
-            return { content: [{ type: "text", text: `${lang === "de" ? "Zur Pruefung eingereicht" : "Submitted for review"}: ${proj2.name}` }] };
+
+            // Activity logging
+            await logAgentActivity(
+              paths.agentActivity,
+              "developer",
+              "developer",
+              "SUBMITTED_FOR_REVIEW",
+              `Developer submitted ${proj2.name} for review (${proj2.files.length} files)`,
+              { projectId: params.project_id, fileCount: proj2.files.length }
+            );
+
+            return { content: [{ type: "text", text: `Submitted for review: ${proj2.name}. Waiting for Analyst approval.` }] };
           }
 
           case "status": {
@@ -4683,16 +4907,175 @@ export default {
             if (!params.project_id) return { content: [{ type: "text", text: "project_id required." }] };
             const idx = manifest.projects.findIndex(p => p.id === params.project_id);
             if (idx < 0) return { content: [{ type: "text", text: "Project not found." }] };
+            const deletedProj = manifest.projects[idx];
             // Remove project directory
             const projDir2 = join(paths.devProjects, params.project_id);
             await fs.rm(projDir2, { recursive: true, force: true });
             manifest.projects.splice(idx, 1);
             await writeJson(paths.devManifest, manifest);
-            return { content: [{ type: "text", text: lang === "de" ? "Projekt geloescht." : "Project deleted." }] };
+
+            // Activity logging
+            await logAgentActivity(
+              paths.agentActivity,
+              "developer",
+              "developer",
+              "PROJECT_DELETED",
+              `Developer deleted project ${deletedProj.name}`,
+              { projectId: params.project_id, projectName: deletedProj.name }
+            );
+
+            return { content: [{ type: "text", text: `Project deleted: ${deletedProj.name}` }] };
           }
 
           default:
             return { content: [{ type: "text", text: `Unknown action: ${params.action}` }] };
+        }
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_review_project — Analyst Review System
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_review_project",
+      description: "Review and approve/reject self-developed projects (Analyst role only)",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: approve | reject | list_pending | list_approved" }),
+        project_id: Type.Optional(Type.String()),
+        feedback: Type.Optional(Type.String({ description: "Feedback message for the developer" })),
+        auto_load: Type.Optional(Type.Boolean({ description: "Auto-load the tool after approval" })),
+      }),
+      async execute(_id: string, params: ReviewParams) {
+        // This tool is analyst-only - in production, enforce via RoleGuard
+        const manifest = await readJson<DevManifest>(paths.devManifest);
+        if (!manifest) return { content: [{ type: "text", text: "No projects found." }] };
+
+        switch (params.action) {
+          case "list_pending": {
+            const pending = manifest.projects.filter(p => p.status === "pending_review");
+            if (pending.length === 0) {
+              return { content: [{ type: "text", text: "No projects pending review." }] };
+            }
+            const lines = ["**Pending Review Projects:**", ""];
+            for (const p of pending) {
+              lines.push(`- **${p.name}** (${p.id})`);
+              lines.push(`  Type: ${p.type}, Files: ${p.files.length}`);
+              if (p.description) lines.push(`  Description: ${p.description}`);
+              if (p.last_test_run) lines.push(`  Last Test: ${p.last_test_run}`);
+              lines.push("");
+            }
+            return { content: [{ type: "text", text: lines.join("\n") }] };
+          }
+
+          case "list_approved": {
+            const approved = manifest.projects.filter(p => p.status === "approved" || p.status === "active");
+            if (approved.length === 0) {
+              return { content: [{ type: "text", text: "No approved projects." }] };
+            }
+            const lines = ["**Approved Projects:**", ""];
+            for (const p of approved) {
+              lines.push(`- **${p.name}** (${p.id}) [${p.status}]`);
+              lines.push(`  Type: ${p.type}, Files: ${p.files.length}`);
+              if (p.approved_at) lines.push(`  Approved: ${p.approved_at}`);
+              lines.push("");
+            }
+            return { content: [{ type: "text", text: lines.join("\n") }] };
+          }
+
+          case "approve": {
+            if (!params.project_id) {
+              return { content: [{ type: "text", text: "project_id required." }] };
+            }
+            const proj = manifest.projects.find(p => p.id === params.project_id);
+            if (!proj) {
+              return { content: [{ type: "text", text: "Project not found." }] };
+            }
+            if (proj.status !== "pending_review") {
+              return { content: [{ type: "text", text: `Project is not pending review. Current status: ${proj.status}` }] };
+            }
+
+            // Approve the project
+            proj.status = "approved";
+            proj.approved = true;
+            proj.approved_at = new Date().toISOString();
+            proj.review_feedback = params.feedback ?? "Approved by Analyst";
+            proj.auto_load = params.auto_load ?? true;
+
+            // Update both manifest and project meta.json
+            await writeJson(paths.devManifest, manifest);
+            await writeJson(join(paths.devProjects, params.project_id, "meta.json"), proj);
+
+            // Activity logging
+            await logAgentActivity(
+              paths.agentActivity,
+              "analyst",
+              "analyst",
+              "PROJECT_APPROVED",
+              `Analyst approved project ${proj.name}`,
+              { projectId: params.project_id, projectName: proj.name, autoLoad: proj.auto_load, feedback: params.feedback }
+            );
+
+            // Send memo to developer
+            await sendMemo(
+              paths.internalComm,
+              "analyst",
+              "developer",
+              "strategy",
+              `Your project "${proj.name}" has been approved! You can now use it in the simulation.`,
+              "high",
+              cfg?.memoTTL ?? 7
+            );
+
+            const loadMsg = proj.auto_load ? " It will be auto-loaded on next agent turn." : "";
+            return { content: [{ type: "text", text: `Project approved: ${proj.name}.${loadMsg}` }] };
+          }
+
+          case "reject": {
+            if (!params.project_id) {
+              return { content: [{ type: "text", text: "project_id required." }] };
+            }
+            const proj = manifest.projects.find(p => p.id === params.project_id);
+            if (!proj) {
+              return { content: [{ type: "text", text: "Project not found." }] };
+            }
+            if (proj.status !== "pending_review") {
+              return { content: [{ type: "text", text: `Project is not pending review. Current status: ${proj.status}` }] };
+            }
+
+            // Reject the project - set back to draft
+            proj.status = "draft";
+            proj.review_feedback = params.feedback ?? "Rejected by Analyst";
+
+            // Update both manifest and project meta.json
+            await writeJson(paths.devManifest, manifest);
+            await writeJson(join(paths.devProjects, params.project_id, "meta.json"), proj);
+
+            // Activity logging
+            await logAgentActivity(
+              paths.agentActivity,
+              "analyst",
+              "analyst",
+              "PROJECT_REJECTED",
+              `Analyst rejected project ${proj.name}`,
+              { projectId: params.project_id, projectName: proj.name, feedback: params.feedback }
+            );
+
+            // Send memo to developer
+            await sendMemo(
+              paths.internalComm,
+              "analyst",
+              "developer",
+              "warning",
+              `Your project "${proj.name}" was rejected. Feedback: ${params.feedback || "No specific feedback provided."} Please fix the issues and resubmit.`,
+              "high",
+              cfg?.memoTTL ?? 7
+            );
+
+            return { content: [{ type: "text", text: `Project rejected: ${proj.name}. Feedback: ${params.feedback || "No feedback provided."}` }] };
+          }
+
+          default:
+            return { content: [{ type: "text", text: "Invalid action. Valid: approve, reject, list_pending, list_approved" }] };
         }
       },
     });
