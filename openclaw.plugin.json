@@ -2,7 +2,7 @@
   "id": "project_genesis",
   "name": "Project Genesis",
   "description": "The Human Lifecycle — Full biological, social, and economic simulation",
-  "version": "1.9.0",
+  "version": "2.2.0",
   "skills": ["./skills/soul-evolution"],
   "configSchema": {
     "type": "object",
@@ -41,7 +41,17 @@
           "desktop": { "type": "boolean", "default": false },
           "legacy": { "type": "boolean", "default": false },
           "genesis": { "type": "boolean", "default": false },
-          "multi_model_optimization": { "type": "boolean", "default": true }
+          "multi_model_optimization": { "type": "boolean", "default": true },
+          "voice_enabled": { "type": "boolean", "default": false, "description": "Enable voice synthesis for agent responses" },
+          "mem0": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": { "type": "boolean", "default": false },
+              "api_key": { "type": "string", "default": "" },
+              "user_id": { "type": "string", "default": "genesis_agent" }
+            }
+          }
         }
       },
       "metabolismRates": {
@@ -315,6 +325,10 @@
       "label": "Origin Engine (Genesis)",
       "help": "Enable neural life bootstrapping - generate complete character from natural language description"
     },
+    "modules.voice_enabled": {
+      "label": "Voice Synthesis",
+      "help": "Enable voice output for agent responses"
+    },
     "enableLifeEditor": {
       "label": "Enable Life Editor",
       "help": "Allow manual overrides of age, balance, and needs via WebUI"
@@ -404,6 +418,26 @@
       "label": "Skill: Train/Check",
       "category": "Life Simulation",
       "help": "Train skills or check competence level"
+    },
+    "reality_camera": {
+      "label": "Neural Photography",
+      "category": "Identity",
+      "help": "Capture a consistent AI-generated photo of your current life."
+    },
+    "reality_vision_analyze": {
+      "label": "Face-ID Analysis",
+      "category": "Identity",
+      "help": "Analyze facial features from an image for visual consistency."
+    },
+    "reality_genesis": {
+      "label": "Origin Engine (Genesis)",
+      "category": "Identity",
+      "help": "Bootstrap or patch character profiles using neural bootstrapping."
+    },
+    "reality_profile": {
+      "label": "Profile Manager",
+      "category": "Identity",
+      "help": "Save, load, or delete character slots."
     },
     "reality_browse": {
       "label": "Web Research",

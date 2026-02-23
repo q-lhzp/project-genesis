@@ -1795,6 +1795,7 @@ body::after {{
   <button class="tab-btn" onclick="switchTab('reputation')">Social Standing</button>
   <button class="tab-btn" onclick="switchTab('stream')">Life Stream</button>
   <button class="tab-btn" onclick="switchTab('genesis')">Genesis Lab</button>
+  <button class="tab-btn" onclick="switchTab('memory')">Memory</button>
 </div>
 
 <div id="tab-dashboard" class="tab-content active">
@@ -2057,6 +2058,39 @@ body::after {{
       <p style="color:var(--text-dim);margin-top:0.5rem;font-size:0.9rem;">Pariah (-100) &larr; Neutral (0) &rarr; Icon (+100)</p>
     </div>
 
+    <!-- Contact CRM - Phase 19 -->
+    <div class="panel-card" style="margin-bottom:1.5rem;border-left:4px solid var(--core);">
+      <h2>Contact CRM</h2>
+      <p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:1rem;">Manage your social network with visual identities.</p>
+
+      <!-- Add Manual Contact Form -->
+      <div style="background:var(--bg);padding:1rem;border-radius:4px;margin-bottom:1rem;">
+        <h4 style="margin:0 0 0.5rem 0;">Add New Contact</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:0.5rem;align-items:end;">
+          <div>
+            <label style="font-size:0.8rem;">Name</label>
+            <input type="text" id="new-contact-name" placeholder="Person name" style="width:100%;background:var(--bg-dim);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">Circle</label>
+            <select id="new-contact-circle" style="width:100%;background:var(--bg-dim);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;">
+              <option value="Friends">Friends</option>
+              <option value="Family">Family</option>
+              <option value="Professional">Professional</option>
+              <option value="Public">Public</option>
+            </select>
+          </div>
+          <button onclick="addManualContact()" style="background:var(--core);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">+ Add</button>
+        </div>
+        <div id="add-contact-status" style="margin-top:0.5rem;font-size:0.8rem;"></div>
+      </div>
+
+      <!-- Contact List -->
+      <div id="contact-crm-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
+        <p style="color:var(--text-dim);">Loading contacts...</p>
+      </div>
+    </div>
+
     <!-- Social Circles -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem;">
       <div class="panel-card">
@@ -2121,6 +2155,20 @@ body::after {{
         </label>
       </div>
       <div id="genesis-status" style="font-size:0.8rem;margin-top:0.5rem;"></div>
+
+      <!-- Voice Toggle -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <strong>Voice Synthesis</strong>
+          <p style="font-size:0.8rem;color:var(--text-dim);margin:0;">Enable voice output for agent</p>
+        </div>
+        <label style="position:relative;display:inline-block;width:50px;height:26px;">
+          <input type="checkbox" id="voice-enabled" style="opacity:0;width:0;height:0;" onchange="toggleVoice(this.checked)">
+          <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#ccc;transition:0.3s;border-radius:26px;"></span>
+          <span style="position:absolute;content:'';height:20px;width:20px;left:3px;bottom:3px;background-color:white;transition:0.3s;border-radius:50%;"></span>
+        </label>
+      </div>
+      <div id="voice-status" style="font-size:0.8rem;margin-top:0.5rem;"></div>
 
       <!-- Model Configuration -->
       <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;">
@@ -2309,6 +2357,75 @@ body::after {{
         <button class="btn-save" onclick="runPatch()" style="background:var(--accent);">
           ✏️ Update Character
         </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Memory Tab -->
+<div id="tab-memory" class="tab-content">
+  <div style="max-width:800px;margin:0 auto;padding:1.5rem 2rem;">
+    <div class="panel-card" style="border-left:4px solid var(--core);">
+      <h2>Long-Term Memory</h2>
+      <p style="color:var(--text-dim);margin-top:0.5rem;">Search and explore memories stored in Mem0.</p>
+
+      <!-- Mem0 Configuration -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;">
+        <strong>Mem0 Configuration</strong>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Configure your Mem0 API connection</p>
+
+        <div style="display:grid;grid-template-columns:1fr;gap:0.5rem;margin-top:0.5rem;">
+          <div>
+            <label style="font-size:0.8rem;">API Key</label>
+            <input type="password" id="mem0-api-key" placeholder="mem0-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;margin-top:0.25rem;">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">User ID</label>
+            <input type="text" id="mem0-user-id" placeholder="genesis_agent" value="genesis_agent" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;margin-top:0.25rem;">
+          </div>
+        </div>
+
+        <!-- Save Button -->
+        <button onclick="saveMem0Config()" style="margin-top:0.5rem;background:var(--core);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Save Config</button>
+        <span id="mem0-config-status" style="margin-left:0.5rem;font-size:0.8rem;"></span>
+      </div>
+
+      <!-- Search -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;">
+        <strong>Search Memories</strong>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Find relevant long-term memories</p>
+
+        <div style="display:flex;gap:0.5rem;">
+          <input type="text" id="memory-search-query" placeholder="Search query (e.g., 'childhood memories', 'relationship with mother')" style="flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;">
+          <button onclick="searchMemories()" style="background:var(--core);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">🔍 Search</button>
+        </div>
+
+        <!-- Language Toggle -->
+        <div style="margin-top:0.5rem;font-size:0.8rem;">
+          <label style="color:var(--text-dim);">Language / Sprache:</label>
+          <select id="memory-lang" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;margin-left:0.5rem;">
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+          </select>
+        </div>
+
+        <!-- Results -->
+        <div id="memory-results" style="margin-top:1rem;">
+          <p style="color:var(--text-dim);font-size:0.85rem;">No memories searched yet.</p>
+        </div>
+      </div>
+
+      <!-- Store New Memory -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;border-left:4px solid var(--growth);">
+        <strong>Store New Memory</strong>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Add a new fact to long-term memory</p>
+
+        <textarea id="memory-store-text" rows="3" placeholder="Enter a fact to remember (e.g., 'Had a conversation about quantum physics with Dr. Chen')" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
+
+        <div style="margin-top:0.5rem;text-align:right;">
+          <button onclick="storeMemory()" style="background:var(--growth);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Store Memory</button>
+        </div>
+        <div id="memory-store-status" style="margin-top:0.5rem;font-size:0.8rem;"></div>
       </div>
     </div>
   </div>
@@ -3156,7 +3273,7 @@ function switchTab(tabId) {{
   if (tabId === 'world' && !window._worldRendered) {{ renderWorldPanel(); window._worldRendered = true; }}
   if (tabId === 'skills' && !window._skillsRendered) {{ renderSkillsPanel(); window._skillsRendered = true; }}
   if (tabId === 'psychology' && !window._psychRendered) {{ renderPsychPanel(); window._psychRendered = true; }}
-  if (tabId === 'reputation' && !window._repRendered) {{ renderReputationPanel(); window._repRendered = true; }}
+  if (tabId === 'reputation' && !window._repRendered) {{ renderReputationPanel(); loadContactCRM(); window._repRendered = true; }}
   if (tabId === 'stream' && !window._streamRendered) {{ renderPhotoStream(); window._streamRendered = true; }}
   if (tabId === 'genesis' && !window._genesisRendered) {{ window._genesisRendered = true; loadGenesisStatus(); }}
 }}
@@ -4193,6 +4310,46 @@ async function toggleGenesis(enabled) {{
   }}
 }}
 
+async function toggleVoice(enabled) {{
+  const statusDiv = document.getElementById('voice-status');
+  try {{
+    const response = await fetch('/api/voice/toggle', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ enabled: enabled }})
+    }});
+    const result = await response.json();
+
+    if (result.success) {{
+      statusDiv.innerHTML = enabled
+        ? '<span style="color:var(--growth);">✓ Voice synthesis enabled.</span>'
+        : '<span style="color:var(--text-dim);">Voice synthesis disabled.</span>';
+    }} else {{
+      statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
+    }}
+  }} catch (error) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + error.message + '</span>';
+  }}
+}}
+
+async function loadVoiceStatus() {{
+  try {{
+    const response = await fetch('/api/voice/status');
+    const result = await response.json();
+    const checkbox = document.getElementById('voice-enabled');
+    if (checkbox) checkbox.checked = result.enabled || false;
+
+    const statusDiv = document.getElementById('voice-status');
+    if (statusDiv) {{
+      statusDiv.innerHTML = result.enabled
+        ? '<span style="color:var(--growth);">✓ Voice synthesis is enabled</span>'
+        : '<span style="color:var(--text-dim);">Voice synthesis is disabled</span>';
+    }}
+  }} catch (e) {{
+    console.log('Could not load voice status:', e);
+  }}
+}}
+
 async function loadGenesisStatus() {{
   try {{
     const response = await fetch('/api/genesis/status');
@@ -4214,6 +4371,12 @@ async function loadGenesisStatus() {{
 
     // Load backups
     loadBackups();
+
+    // Load voice status
+    loadVoiceStatus();
+
+    // Load Mem0 config
+    loadMem0Config();
   }} catch (e) {{
     console.log('Could not load genesis status:', e);
   }}
@@ -4345,6 +4508,132 @@ async function loadBackups() {{
     `).join('');
   }} catch (e) {{
     console.log('Could not load backups:', e);
+  }}
+}}
+
+// ---------------------------------------------------------------------------
+// Memory Tab Functions
+// ---------------------------------------------------------------------------
+async function saveMem0Config() {{
+  const apiKey = document.getElementById('mem0-api-key').value.trim();
+  const userId = document.getElementById('mem0-user-id').value.trim() || 'genesis_agent';
+
+  if (!apiKey) {{
+    document.getElementById('mem0-config-status').innerHTML = '<span style="color:var(--danger);">Please enter an API key.</span>';
+    return;
+  }}
+
+  try {{
+    const response = await fetch('/api/mem0/config', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ api_key: apiKey, user_id: userId }})
+    }});
+    const result = await response.json();
+
+    if (result.success) {{
+      document.getElementById('mem0-config-status').innerHTML = '<span style="color:var(--growth);">✓ Config saved!</span>';
+      setTimeout(() => {{
+        document.getElementById('mem0-config-status').innerHTML = '';
+      }}, 3000);
+    }} else {{
+      document.getElementById('mem0-config-status').innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
+    }}
+  }} catch (e) {{
+    document.getElementById('mem0-config-status').innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+  }}
+}}
+
+async function loadMem0Config() {{
+  try {{
+    const response = await fetch('/api/mem0/config');
+    const config = await response.json();
+
+    if (config.api_key) {{
+      document.getElementById('mem0-api-key').value = config.api_key;
+    }}
+    if (config.user_id) {{
+      document.getElementById('mem0-user-id').value = config.user_id;
+    }}
+  }} catch (e) {{
+    console.log('Could not load Mem0 config:', e);
+  }}
+}}
+
+async function searchMemories() {{
+  const query = document.getElementById('memory-search-query').value.trim();
+  const lang = document.getElementById('memory-lang').value;
+  const resultsDiv = document.getElementById('memory-results');
+
+  if (!query) {{
+    resultsDiv.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">Please enter a search query.</p>';
+    return;
+  }}
+
+  resultsDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Searching...</p>';
+
+  try {{
+    const response = await fetch('/api/mem0/search', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ query: query }})
+    }});
+    const result = await response.json();
+
+    if (result.error) {{
+      resultsDiv.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">' + result.error + '</p>';
+      return;
+    }}
+
+    if (result.memories && result.memories.length > 0) {{
+      const memories = result.memories;
+      resultsDiv.innerHTML = '<h4 style="margin:0.5rem 0;">' + (lang === 'de' ? 'Gefundene Erinnerungen:' : 'Found Memories:') + '</h4>' + memories.map(m => `
+        <div style="background:var(--bg);padding:0.75rem;border-radius:4px;margin-bottom:0.5rem;border-left:3px solid var(--core);">
+          <p style="margin:0;font-size:0.9rem;">${{m.memory || m.text || JSON.stringify(m)}}</p>
+          <small style="color:var(--text-dim);">ID: ${{m.id || 'N/A'}}</small>
+        </div>
+      `).join('');
+    }} else {{
+      resultsDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">' + (lang === 'de' ? 'Keine Erinnerungen gefunden.' : 'No memories found.') + '</p>';
+    }}
+  }} catch (e) {{
+    resultsDiv.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">Error: ' + e.message + '</p>';
+  }}
+}}
+
+async function storeMemory() {{
+  const memory = document.getElementById('memory-store-text').value.trim();
+  const lang = document.getElementById('memory-lang').value;
+  const statusDiv = document.getElementById('memory-store-status');
+
+  if (!memory) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter a memory to store.</span>';
+    return;
+  }}
+
+  statusDiv.innerHTML = '<span style="color:var(--text-dim);">Storing...</span>';
+
+  try {{
+    const response = await fetch('/api/mem0/store', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ memory: memory }})
+    }});
+    const result = await response.json();
+
+    if (result.error) {{
+      statusDiv.innerHTML = '<span style="color:var(--danger);">' + result.error + '</span>';
+      return;
+    }}
+
+    statusDiv.innerHTML = '<span style="color:var(--growth);">' + (lang === 'de' ? '✓ Erinnerung gespeichert!' : '✓ Memory stored!') + '</span>';
+    document.getElementById('memory-store-text').value = '';
+
+    setTimeout(() => {{
+      statusDiv.innerHTML = '';
+    }}, 3000);
+  }} catch (e) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
   }}
 }}
 
@@ -4626,7 +4915,142 @@ function renderReputationPanel() {{
           }}).join('');
         }}
       }}
-  
+}}
+
+// ---------------------------------------------------------------------------
+// Contact CRM Functions - Phase 19
+// ---------------------------------------------------------------------------
+async function loadContactCRM() {{
+  // Get language from memory-lang select or default to English
+  const langSelect = document.getElementById('memory-lang');
+  const CRM_LANG = langSelect ? langSelect.value : (localStorage.getItem('genesis_lang') || 'en');
+
+  const LABELS = {{
+    en: {{
+      noContacts: 'No contacts yet. Add your first contact above.',
+      external: 'External',
+      noCircle: 'No circle',
+      noVisual: 'No visual description yet',
+      reimag: 'Re-imagine',
+      errorLoading: 'Error loading contacts'
+    }},
+    de: {{
+      noContacts: 'Noch keine Kontakte. Füge oben deinen ersten Kontakt hinzu.',
+      external: 'Extern',
+      noCircle: 'Kein Kreis',
+      noVisual: 'Noch keine visuelle Beschreibung',
+      reimag: 'Neu gestalten',
+      errorLoading: 'Fehler beim Laden der Kontakte'
+    }}
+  }};
+
+  const T = LABELS[CRM_LANG] || LABELS.en;
+
+  try {{
+    const response = await fetch('/api/social/entities');
+    const data = await response.json();
+
+    const container = document.getElementById('contact-crm-list');
+    if (!container) return;
+
+    if (!data.entities || data.entities.length === 0) {{
+      container.innerHTML = '<p style="color:var(--text-dim);">' + T.noContacts + '</p>';
+      return;
+    }}
+
+    container.innerHTML = data.entities.map(entity => {{
+      const avatar = entity.portrait_url || '';
+      const hasVisual = entity.visual_description && entity.visual_description.length > 0;
+      const isExternal = entity.is_external ? '<span style="background:var(--accent);color:#fff;padding:0.1rem 0.3rem;border-radius:3px;font-size:0.7rem;margin-left:0.3rem;">' + T.external + '</span>' : '';
+
+      return `
+        <div style="background:var(--bg);padding:1rem;border-radius:8px;border:1px solid var(--border);">
+          <div style="display:flex;gap:1rem;align-items:start;">
+            ${{avatar ? `<img src="${{avatar}}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;">` : `<div style="width:60px;height:60px;border-radius:50%;background:var(--bg-dim);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">👤</div>`}}
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+                <strong>${{entity.name}}</strong>
+                ${{isExternal}}
+              </div>
+              <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.5rem;">
+                ${{entity.relationship_type}} · ${{entity.circle || T.noCircle}} · Bond: ${{entity.bond}}
+              </div>
+              ${{hasVisual ? `
+                <div style="font-size:0.75rem;background:var(--bg-dim);padding:0.5rem;border-radius:4px;margin-bottom:0.5rem;max-height:60px;overflow-y:auto;">
+                  ${{entity.visual_description}}
+                </div>
+              ` : `
+                <div style="font-size:0.75rem;color:var(--text-dim);font-style:italic;margin-bottom:0.5rem;">
+                  ${{T.noVisual}}
+                </div>
+              `}}
+              <button onclick="reImagineNPC('${{entity.id}}', '${{encodeURIComponent(entity.name)}}')" style="background:var(--core);color:#fff;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">🎨 ${{T.reimag}}</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }}).join('');
+
+  }} catch (e) {{
+    console.log('Could not load contacts:', e);
+    const container = document.getElementById('contact-crm-list');
+    if (container) container.innerHTML = '<p style="color:var(--danger);">' + T.errorLoading + '</p>';
+  }}
+}}
+
+async function addManualContact() {{
+  const name = document.getElementById('new-contact-name').value.trim();
+  const circle = document.getElementById('new-contact-circle').value;
+  const statusDiv = document.getElementById('add-contact-status');
+
+  if (!name) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter a name.</span>';
+    return;
+  }}
+
+  try {{
+    const response = await fetch('/api/social/add-entity', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ entity_name: name, circle: circle, relationship_type: 'acquaintance' }})
+    }});
+    const result = await response.json();
+
+    if (result.success) {{
+      statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Contact added!</span>';
+      document.getElementById('new-contact-name').value = '';
+      loadContactCRM();
+    }} else {{
+      statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + (result.error || 'Unknown error') + '</span>';
+    }}
+  }} catch (e) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+  }}
+}}
+
+async function reImagineNPC(entityId, encodedName) {{
+  const name = decodeURIComponent(encodedName);
+  const prompt = prompt('Enter new visual description for ' + name + ' (e.g., "A tall man with short black hair, brown eyes, sharp jawline"):');
+
+  if (!prompt || !prompt.trim()) return;
+
+  try {{
+    const response = await fetch('/api/social/update-entity', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ entity_id: entityId, visual_description: prompt.trim() }})
+    }});
+    const result = await response.json();
+
+    if (result.success) {{
+      alert('Visual description updated! A portrait will be generated on next photo.');
+      loadContactCRM();
+    }} else {{
+      alert('Error: ' + (result.error || 'Unknown error'));
+    }}
+  }} catch (e) {{
+    alert('Error: ' + e.message);
+  }}
 }}
 
 // ---------------------------------------------------------------------------
@@ -6193,6 +6617,327 @@ def main():
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
                         self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+
+                elif self.path == "/api/voice/toggle":
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        data = json.loads(body)
+                        enabled = data.get("enabled", False)
+                        voice_enabled_path = os.path.join(workspace, "memory", "reality", "voice_enabled.json")
+                        os.makedirs(os.path.dirname(voice_enabled_path), exist_ok=True)
+                        with open(voice_enabled_path, "w") as f:
+                            json.dump({{"enabled": enabled, "updated_at": datetime.now().isoformat()}}, f, indent=2)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": True, "enabled": enabled}}).encode())
+                        print(f"  \u2713 Voice enabled: {enabled}")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+
+                elif self.path == "/api/voice/status":
+                    try:
+                        voice_enabled_path = os.path.join(workspace, "memory", "reality", "voice_enabled.json")
+                        if os.path.exists(voice_enabled_path):
+                            with open(voice_enabled_path, "r") as f:
+                                data = json.load(f)
+                            enabled = data.get("enabled", False)
+                        else:
+                            enabled = False
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"enabled": enabled}}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"enabled": False, "error": str(e)}}).encode())
+
+                elif self.path == "/api/mem0/config":
+                    try:
+                        mem0_config_path = os.path.join(workspace, "memory", "reality", "mem0_config.json")
+                        if self.command == "GET":
+                            if os.path.exists(mem0_config_path):
+                                with open(mem0_config_path, "r") as f:
+                                    config = json.load(f)
+                            else:
+                                config = {{"api_key": "", "user_id": "genesis_agent"}}
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps(config).encode())
+                        else:
+                            length = int(self.headers.get("Content-Length", 0))
+                            body = self.rfile.read(length).decode("utf-8")
+                            data = json.loads(body)
+                            os.makedirs(os.path.dirname(mem0_config_path), exist_ok=True)
+                            with open(mem0_config_path, "w") as f:
+                                json.dump({{
+                                    "api_key": data.get("api_key", ""),
+                                    "user_id": data.get("user_id", "genesis_agent"),
+                                    "updated_at": datetime.now().isoformat()
+                                }}, f, indent=2)
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"success": True}}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+
+                elif self.path == "/api/mem0/search":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+                        query = data.get("query", "")
+
+                        mem0_config_path = os.path.join(workspace, "memory", "reality", "mem0_config.json")
+                        if not os.path.exists(mem0_config_path):
+                            self.send_response(400)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"error": "Mem0 not configured. Please save your API key first."}}).encode())
+                            return
+
+                        with open(mem0_config_path, "r") as f:
+                            mem0_config = json.load(f)
+
+                        api_key = mem0_config.get("api_key", "")
+                        user_id = mem0_config.get("user_id", "genesis_agent")
+
+                        if not api_key:
+                            self.send_response(400)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"error": "Mem0 API key not found. Please save your config."}}).encode())
+                            return
+
+                        # Search via Mem0 API
+                        import urllib.request
+                        post_data = json.dumps({{
+                            "query": query,
+                            "user_id": user_id,
+                            "limit": 10
+                        }}).encode("utf-8")
+
+                        req = urllib.request.Request(
+                            "https://api.mem0.ai/v1/memories/search",
+                            data=post_data,
+                            headers={{
+                                "Content-Type": "application/json",
+                                "Authorization": f"Token {{api_key}}"
+                            }},
+                            method="POST"
+                        )
+
+                        with urllib.request.urlopen(req) as response:
+                            result = json.loads(response.read().decode("utf-8"))
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(result).encode())
+
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
+                elif self.path == "/api/mem0/store":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+                        memory = data.get("memory", "")
+
+                        if not memory:
+                            self.send_response(400)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"error": "No memory provided."}}).encode())
+                            return
+
+                        mem0_config_path = os.path.join(workspace, "memory", "reality", "mem0_config.json")
+                        if not os.path.exists(mem0_config_path):
+                            self.send_response(400)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"error": "Mem0 not configured. Please save your API key first."}}).encode())
+                            return
+
+                        with open(mem0_config_path, "r") as f:
+                            mem0_config = json.load(f)
+
+                        api_key = mem0_config.get("api_key", "")
+                        user_id = mem0_config.get("user_id", "genesis_agent")
+
+                        if not api_key:
+                            self.send_response(400)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"error": "Mem0 API key not found."}}).encode())
+                            return
+
+                        # Store via Mem0 API
+                        import urllib.request
+                        post_data = json.dumps({{
+                            "memories": [memory],
+                            "user_id": user_id
+                        }}).encode("utf-8")
+
+                        req = urllib.request.Request(
+                            "https://api.mem0.ai/v1/memories",
+                            data=post_data,
+                            headers={{
+                                "Content-Type": "application/json",
+                                "Authorization": f"Token {{api_key}}"
+                            }},
+                            method="POST"
+                        )
+
+                        with urllib.request.urlopen(req) as response:
+                            result = json.loads(response.read().decode("utf-8"))
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": True, "result": result}}).encode())
+
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
+                # Phase 19: Contact CRM API
+                elif self.path == "/api/social/entities":
+                    try:
+                        social_path = os.path.join(workspace, "memory", "reality", "social.json")
+                        if os.path.exists(social_path):
+                            with open(social_path, "r") as f:
+                                social_data = json.load(f)
+                        else:
+                            social_data = {{"entities": [], "circles": [], "last_network_search": None}}
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(social_data).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
+                elif self.path == "/api/social/add-entity":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+
+                        entity_name = data.get("entity_name", "")
+                        if not entity_name:
+                            raise ValueError("Entity name required")
+
+                        circle = data.get("circle", "Friends")
+                        relationship_type = data.get("relationship_type", "acquaintance")
+
+                        social_path = os.path.join(workspace, "memory", "reality", "social.json")
+                        if os.path.exists(social_path):
+                            with open(social_path, "r") as f:
+                                social_data = json.load(f)
+                        else:
+                            social_data = {{"entities": [], "circles": [], "last_network_search": None}}
+
+                        # Create new entity
+                        now = datetime.now().isoformat()
+                        new_entity = {{
+                            "id": f"social_{{int(datetime.now().timestamp())}}",
+                            "name": entity_name,
+                            "relationship_type": relationship_type,
+                            "bond": 0,
+                            "trust": 10,
+                            "intimacy": 0,
+                            "last_interaction": now,
+                            "interaction_count": 0,
+                            "history_summary": f"Met {entity_name} via contact manager.",
+                            "introduced_at": now,
+                            "notes": "",
+                            "circle": circle,
+                            "visual_description": "",
+                            "portrait_url": "",
+                            "is_external": False
+                        }}
+
+                        social_data.setdefault("entities", []).append(new_entity)
+
+                        os.makedirs(os.path.dirname(social_path), exist_ok=True)
+                        with open(social_path, "w") as f:
+                            json.dump(social_data, f, indent=2)
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": True}}).encode())
+
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+
+                elif self.path == "/api/social/update-entity":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+
+                        entity_id = data.get("entity_id", "")
+                        visual_description = data.get("visual_description", "")
+
+                        if not entity_id:
+                            raise ValueError("Entity ID required")
+
+                        social_path = os.path.join(workspace, "memory", "reality", "social.json")
+                        if not os.path.exists(social_path):
+                            raise ValueError("Social data not found")
+
+                        with open(social_path, "r") as f:
+                            social_data = json.load(f)
+
+                        # Find and update entity
+                        updated = False
+                        for entity in social_data.get("entities", []):
+                            if entity.get("id") == entity_id:
+                                entity["visual_description"] = visual_description
+                                updated = True
+                                break
+
+                        if not updated:
+                            raise ValueError("Entity not found")
+
+                        with open(social_path, "w") as f:
+                            json.dump(social_data, f, indent=2)
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": True}}).encode())
+
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
 
                 elif self.path == "/api/backups/rollback":
                     length = int(self.headers.get("Content-Length", 0))

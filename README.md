@@ -29,6 +29,11 @@
 - **Social Circles:** Manage standing in Professional, Family, Friends, and Underground groups.
 - **Consequences:** Reputation affects job requirements and networking success.
 
+### F. Neural Photography & Face-ID (Phase 17)
+- **Visual Identity:** Extracts and maintains a consistent "Face-ID" for the character.
+- **Reality Camera:** AI generates consistent self-portraits and photos using internal image generation engines (Flux, Venice, Nano Banana).
+- **Standalone Vision:** Fully integrated facial analysis and image generation logic within the plugin.
+
 ---
 
 ## 2. Installation & Quick Start
@@ -82,4 +87,4 @@ python3 skills/soul-evolution/tools/soul-viz.py "$(pwd)" --serve 8080
 - **Safety:** Strict path-traversal guards and atomic file writes.
 
 ---
-*Official Documentation for Project Genesis v1.7.0.*
+*Official Documentation for Project Genesis v2.2.0.*

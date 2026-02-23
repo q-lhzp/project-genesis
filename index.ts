@@ -5,6 +5,7 @@ import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import https from "node:https";
 
 const execPromise = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -393,6 +394,10 @@ interface SocialEntity {
   introduced_at: string;     // When this entity was first met
   notes: string;             // Additional notes about the entity
   circle?: string;           // Phase 10: Social circle (e.g., "Professional", "Family")
+  // Phase 19: Visual NPC Network
+  visual_description?: string;  // Physical description for AI generation (BONE STRUCTURE, EYES, etc.)
+  portrait_url?: string;       // URL to generated portrait photo
+  is_external?: boolean;        // True if contact was auto-created from external source (Discord, 3DXChat)
 }
 
 interface SocialState {
@@ -400,6 +405,43 @@ interface SocialState {
   last_network_search: string | null;
   circles: string[];  // User-defined circles (e.g., "Work", "Family", "Hobbies")
   last_decay_check?: string; // ISO timestamp for 24h decay guard
+}
+
+/**
+ * Phase 19: Find or create an external contact (from Discord/3DXChat)
+ */
+async function findOrCreateExternalContact(
+  socialState: SocialState,
+  name: string,
+  source: string = "external"
+): Promise<SocialEntity> {
+  // Check if contact already exists by name (case-insensitive)
+  const existing = socialState.entities.find(
+    e => e.name.toLowerCase() === name.toLowerCase()
+  );
+  if (existing) return existing;
+
+  // Create new external contact
+  const now = new Date();
+  const newEntity: SocialEntity = {
+    id: `external_${Date.now()}_${name.replace(/\s+/g, "_").toLowerCase()}`,
+    name: name,
+    relationship_type: "stranger",
+    bond: 0,
+    trust: 10,
+    intimacy: 0,
+    last_interaction: now.toISOString(),
+    interaction_count: 0,
+    history_summary: `Met ${name} via ${source}.`,
+    introduced_at: now.toISOString(),
+    notes: `External contact from ${source}`,
+    visual_description: "",  // Phase 19: Visual NPC
+    portrait_url: "",        // Phase 19: Visual NPC
+    is_external: true,       // Phase 19: External Contact
+  };
+
+  socialState.entities.push(newEntity);
+  return newEntity;
 }
 
 interface SocialInteractionLog {
@@ -2986,6 +3028,142 @@ async function endActiveHobbySession(hobbiesPath: string, lang: "de" | "en" = "e
 }
 
 // ---------------------------------------------------------------------------
+// Mem0 Long-Term Memory Integration (Phase 18)
+// ---------------------------------------------------------------------------
+
+interface Mem0Config {
+  enabled: boolean;
+  apiKey: string;
+  userId: string;
+}
+
+interface Mem0SearchResult {
+  id: string;
+  memory: string;
+  score: number;
+}
+
+/**
+ * Query Mem0 for relevant long-term memories (English Mind).
+ */
+async function queryMem0(
+  query: string,
+  config: Mem0Config,
+  limit: number = 5
+): Promise<string> {
+  if (!config.enabled || !config.apiKey) {
+    return "";
+  }
+
+  return new Promise((resolve) => {
+    const postData = JSON.stringify({
+      query: query,
+      user_id: config.userId,
+      limit: limit,
+    });
+
+    const options = {
+      hostname: "api.mem0.ai",
+      port: 443,
+      path: "/v1/memories/search",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Token ${config.apiKey}`,
+        "Content-Length": Buffer.byteLength(postData),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = "";
+
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+
+      res.on("end", () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.results && Array.isArray(parsed.results)) {
+            const memories = parsed.results
+              .slice(0, limit)
+              .map((r: Mem0SearchResult) => r.memory)
+              .join("\n");
+            resolve(memories);
+          } else {
+            resolve("");
+          }
+        } catch {
+          resolve("");
+        }
+      });
+    });
+
+    req.on("error", () => {
+      resolve("");
+    });
+
+    req.write(postData);
+    req.end();
+  });
+}
+
+/**
+ * Store a fact in Mem0 long-term memory.
+ */
+async function storeMem0Fact(
+  fact: string,
+  config: Mem0Config
+): Promise<boolean> {
+  if (!config.enabled || !config.apiKey) {
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    const postData = JSON.stringify({
+      memories: [fact],
+      user_id: config.userId,
+    });
+
+    const options = {
+      hostname: "api.mem0.ai",
+      port: 443,
+      path: "/v1/memories",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Token ${config.apiKey}`,
+        "Content-Length": Buffer.byteLength(postData),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = "";
+
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+
+      res.on("end", () => {
+        try {
+          const parsed = JSON.parse(data);
+          resolve(!!(parsed.id || parsed.results));
+        } catch {
+          resolve(false);
+        }
+      });
+    });
+
+    req.on("error", () => {
+      resolve(false);
+    });
+
+    req.write(postData);
+    req.end();
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Sensory context builder
 // ---------------------------------------------------------------------------
 
@@ -3257,6 +3435,12 @@ export default {
       legacy: cfg?.modules?.legacy ?? false,
       genesis: cfg?.modules?.genesis ?? false, // Can also be enabled via WebUI (genesis_enabled.json)
       multi_model_optimization: cfg?.modules?.multi_model_optimization ?? true,
+      voice_enabled: cfg?.modules?.voice_enabled ?? false,
+      mem0: {
+        enabled: cfg?.modules?.mem0?.enabled ?? false,
+        apiKey: cfg?.modules?.mem0?.api_key ?? "",
+        userId: cfg?.modules?.mem0?.user_id ?? "genesis_agent",
+      },
     };
     const growthContextEntries = cfg?.growthContextEntries ?? 10;
     const dreamWindow = cfg?.dreamWindow ?? { start: 23, end: 5 };
@@ -3306,6 +3490,7 @@ export default {
       psychology: resolvePath(ws, "memory", "reality", "psychology.json"),
               reputation: resolvePath(ws, "memory", "reality", "reputation.json"),
               genesisEnabled: resolvePath(ws, "memory", "reality", "genesis_enabled.json"),
+              voiceEnabled: resolvePath(ws, "memory", "reality", "voice_enabled.json"),
               modelConfig: resolvePath(ws, "memory", "reality", "model_config.json"),
               news: resolvePath(ws, "memory", "reality", "news.json"),
               socialEvents: resolvePath(ws, "memory", "reality", "social_events.json"),
@@ -3861,6 +4046,22 @@ Keep responses brief. Focus on environmental storytelling.`;
       // Add Genesis instruction if present
       if (genesisInstruction) {
         finalContext = finalContext + genesisInstruction;
+      }
+
+      // -------------------------------------------------------------------
+      // Phase 18: Mem0 Long-Term Memory Integration
+      // -------------------------------------------------------------------
+      // Query Mem0 for relevant memories if enabled and role is persona or analyst
+      if (modules.mem0?.enabled && (agentRole === "persona" || agentRole === "analyst")) {
+        // Build a query from the current context (location, recent activities, social)
+        const mem0Query = `Current situation: ${ph.current_location}, Outfit: ${ph.current_outfit.join(", ")}. Recent state: energy=${ph.needs.energy}, stress=${ph.needs.stress}, mood related to social relationships and daily activities.`;
+        const memories = await queryMem0(mem0Query, modules.mem0, 5);
+        if (memories) {
+          const mem0Context = `\n[LONG-TERM MEMORY - from Mem0]
+${memories}
+`;
+          finalContext = finalContext + mem0Context;
+        }
       }
 
       // Log the prompt injection
@@ -6400,6 +6601,9 @@ See source files in \`src/\`
             history_summary: `Met ${params.target_name} through social interaction.`,
             introduced_at: now.toISOString(),
             notes: "",
+            visual_description: "",  // Phase 19: Visual NPC
+            portrait_url: "",        // Phase 19: Visual NPC
+            is_external: false,     // Phase 19: External Contact
           };
           socialState.entities.push(newEntity);
           entity = newEntity;
@@ -6588,12 +6792,44 @@ See source files in \`src/\`
               introduced_at: now.toISOString(),
               notes: "",
               circle: entityCircle,
+              visual_description: "",  // Phase 19: Visual NPC
+              portrait_url: "",        // Phase 19: Visual NPC
+              is_external: false,     // Phase 19: External Contact
             };
             socialState.entities.push(newEntity);
             await writeJson(paths.social, socialState);
             return { content: [{ type: "text", text: lang === "de"
               ? `${params.entity_name} zur Kontaktliste hinzugefuegt (Circle: ${entityCircle}).`
               : `${params.entity_name} added to contacts (Circle: ${entityCircle}).` }] };
+          }
+
+          // Phase 19: Add External Contact (from Discord, 3DXChat, etc.)
+          case "add_external_contact": {
+            if (!params.name) {
+              return { content: [{ type: "text", text: "name is required for external contact." }] };
+            }
+            const source = params.source || "external";
+            const entity = await findOrCreateExternalContact(socialState, params.name, source);
+            await writeJson(paths.social, socialState);
+            return { content: [{ type: "text", text: lang === "de"
+              ? `${entity.name} als externer Kontakt hinzugefuegt (Quelle: ${source}).`
+              : `${entity.name} added as external contact (source: ${source}).` }] };
+          }
+
+          // Phase 19: Update NPC Visual Description
+          case "update_npc_visual": {
+            if (!params.entity_id || !params.visual_description) {
+              return { content: [{ type: "text", text: "entity_id and visual_description are required." }] };
+            }
+            const targetEntity = socialState.entities.find(e => e.id === params.entity_id);
+            if (!targetEntity) {
+              return { content: [{ type: "text", text: lang === "de" ? "Entitaet nicht gefunden." : "Entity not found." }] };
+            }
+            targetEntity.visual_description = params.visual_description;
+            await writeJson(paths.social, socialState);
+            return { content: [{ type: "text", text: lang === "de"
+              ? `Visuelle Beschreibung fuer ${targetEntity.name} aktualisiert.`
+              : `Visual description for ${targetEntity.name} updated.` }] };
           }
 
           case "remove_entity": {
@@ -7278,6 +7514,15 @@ See source files in \`src/\`
       try {
         const runtimeSetting = await readJson<{ enabled: boolean }>(paths.genesisEnabled);
         genesisEnabled = runtimeSetting?.enabled ?? false;
+      } catch { /* ignore - use config default */ }
+    }
+
+    // Check if voice is enabled via config OR via WebUI runtime setting
+    let voiceEnabled = modules.voice_enabled;
+    if (!voiceEnabled) {
+      try {
+        const voiceSetting = await readJson<{ enabled: boolean }>(paths.voiceEnabled);
+        voiceEnabled = voiceSetting?.enabled ?? false;
       } catch { /* ignore - use config default */ }
     }
 

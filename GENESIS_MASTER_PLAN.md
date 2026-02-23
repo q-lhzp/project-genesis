@@ -51,12 +51,11 @@ Project Genesis is a decentralized Multi-Agent Cluster (MAC) simulation of human
 - **Universal Input:** `reality_desktop` expanded with mouse/keyboard control (Wayland/X11).
 - **Vision:** Screenshots allow the AI to "see" games like 3DXChat.
 
-## 12. Neural Photography & Visual Identity (Phase 17 - Upcoming)
-**Goal:** Give the AI a consistent visual presence via AI-generated "selfies" and "vacation photos".
-- **Physical Manifest:** Each character has a detailed descriptive "Face-ID" (eyes, bone structure, skin details) used for prompt consistency.
-- **Wardrobe Sync:** Photos automatically include the currently equipped outfit from `wardrobe.json`.
-- **Reality Camera:** Tool `reality_camera` allows the AI to "capture" moments. It uses local or external image generators (Flux, Venice, Nano Banana).
-- **Visual Life Stream:** A new "Instagram-style" tab in the WebUI displaying the AI's visual history.
+## 12. Neural Photography & Face-ID (Phase 17 - Implemented)
+**Goal:** Consistent visual identity and facial analysis.
+- **Face-ID Integration:** Extracts and compares detailed facial features for character consistency.
+- **Reality Camera:** Captures snapshots synced with wardrobe and location.
+- **Standalone Vision:** All vision logic is now internal to the project.
 
 ## 13. Tool Specifications (Consolidated)
 - `reality_genesis`: bootstrap | patch | rollback
@@ -66,6 +65,7 @@ Project Genesis is a decentralized Multi-Agent Cluster (MAC) simulation of human
 - `reality_desktop`: click | type | key | vision | set_wallpaper
 - `reality_news`: fetch | process (RSS)
 - `reality_camera`: capture (Type: selfie, mirror, candid)
+- `reality_vision_analyze`: analyze (Face-ID features)
 
 ## 14. WebUI Requirements (`soul-viz.py`)
 - **News Ticker:** Real-time world events on dashboard.
