@@ -1796,6 +1796,7 @@ body::after {{
   <button class="tab-btn" onclick="switchTab('stream')">Life Stream</button>
   <button class="tab-btn" onclick="switchTab('genesis')">Genesis Lab</button>
   <button class="tab-btn" onclick="switchTab('memory')">Memory</button>
+  <button class="tab-btn" onclick="switchTab('vault')">The Vault</button>
 </div>
 
 <div id="tab-dashboard" class="tab-content active">
@@ -2475,6 +2476,113 @@ body::after {{
           <button onclick="storeMemory()" style="background:var(--growth);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Store Memory</button>
         </div>
         <div id="memory-store-status" style="margin-top:0.5rem;font-size:0.8rem;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- The Vault Tab -->
+<div id="tab-vault" class="tab-content">
+  <div style="max-width:1000px;margin:0 auto;padding:1.5rem 2rem;">
+    <div class="panel-card" style="border-left:4px solid var(--growth);">
+      <h2>The Vault - Real Asset Trading</h2>
+      <p style="color:var(--text-dim);margin-top:0.5rem;">Trade real crypto and stocks. Currently in <span id="vault-mode" style="color:var(--accent);font-weight:bold;">Paper Trading</span> mode.</p>
+
+      <!-- Configuration -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;">
+        <strong>API Configuration</strong>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Configure your trading API (optional for paper trading)</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
+          <div>
+            <label style="font-size:0.8rem;">Provider</label>
+            <select id="vault-provider" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+              <option value="kraken">Kraken (Crypto)</option>
+              <option value="alpaca">Alpaca (Stocks)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">Mode</label>
+            <select id="vault-mode-select" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+              <option value="paper">Paper Trading (Sandbox)</option>
+              <option value="live">Live Trading</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
+          <div>
+            <label style="font-size:0.8rem;">API Key</label>
+            <input type="password" id="vault-api-key" placeholder="API Key" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;margin-top:0.25rem;">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">API Secret</label>
+            <input type="password" id="vault-api-secret" placeholder="API Secret" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;margin-top:0.25rem;">
+          </div>
+        </div>
+
+        <button onclick="saveVaultConfig()" style="margin-top:0.5rem;background:var(--growth);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Save Config</button>
+        <span id="vault-config-status" style="margin-left:0.5rem;font-size:0.8rem;"></span>
+      </div>
+
+      <!-- Deposit -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;">
+        <strong>Deposit Simulation</strong>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Transfer virtual capital into the vault for paper trading</p>
+
+        <div style="display:flex;gap:0.5rem;align-items:end;">
+          <div style="flex:1;">
+            <label style="font-size:0.8rem;">Amount (USD)</label>
+            <input type="number" id="vault-deposit-amount" placeholder="1000" value="1000" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
+          </div>
+          <button onclick="depositVault()" style="background:var(--core);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💰 Deposit</button>
+        </div>
+        <div id="vault-deposit-status" style="margin-top:0.5rem;font-size:0.8rem;"></div>
+      </div>
+
+      <!-- Quick Trade -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;border-left:4px solid var(--accent);">
+        <strong>Quick Trade</strong>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Execute a trade</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;align-items:end;">
+          <div>
+            <label style="font-size:0.8rem;">Symbol</label>
+            <input type="text" id="vault-trade-symbol" placeholder="BTC, ETH, AAPL" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">Amount</label>
+            <input type="number" id="vault-trade-amount" placeholder="0.1" step="any" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">Type</label>
+            <select id="vault-trade-type" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
+              <option value="buy">Buy</option>
+              <option value="sell">Sell</option>
+            </select>
+          </div>
+          <button onclick="executeTrade()" style="background:var(--accent);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;height:42px;">Trade</button>
+        </div>
+        <div id="vault-trade-status" style="margin-top:0.5rem;font-size:0.8rem;"></div>
+      </div>
+    </div>
+
+    <!-- Portfolio & Transactions -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+      <!-- Portfolio -->
+      <div class="panel-card">
+        <h3>Portfolio</h3>
+        <div id="vault-portfolio" style="margin-top:1rem;">
+          <p style="color:var(--text-dim);font-size:0.85rem;">Loading portfolio...</p>
+        </div>
+      </div>
+
+      <!-- Transactions -->
+      <div class="panel-card">
+        <h3>Recent Transactions</h3>
+        <div id="vault-transactions" style="margin-top:1rem;max-height:300px;overflow-y:auto;">
+          <p style="color:var(--text-dim);font-size:0.85rem;">No transactions yet.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -3325,6 +3433,7 @@ function switchTab(tabId) {{
   if (tabId === 'reputation' && !window._repRendered) {{ renderReputationPanel(); loadContactCRM(); window._repRendered = true; }}
   if (tabId === 'stream' && !window._streamRendered) {{ renderPhotoStream(); window._streamRendered = true; }}
   if (tabId === 'genesis' && !window._genesisRendered) {{ window._genesisRendered = true; loadGenesisStatus(); }}
+  if (tabId === 'vault' && !window._vaultRendered) {{ window._vaultRendered = true; loadVaultData(); }}
 }}
 
 // ---------------------------------------------------------------------------
@@ -4405,6 +4514,142 @@ async function generateVoice() {{
       }}
     }} else {{
       statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + (result.error || 'Unknown') + '</span>';
+    }}
+  }} catch (e) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+  }}
+}}
+
+// ---------------------------------------------------------------------------
+// The Vault Tab - Phase 21
+// ---------------------------------------------------------------------------
+async function loadVaultData() {{
+  try {{
+    const response = await fetch('/api/vault/status');
+    const result = await response.json();
+
+    // Update mode display
+    const modeEl = document.getElementById('vault-mode');
+    if (modeEl && result.mode) {{
+      modeEl.textContent = result.mode === 'paper' ? 'Paper Trading (Sandbox)' : 'Live Trading';
+    }}
+
+    // Update portfolio
+    const portfolioDiv = document.getElementById('vault-portfolio');
+    if (portfolioDiv) {{
+      const balances = result.balances || {};
+      const positions = result.positions || {};
+
+      if (Object.keys(balances).length === 0 && Object.keys(positions).length === 0) {{
+        portfolioDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No holdings. Deposit funds to start trading.</p>';
+      }} else {{
+        let html = '<div style="background:var(--bg-dim);padding:0.75rem;border-radius:4px;margin-bottom:0.5rem;">';
+        html += '<h4 style="margin:0 0 0.5rem 0;">Balances</h4>';
+        for (const [asset, amount] of Object.entries(balances)) {{
+          html += `<div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.25rem;"><span>${{asset}}</span><span>${{typeof amount === 'number' ? amount.toFixed(4) : amount}}</span></div>`;
+        }}
+        html += '</div>';
+
+        if (Object.keys(positions).length > 0) {{
+          html += '<div style="background:var(--bg-dim);padding:0.75rem;border-radius:4px;"><h4 style="margin:0.5rem 0 0.5rem 0;">Positions</h4>';
+          for (const [symbol, pos] of Object.entries(positions)) {{
+            const p = pos;
+            html += `<div style="font-size:0.85rem;margin-bottom:0.25rem;"><strong>${{symbol}}</strong>: ${{p.amount}} @ ${{p.avg_price.toFixed(2)}}</div>`;
+          }}
+          html += '</div>';
+        }}
+        portfolioDiv.innerHTML = html;
+      }}
+    }}
+  }} catch (e) {{
+    console.log('Could not load vault data:', e);
+  }}
+}}
+
+async function saveVaultConfig() {{
+  const provider = document.getElementById('vault-provider').value;
+  const mode = document.getElementById('vault-mode-select').value;
+  const apiKey = document.getElementById('vault-api-key').value;
+  const apiSecret = document.getElementById('vault-api-secret').value;
+  const statusDiv = document.getElementById('vault-config-status');
+
+  try {{
+    const response = await fetch('/api/vault/config', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ provider, mode, api_key: apiKey, api_secret: apiSecret }})
+    }});
+    const result = await response.json();
+
+    if (result.success) {{
+      statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Config saved!</span>';
+      setTimeout(() => statusDiv.innerHTML = '', 3000);
+      loadVaultData();
+    }} else {{
+      statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.error + '</span>';
+    }}
+  }} catch (e) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+  }}
+}}
+
+async function depositVault() {{
+  const amount = parseFloat(document.getElementById('vault-deposit-amount').value);
+  const statusDiv = document.getElementById('vault-deposit-status');
+
+  if (!amount || amount <= 0) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter a valid amount.</span>';
+    return;
+  }}
+
+  statusDiv.innerHTML = '<span style="color:var(--text-dim);">Processing...</span>';
+
+  try {{
+    const response = await fetch('/api/vault/deposit', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ amount: amount }})
+    }});
+    const result = await response.json();
+
+    if (result.success) {{
+      statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Deposited $' + amount.toFixed(2) + '! Total: $' + result.total_balance.toFixed(2) + '</span>';
+      loadVaultData();
+    }} else {{
+      statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.error + '</span>';
+    }}
+  }} catch (e) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+  }}
+}}
+
+async function executeTrade() {{
+  const symbol = document.getElementById('vault-trade-symbol').value.trim().toUpperCase();
+  const amount = parseFloat(document.getElementById('vault-trade-amount').value);
+  const tradeType = document.getElementById('vault-trade-type').value;
+  const statusDiv = document.getElementById('vault-trade-status');
+
+  if (!symbol || !amount || amount <= 0) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter symbol and amount.</span>';
+    return;
+  }}
+
+  statusDiv.innerHTML = '<span style="color:var(--text-dim);">Executing trade...</span>';
+
+  try {{
+    const response = await fetch('/api/vault/trade', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ action: 'trade', symbol: symbol, amount: amount, type: tradeType }})
+    }});
+    const result = await response.json();
+
+    if (result.success) {{
+      const tx = result.transaction;
+      statusDiv.innerHTML = '<span style="color:var(--growth);">✓ ' + tx.type.toUpperCase() + ' ' + tx.amount + ' ' + tx.symbol + ' @ $' + tx.price.toFixed(2) + '</span>';
+      loadVaultData();
+    }} else {{
+      statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.error + '</span>';
     }}
   }} catch (e) {{
     statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
@@ -6844,6 +7089,135 @@ def main():
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
                         self.wfile.write(json.dumps({{"success": False, "error": "Generation timed out"}}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+
+                # Phase 21: The Vault API
+                elif self.path == "/api/vault/status":
+                    try:
+                        vault_bridge = os.path.join(os.path.dirname(__file__), "vault_bridge.py")
+                        result = subprocess.run(
+                            [sys.executable, vault_bridge, "status"],
+                            capture_output=True,
+                            text=True,
+                            timeout=30
+                        )
+                        if result.returncode == 0:
+                            data = json.loads(result.stdout)
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps(data).encode())
+                        else:
+                            raise Exception(result.stderr)
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
+                elif self.path == "/api/vault/config":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+
+                        vault_state_path = os.path.join(workspace, "memory", "reality", "vault_state.json")
+                        os.makedirs(os.path.dirname(vault_state_path), exist_ok=True)
+
+                        # Load existing state
+                        if os.path.exists(vault_state_path):
+                            with open(vault_state_path, "r") as f:
+                                state = json.load(f)
+                        else:
+                            state = {{}}
+
+                        # Update config
+                        state["mode"] = data.get("mode", "paper")
+                        state["api_provider"] = data.get("provider", "kraken")
+                        state["api_key"] = data.get("api_key", "")
+                        state["api_secret"] = data.get("api_secret", "")
+
+                        with open(vault_state_path, "w") as f:
+                            json.dump(state, f, indent=2)
+
+                        # Also save to model_config
+                        model_config_path = os.path.join(workspace, "memory", "reality", "model_config.json")
+                        if os.path.exists(model_config_path):
+                            with open(model_config_path, "r") as f:
+                                mc = json.load(f)
+                        else:
+                            mc = {{}}
+
+                        mc["vault_provider"] = data.get("provider", "kraken")
+                        mc["vault_api_key"] = data.get("api_key", "")
+                        mc["vault_api_secret"] = data.get("api_secret", "")
+
+                        with open(model_config_path, "w") as f:
+                            json.dump(mc, f, indent=2)
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": True}}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+
+                elif self.path == "/api/vault/deposit":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+                        amount = data.get("amount", 0)
+
+                        vault_bridge = os.path.join(os.path.dirname(__file__), "vault_bridge.py")
+                        result = subprocess.run(
+                            [sys.executable, vault_bridge, json.dumps({{"action": "deposit", "amount": amount}})],
+                            capture_output=True,
+                            text=True,
+                            timeout=30
+                        )
+                        if result.returncode == 0:
+                            res = json.loads(result.stdout)
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps(res).encode())
+                        else:
+                            raise Exception(result.stderr)
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+
+                elif self.path == "/api/vault/trade":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+
+                        vault_bridge = os.path.join(os.path.dirname(__file__), "vault_bridge.py")
+                        result = subprocess.run(
+                            [sys.executable, vault_bridge, json.dumps(data)],
+                            capture_output=True,
+                            text=True,
+                            timeout=30
+                        )
+                        if result.returncode == 0:
+                            res = json.loads(result.stdout)
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps(res).encode())
+                        else:
+                            raise Exception(result.stderr)
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")

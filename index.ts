@@ -8215,7 +8215,81 @@ ${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no bound
       api.logger.info("[genesis] Voice module enabled: reality_voice tool registered.");
     }
 
-    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + (modules.genesis ? 1 : 0) + (modules.voice_enabled ? 1 : 0) + 2 + 2 + 3 + 3; // +2 social, +2 economy, +3 analytics, +3 research lab, +1 genesis, +1 voice
+    // -------------------------------------------------------------------
+    // Tool: reality_trade (Phase 21 - The Vault)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_trade",
+      description: "Trade real assets (crypto/stocks) via The Vault. Use 'check' to view portfolio, 'buy'/'sell' to trade. Always uses paper trading by default.",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: check | buy | sell | status" }),
+        symbol: Type.Optional(Type.String({ description: "Asset symbol (e.g., BTC, ETH, AAPL)" })),
+        amount: Type.Optional(Type.Number({ description: "Amount to trade" })),
+        type: Type.Optional(Type.String({ description: "Trade type: buy or sell (default: buy)" })),
+      }),
+      async execute(_id: string, params: { action: string; symbol?: string; amount?: number; type?: string }) {
+        try {
+          const { exec } = await import("node:child_process");
+          const { promisify } = await import("node:util");
+          const execAsync = promisify(exec);
+
+          const vaultBridge = join(__dirname, "skills", "soul-evolution", "tools", "vault_bridge.py");
+
+          const cmd = `python3 "${vaultBridge}" '${JSON.stringify(params)}'`;
+          const { stdout, stderr } = await execAsync(cmd, { timeout: 30000 });
+
+          let result;
+          try {
+            result = JSON.parse(stdout);
+          } catch {
+            return { content: [{ type: "text", text: "Vault error: " + stderr }] };
+          }
+
+          if (!result.success) {
+            return { content: [{ type: "text", text: "Trade failed: " + result.error }] };
+          }
+
+          // Format response based on action
+          if (params.action === "check" || params.action === "status") {
+            const balances = result.balances || {};
+            const positions = result.positions || {};
+            const lines = ["## The Vault - Portfolio\n"];
+            lines.push(`**Mode:** ${result.mode || "paper"} (Paper Trading)\n`);
+            lines.push(`**Total Deposited:** $${(result.total_deposited || 0).toFixed(2)}\n\n`);
+            lines.push("### Balances\n");
+            for (const [asset, amount] of Object.entries(balances)) {
+              lines.push(`- ${asset}: ${amount}`);
+            }
+            lines.push("\n### Positions\n");
+            if (Object.keys(positions).length === 0) {
+              lines.push("_No positions_");
+            } else {
+              for (const [symbol, pos] of Object.entries(positions)) {
+                const p = pos as { amount: number; avg_price: number };
+                lines.push(`- ${symbol}: ${p.amount} @ $${p.avg_price.toFixed(2)}`);
+              }
+            }
+            return { content: [{ type: "text", text: lines.join("\n") }] };
+          }
+
+          if (params.action === "buy" || params.action === "sell") {
+            const tx = result.transaction;
+            return {
+              content: [{
+                type: "text",
+                text: `## Trade Executed\n**Type:** ${tx.type.toUpperCase()}\n**Symbol:** ${tx.symbol}\n**Amount:** ${tx.amount}\n**Price:** $${tx.price.toFixed(2)}\n**Total:** $${tx.total.toFixed(2)}\n**Mode:** ${tx.mode}`
+              }]
+            };
+          }
+
+          return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        } catch (error) {
+          return { content: [{ type: "text", text: "Vault error: " + String(error) }] };
+        }
+      },
+    });
+
+    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + (modules.genesis ? 1 : 0) + (modules.voice_enabled ? 1 : 0) + 2 + 2 + 3 + 3 + 1; // +2 social, +2 economy, +3 analytics, +3 research lab, +1 genesis, +1 voice, +1 vault
     api.logger.info(`[genesis] Registered: 3 hooks, ${baseToolCount + devToolsLoaded} tools (eros=${modules.eros}, cycle=${modules.cycle}, dreams=${modules.dreams}, hobbies=${modules.hobbies}, genesis=${modules.genesis}, voice=${modules.voice_enabled}). Ready.`);
   },
 };
