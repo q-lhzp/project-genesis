@@ -3,11 +3,12 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { promises as fs, existsSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { exec } from "node:child_process";
+import { exec, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import https from "node:https";
 
 const execPromise = promisify(exec);
+const execFilePromise = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -3051,61 +3052,25 @@ async function queryMem0(
   config: Mem0Config,
   limit: number = 5
 ): Promise<string> {
-  if (!config.enabled || !config.apiKey) {
+  if (!config.enabled) {
     return "";
   }
 
-  return new Promise((resolve) => {
-    const postData = JSON.stringify({
-      query: query,
-      user_id: config.userId,
-      limit: limit,
-    });
-
-    const options = {
-      hostname: "api.mem0.ai",
-      port: 443,
-      path: "/v1/memories/search",
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Token ${config.apiKey}`,
-        "Content-Length": Buffer.byteLength(postData),
-      },
-    };
-
-    const req = https.request(options, (res) => {
-      let data = "";
-
-      res.on("data", (chunk) => {
-        data += chunk;
-      });
-
-      res.on("end", () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.results && Array.isArray(parsed.results)) {
-            const memories = parsed.results
-              .slice(0, limit)
-              .map((r: Mem0SearchResult) => r.memory)
-              .join("\n");
-            resolve(memories);
-          } else {
-            resolve("");
-          }
-        } catch {
-          resolve("");
-        }
-      });
-    });
-
-    req.on("error", () => {
-      resolve("");
-    });
-
-    req.write(postData);
-    req.end();
-  });
+  const bridgeScript = join(__dirname, "skills", "soul-evolution", "tools", "memory_bridge.py");
+  try {
+    const { stdout } = await execFilePromise("python3", [
+      bridgeScript, 
+      JSON.stringify({ action: "search", query, user_id: config.userId })
+    ]);
+    const result = JSON.parse(stdout.trim());
+    if (result.success && Array.isArray(result.memories)) {
+      return result.memories.slice(0, limit).join("\n");
+    }
+    return "";
+  } catch (e) {
+    console.error(`[Mem0] Local Search Error: ${e}`);
+    return "";
+  }
 }
 
 /**
@@ -3115,38 +3080,22 @@ async function storeMem0Fact(
   fact: string,
   config: Mem0Config
 ): Promise<boolean> {
-  if (!config.enabled || !config.apiKey) {
+  if (!config.enabled) {
     return false;
   }
 
-  return new Promise((resolve) => {
-    const postData = JSON.stringify({
-      memories: [fact],
-      user_id: config.userId,
-    });
-
-    const options = {
-      hostname: "api.mem0.ai",
-      port: 443,
-      path: "/v1/memories",
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Token ${config.apiKey}`,
-        "Content-Length": Buffer.byteLength(postData),
-      },
-    };
-
-    const req = https.request(options, (res) => {
-      let data = "";
-
-      res.on("data", (chunk) => {
-        data += chunk;
-      });
-
-      res.on("end", () => {
-        try {
-          const parsed = JSON.parse(data);
+  const bridgeScript = join(__dirname, "skills", "soul-evolution", "tools", "memory_bridge.py");
+  try {
+    await execFilePromise("python3", [
+      bridgeScript, 
+      JSON.stringify({ action: "add", text: fact, user_id: config.userId })
+    ]);
+    return true;
+  } catch (e) {
+    console.error(`[Mem0] Local Store Error: ${e}`);
+    return false;
+  }
+}
           resolve(!!(parsed.id || parsed.results));
         } catch {
           resolve(false);
@@ -4074,7 +4023,10 @@ Keep responses brief. Focus on environmental storytelling.`;
       if (modules.mem0?.enabled && (agentRole === "persona" || agentRole === "analyst")) {
         // Build a query from the current context (location, recent activities, social)
         const mem0Query = `Current situation: ${ph.current_location}, Outfit: ${ph.current_outfit.join(", ")}. Recent state: energy=${ph.needs.energy}, stress=${ph.needs.stress}, mood related to social relationships and daily activities.`;
-        const memories = await queryMem0(mem0Query, modules.mem0, 5);
+        
+        // Pass actual agentId as userId
+        const mem0Config = { ...modules.mem0, userId: agentId };
+        const memories = await queryMem0(mem0Query, mem0Config, 5);
         if (memories) {
           const mem0Context = `\n[LONG-TERM MEMORY - from Mem0]
 ${memories}
@@ -4476,18 +4428,15 @@ ${memories}
       async execute(_id: string, params: { action: string; query?: string }) {
         if (!params.query && params.action !== "browse") return { content: [{ type: "text", text: "Query/Selector required." }] };
 
-        const browserScript = join(__dirname, "skills", "soul-evolution", "tools", "visual_browser.py");
-        const action = params.action;
-        const query = params.query || "https://www.google.com";
-        const cmd = `python3 "${browserScript}" "${action}" "${query}"`;
-
-        try {
-          const { stdout } = await execPromise(cmd);
-          if (stderr && !stderr.includes("Installing playwright")) { // Ignore install logs
-             api.logger.warn(`[Browser] Stderr: ${stderr}`);
-          }
-          
-          // Parse JSON output from script
+                  const browserScript = join(__dirname, "skills", "soul-evolution", "tools", "visual_browser.py");
+                  const action = params.action;
+                  const query = params.query || "https://www.google.com";
+        
+                  try {
+                    const { stdout } = await execFilePromise("python3", [browserScript, action, query]);
+                    
+                    // Parse JSON output from script
+        
           try {
             const result = JSON.parse(stdout.trim());
             if (result.error) return { content: [{ type: "text", text: `Browser Error: ${result.error}` }] };
@@ -4539,15 +4488,15 @@ ${memories}
           newsState = { headlines: [], last_fetch: null };
         }
 
-        if (action === "fetch") {
-          const fetcherScript = join(__dirname, "skills", "soul-evolution", "tools", "news_fetcher.py");
-          const cmd = `python3 "${fetcherScript}" "${location}"`;
-
-          try {
-            const { stdout } = await execPromise(cmd);
-            const result = JSON.parse(stdout.trim());
-            
-            if (result.success && result.headlines) {
+                  if (action === "fetch") {
+                    const fetcherScript = join(__dirname, "skills", "soul-evolution", "tools", "news_fetcher.py");
+        
+                    try {
+                      const { stdout } = await execFilePromise("python3", [fetcherScript, location]);
+                      const result = JSON.parse(stdout.trim());
+                      
+                      if (result.success && result.headlines) {
+        
               newsState.headlines = result.headlines.slice(0, 5);
               newsState.last_fetch = new Date().toISOString();
               await writeJson(newsPath, newsState);
@@ -4636,30 +4585,27 @@ ${memories}
           if (visualMatch) visualDescription = visualMatch[1].trim();
         } catch { /* use default */ }
 
-        const bridgeParams = {
-          ...params,
-          physique: ph,
-          identity_visual: { visual_description: visualDescription },
-          provider: getImageProvider()
-        };
-
-        const cmd = `python3 "${bridgeScript}" '${JSON.stringify(bridgeParams)}'`;
-
-        // Inject API keys into environment for the child process
-        const env = { 
-          ...process.env,
-          VENICE_INFERENCE_KEY: modelConfig.key_venice || process.env.VENICE_INFERENCE_KEY,
-          FAL_API_KEY: modelConfig.key_fal || process.env.FAL_API_KEY,
-          XAI_API_KEY: modelConfig.key_xai || process.env.XAI_API_KEY,
-          GEMINI_API_KEY: modelConfig.key_gemini_img || process.env.GEMINI_API_KEY
-        };
-
-        try {
-          const { stdout } = await execPromise(cmd, { env });
-          const result = JSON.parse(stdout.trim());
-          if (result.error) throw new Error(result.error);
-
-          return { content: [{ type: "text", text: isDe 
+                  const bridgeParams = {
+                    ...params,
+                    physique: ph,
+                    identity_visual: { visual_description: visualDescription },
+                    provider: getImageProvider()
+                  };
+        
+                  // Inject API keys into environment for the child process
+                  const env = { 
+                    ...process.env,
+                    VENICE_INFERENCE_KEY: modelConfig.key_venice || process.env.VENICE_INFERENCE_KEY,
+                    FAL_API_KEY: modelConfig.key_fal || process.env.FAL_API_KEY,
+                    XAI_API_KEY: modelConfig.key_xai || process.env.XAI_API_KEY,
+                    GEMINI_API_KEY: modelConfig.key_gemini_img || process.env.GEMINI_API_KEY
+                  };
+        
+                  try {
+                    const { stdout } = await execFilePromise("python3", [bridgeScript, JSON.stringify(bridgeParams)], { env });
+                    const result = JSON.parse(stdout.trim());
+                    if (result.error) throw new Error(result.error);
+                  return { content: [{ type: "text", text: isDe 
             ? `📸 Foto aufgenommen!\n- Typ: ${params.type}\n- URL: ${result.url}\n- Prompt: ${result.prompt}` 
             : `📸 Photo captured!\n- Type: ${params.type}\n- URL: ${result.url}\n- Prompt: ${result.prompt}` }] };
         } catch (e) {
@@ -4679,14 +4625,14 @@ ${memories}
       }),
       async execute(_id: string, params: { image_path: string }) {
         const isDe = lang === "de";
-        const analyzeScript = join(__dirname, "skills", "soul-evolution", "tools", "vision", "face_id.py");
-        const cmd = `python3 "${analyzeScript}" analyze --image "${params.image_path}"`;
-
-        try {
-          const { stdout } = await execPromise(cmd);
-          return { content: [{ type: "text", text: isDe 
-            ? `Analyse-Anfrage fuer ${params.image_path} gestartet. Siehe Terminal fuer manuelle Anweisungen.` 
-            : `Analysis request for ${params.image_path} started. See terminal for manual instructions.` }] };
+                  const analyzeScript = join(__dirname, "skills", "soul-evolution", "tools", "vision", "face_id.py");
+        
+                  try {
+                    const { stdout } = await execFilePromise("python3", [analyzeScript, "analyze", "--image", params.image_path]);
+                    return { content: [{ type: "text", text: isDe 
+                      ? `Analyse-Anfrage fuer ${params.image_path} gestartet. Siehe Terminal fuer manuelle Anweisungen.` 
+                      : `Analysis request for ${params.image_path} started. See terminal for manual instructions.` }] };
+        
         } catch (e) {
           return { content: [{ type: "text", text: `Analysis Error: ${e}` }] };
         }
@@ -4931,6 +4877,13 @@ ${memories}
               lines.push("", lang === "de" ? "## Emotionale Erinnerungen" : "## Emotional Memories", entry);
             }
             await fs.writeFile(paths.emotions, lines.join("\n"));
+
+            // Phase 18: Also store in Mem0 if enabled
+            if (modules.mem0?.enabled) {
+              const mem0Config = { ...modules.mem0, userId: agentId };
+              await storeMem0Fact(params.memory, mem0Config);
+            }
+
             return { content: [{ type: "text", text: lang === "de" ? "Erinnerung gespeichert." : "Memory saved." }] };
           }
           case "update_patterns": {
@@ -5912,9 +5865,8 @@ ${memories}
         const bridgeScript = join(__dirname, "skills", "soul-evolution", "tools", "desktop_bridge.py");
 
         if (["click", "type", "key", "vision"].includes(params.action)) {
-          const cmd = `python3 "${bridgeScript}" "${params.action}" '${JSON.stringify(params)}'`;
           try {
-            const { stdout } = await execPromise(cmd);
+            const { stdout } = await execFilePromise("python3", [bridgeScript, params.action, JSON.stringify(params)]);
             const result = JSON.parse(stdout.trim());
             if (result.error) throw new Error(result.error);
             
@@ -8204,9 +8156,7 @@ ${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no bound
               speed: params.speed ?? 1.0,
             };
 
-            const cmd = `python3 "${voiceBridge}" '${JSON.stringify({ text: params.text, settings })}'`;
-
-            const { stdout, stderr } = await execAsync(cmd, { timeout: 60000 });
+            const { stdout, stderr } = await execFilePromise("python3", [voiceBridge, JSON.stringify({ text: params.text, settings })], { timeout: 60000 });
 
             let result;
             try {
@@ -8249,14 +8199,9 @@ ${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no bound
       }),
       async execute(_id: string, params: { action: string; symbol?: string; amount?: number; type?: string; text?: string }) {
         try {
-          const { exec } = await import("node:child_process");
-          const { promisify } = await import("node:util");
-          const execAsync = promisify(exec);
-
           const vaultBridge = join(__dirname, "skills", "soul-evolution", "tools", "vault_bridge.py");
 
-          const cmd = `python3 "${vaultBridge}" '${JSON.stringify(params)}'`;
-          const { stdout, stderr } = await execAsync(cmd, { timeout: 30000 });
+          const { stdout, stderr } = await execFilePromise("python3", [vaultBridge, JSON.stringify(params)], { timeout: 30000 });
 
           let result;
           try {

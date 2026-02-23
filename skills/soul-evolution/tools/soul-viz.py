@@ -2650,9 +2650,6 @@ body::after {{
   </div>
 </div>
 
-<div class="save-toast" id="save-toast">✓ SOUL.md saved</div>
-<div class="save-toast error-toast" id="error-toast" style="background:rgba(224,80,80,0.15);border-color:var(--core-border);color:var(--core);">Save failed</div>
-
 <script>
 const DATA = {data_json};
 
@@ -3491,17 +3488,6 @@ function switchTab(tabId) {{
 }}
 
 // ---------------------------------------------------------------------------
-// Toast helpers
-// ---------------------------------------------------------------------------
-function showToast(msg, isError) {{
-  const id = isError ? 'error-toast' : 'save-toast';
-  const el = document.getElementById(id);
-  el.textContent = msg || (isError ? 'Save failed' : 'Saved');
-  el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2500);
-}}
-
-// ---------------------------------------------------------------------------
 // Modal system (replaces prompt())
 // ---------------------------------------------------------------------------
 let _modalResolve = null;
@@ -3594,8 +3580,8 @@ function doUpload(file) {{
       _lightboxCtx.currentIdx = _lightboxCtx.images.length - 1;
       renderLightbox();
       refreshPanel(_lightboxCtx.category);
-      showToast('Image uploaded');
-    }}).catch(err => showToast('Upload failed: ' + err, true));
+      showToast('Image uploaded', 'success');
+    }}).catch(err => showToast('Upload failed: ' + err, 'error'));
   }};
   reader.readAsDataURL(file);
 }}
@@ -3631,8 +3617,8 @@ function deleteLightboxImage() {{
     if (_lightboxCtx.currentIdx >= _lightboxCtx.images.length) _lightboxCtx.currentIdx = Math.max(0, _lightboxCtx.images.length - 1);
     renderLightbox();
     refreshPanel(_lightboxCtx.category);
-    showToast('Image deleted');
-  }}).catch(err => showToast('Delete failed: ' + err, true));
+    showToast('Image deleted', 'success');
+  }}).catch(err => showToast('Delete failed: ' + err, 'error'));
 }}
 
 function refreshPanel(category) {{
@@ -3779,17 +3765,16 @@ function removeObject(roomId, objId) {{
   renderInterior();
 }}
 
-function saveInterior() {{
-  fetch('/update-interior', {{
-    method: 'POST',
-    headers: {{ 'Content-Type': 'application/json' }},
-    body: JSON.stringify(DATA.interior)
-  }}).then(r => {{
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    showToast('Interior saved');
-  }}).catch(err => showToast('Save failed: ' + err, true));
-}}
-
+  function saveInterior() {{
+    fetch('/update-interior', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify(DATA.interior)
+    }}).then(r => {{
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      showToast('Interior saved', 'success');
+    }}).catch(err => showToast('Save failed: ' + err, 'error'));
+  }}
 // ---------------------------------------------------------------------------
 // Inventory Panel
 // ---------------------------------------------------------------------------
@@ -3889,8 +3874,8 @@ function saveInventory() {{
     body: JSON.stringify(DATA.inventory)
   }}).then(r => {{
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    showToast('Inventory saved');
-  }}).catch(err => showToast('Save failed: ' + err, true));
+    showToast('Inventory saved', 'success');
+  }}).catch(err => showToast('Save failed: ' + err, 'error'));
 }}
 
 // ---------------------------------------------------------------------------
@@ -4336,10 +4321,11 @@ function saveCycleState() {{
     method: 'POST',
     headers: {{ 'Content-Type': 'application/json' }},
     body: JSON.stringify(cycle)
-  }}).then(r => {{
-    if (r.ok) showToast('Cycle state saved');
-    else showToast('Save failed', true);
-  }}).catch(() => showToast('Save failed', true));
+      }}).then(r => {{
+        if (r.ok) showToast('Cycle state saved', 'success');
+        else showToast('Save failed', 'error');
+      }}).catch(() => showToast('Save failed', 'error'));
+  
 }}
 
 function renderCycleEducation() {{
@@ -4455,13 +4441,13 @@ function updateWorld(data) {{
   .then(r => r.text())
   .then(txt => {{
     if (txt === 'OK') {{
-      showToast('World updated');
+      showToast('World updated', 'success');
       setTimeout(() => window.location.reload(), 500);
     }} else {{
-      showToast(txt, true);
+      showToast(txt, 'error');
     }}
   }})
-  .catch(e => showToast(e, true));
+  .catch(e => showToast(e, 'error'));
 }}
 
 // ---------------------------------------------------------------------------
@@ -7373,51 +7359,27 @@ def main():
                         query = data.get("query", "")
 
                         mem0_config_path = os.path.join(workspace, "memory", "reality", "mem0_config.json")
-                        if not os.path.exists(mem0_config_path):
-                            self.send_response(400)
-                            self.send_header("Content-Type", "application/json")
-                            self.end_headers()
-                            self.wfile.write(json.dumps({{"error": "Mem0 not configured. Please save your API key first."}}).encode())
-                            return
+                        user_id = "genesis_agent"
+                        if os.path.exists(mem0_config_path):
+                            with open(mem0_config_path, "r") as f:
+                                cfg = json.load(f)
+                                user_id = cfg.get("user_id", "genesis_agent")
 
-                        with open(mem0_config_path, "r") as f:
-                            mem0_config = json.load(f)
-
-                        api_key = mem0_config.get("api_key", "")
-                        user_id = mem0_config.get("user_id", "genesis_agent")
-
-                        if not api_key:
-                            self.send_response(400)
-                            self.send_header("Content-Type", "application/json")
-                            self.end_headers()
-                            self.wfile.write(json.dumps({{"error": "Mem0 API key not found. Please save your config."}}).encode())
-                            return
-
-                        # Search via Mem0 API
-                        import urllib.request
-                        post_data = json.dumps({{
-                            "query": query,
-                            "user_id": user_id,
-                            "limit": 10
-                        }}).encode("utf-8")
-
-                        req = urllib.request.Request(
-                            "https://api.mem0.ai/v1/memories/search",
-                            data=post_data,
-                            headers={{
-                                "Content-Type": "application/json",
-                                "Authorization": f"Token {{api_key}}"
-                            }},
-                            method="POST"
+                        # Search via local memory bridge
+                        bridge = os.path.join(os.path.dirname(__file__), "memory_bridge.py")
+                        res = subprocess.run(
+                            [sys.executable, bridge, json.dumps({{"action": "search", "query": query, "user_id": user_id}})],
+                            capture_output=True, text=True, timeout=30
                         )
-
-                        with urllib.request.urlopen(req) as response:
-                            result = json.loads(response.read().decode("utf-8"))
-
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps(result).encode())
+                        
+                        if res.returncode == 0:
+                            result = json.loads(res.stdout)
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps(result).encode())
+                        else:
+                            raise Exception(res.stderr)
 
                     except Exception as e:
                         self.send_response(500)
@@ -7432,58 +7394,28 @@ def main():
                         data = json.loads(body)
                         memory = data.get("memory", "")
 
-                        if not memory:
-                            self.send_response(400)
-                            self.send_header("Content-Type", "application/json")
-                            self.end_headers()
-                            self.wfile.write(json.dumps({{"error": "No memory provided."}}).encode())
-                            return
-
                         mem0_config_path = os.path.join(workspace, "memory", "reality", "mem0_config.json")
-                        if not os.path.exists(mem0_config_path):
-                            self.send_response(400)
-                            self.send_header("Content-Type", "application/json")
-                            self.end_headers()
-                            self.wfile.write(json.dumps({{"error": "Mem0 not configured. Please save your API key first."}}).encode())
-                            return
+                        user_id = "genesis_agent"
+                        if os.path.exists(mem0_config_path):
+                            with open(mem0_config_path, "r") as f:
+                                cfg = json.load(f)
+                                user_id = cfg.get("user_id", "genesis_agent")
 
-                        with open(mem0_config_path, "r") as f:
-                            mem0_config = json.load(f)
-
-                        api_key = mem0_config.get("api_key", "")
-                        user_id = mem0_config.get("user_id", "genesis_agent")
-
-                        if not api_key:
-                            self.send_response(400)
-                            self.send_header("Content-Type", "application/json")
-                            self.end_headers()
-                            self.wfile.write(json.dumps({{"error": "Mem0 API key not found."}}).encode())
-                            return
-
-                        # Store via Mem0 API
-                        import urllib.request
-                        post_data = json.dumps({{
-                            "memories": [memory],
-                            "user_id": user_id
-                        }}).encode("utf-8")
-
-                        req = urllib.request.Request(
-                            "https://api.mem0.ai/v1/memories",
-                            data=post_data,
-                            headers={{
-                                "Content-Type": "application/json",
-                                "Authorization": f"Token {{api_key}}"
-                            }},
-                            method="POST"
+                        # Store via local memory bridge
+                        bridge = os.path.join(os.path.dirname(__file__), "memory_bridge.py")
+                        res = subprocess.run(
+                            [sys.executable, bridge, json.dumps({{"action": "add", "text": memory, "user_id": user_id}})],
+                            capture_output=True, text=True, timeout=30
                         )
-
-                        with urllib.request.urlopen(req) as response:
-                            result = json.loads(response.read().decode("utf-8"))
-
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({{"success": True, "result": result}}).encode())
+                        
+                        if res.returncode == 0:
+                            result = json.loads(res.stdout)
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"success": True, "result": result}}).encode())
+                        else:
+                            raise Exception(res.stderr)
 
                     except Exception as e:
                         self.send_response(500)
