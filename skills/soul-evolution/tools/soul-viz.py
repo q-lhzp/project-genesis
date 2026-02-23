@@ -147,6 +147,13 @@ def collect_data(workspace: str) -> dict:
     # State
     state = load_json(os.path.join(memory_dir, "soul-state.json"))
 
+    # Identity
+    identity_path = os.path.join(workspace, "IDENTITY.md")
+    identity_content = ""
+    if os.path.exists(identity_path):
+        with open(identity_path, "r") as f:
+            identity_content = f.read()
+
     # Pipeline reports
     pipeline = []
     pipe_dir = os.path.join(memory_dir, "pipeline")
@@ -228,6 +235,7 @@ def collect_data(workspace: str) -> dict:
     return {
         "soul_tree": soul_tree,
         "soul_raw": soul_content,
+        "identity_raw": identity_content,
         "changes": changes,
         "experiences": experiences,
         "reflections": reflections,
@@ -1756,7 +1764,7 @@ body::after {{
   </div>
 </div>
 <div class="header">
-  <h1>Agent Soul Evolution</h1>
+  <h1><span id="agent-name">Agent</span> Soul Evolution</h1>
   <div class="subtitle">powered by <span class="evolution">Soul</span><span class="soul"> Evolution</span></div>
   <div class="stats-bar" id="stats-bar"></div>
   <div id="cognitive-status" style="margin-top:1rem;font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--accent);">
@@ -2278,7 +2286,21 @@ function sectionColor(name) {{
   return '#888';
 }}
 
-// --- Stats ---
+  // --- Agent Name ---
+  function renderAgentName() {{
+    const idText = DATA.identity_raw || '';
+    const nameMatch = idText.match(/\*\*Name:\*\*\s*(.+)/i) || idText.match(/Name:\s*(.+)/i);
+    if (nameMatch && nameMatch[1]) {{
+      const name = nameMatch[1].replace(/\[|\]/g, '').trim();
+      if (name && !name.includes('Agent Name')) {{
+        document.getElementById('agent-name').textContent = name;
+        document.title = name + ' — Soul Evolution';
+      }}
+    }}
+  }}
+
+  // --- Stats ---
+
 function renderStats() {{
   const bar = document.getElementById('stats-bar');
   const tree = DATA.soul_tree;
@@ -3007,8 +3029,10 @@ function renderPipelineState() {{
   }}
 }}
 
-// --- Init ---
-renderStats();
+  // --- Init ---
+  renderAgentName();
+  renderStats();
+
 renderLegend();
 renderSoulTree(DATA.changes.length);
 renderTimeline();

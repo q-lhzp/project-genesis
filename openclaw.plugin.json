@@ -111,7 +111,7 @@
           "persona": {
             "type": "array",
             "items": { "type": "string" },
-            "default": ["q", "primary", "voice", "persona"]
+            "default": ["primary", "voice", "persona"]
           },
           "analyst": {
             "type": "array",
