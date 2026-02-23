@@ -4260,35 +4260,36 @@ function renderReputationPanel() {{
       circlesList.innerHTML = sortedCircles.map(c => {{
         const score = c.score || 0;
         const color = score >= 0 ? (score > 50 ? '#4a4' : '#8c4') : (score < -50 ? '#e44' : '#c84');
-        return \`<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem;margin-bottom:0.5rem;background:var(--bg-dim);border-radius:6px;">
-          <span>\${{c.name}}</span>
-          <span style="color:\${{color}};font-weight:bold;">\$(score >= 0 ? '+' : '')\${{score}}</span>
-        </div>\`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem;margin-bottom:0.5rem;background:var(--bg-dim);border-radius:6px;">
+          <span>${{c.name}}</span>
+          <span style="color:${{color}};font-weight:bold;">${{score >= 0 ? '+' : ''}}${{score}}</span>
+        </div>`;
       }}).join('');
     }}
   }}
 
   // Render events
   const eventsList = document.getElementById('events-list');
-  if (eventsList) {{
-    if (events.length === 0) {{
-      eventsList.innerHTML = '<p style="color:var(--text-dim);">No recent events</p>';
-    }} else {{
-      eventsList.innerHTML = events.slice(0, 20).map(e => {{
-        const change = e.change || 0;
-        const color = change >= 0 ? '#4a4' : '#e44';
-        const date = e.timestamp ? new Date(e.timestamp).toLocaleDateString() : '';
-        return \`<div style="padding:0.5rem;margin-bottom:0.5rem;background:var(--bg-dim);border-radius:4px;font-size:0.85rem;">
-          <div style="display:flex;justify-content:space-between;">
-            <strong>\${{e.circle || 'Public'}}</strong>
-            <span style="color:\${{color}};">\$(change >= 0 ? '+' : '')\${{change}}</span>
-          </div>
-          <div style="color:var(--text-dim);font-size:0.75rem;">\${{e.reason || ''}}</div>
-          <div style="color:var(--text-dim);font-size:0.7rem;">\${{date}}</div>
-        </div>\`;
-      }}).join('');
-    }}
-  }}
+      if (eventsList) {{
+        if (events.length === 0) {{
+          eventsList.innerHTML = '<p style="color:var(--text-dim);">No recent events</p>';
+        } else {{
+          eventsList.innerHTML = events.slice(0, 20).map(e => {{
+            const change = e.change || 0;
+            const color = change >= 0 ? '#4a4' : '#e44';
+            const date = e.timestamp ? new Date(e.timestamp).toLocaleDateString() : '';
+            return `<div style="padding:0.5rem;margin-bottom:0.5rem;background:var(--bg-dim);border-radius:4px;font-size:0.85rem;">
+              <div style="display:flex;justify-content:space-between;">
+                <strong>${{e.circle || 'Public'}}</strong>
+                <span style="color:${{color}};">${{change >= 0 ? '+' : ''}}${{change}}</span>
+              </div>
+              <div style="color:var(--text-dim);font-size:0.75rem;">${{e.reason || ''}}</div>
+              <div style="color:var(--text-dim);font-size:0.7rem;">${{date}}</div>
+            </div>`;
+          }}).join('');
+        }}
+      }}
+  
 }}
 
 // ---------------------------------------------------------------------------

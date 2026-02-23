@@ -173,6 +173,17 @@ function getEstimatedWeather(season: WorldState["season"]): { weather: WorldStat
   }
 }
 
+/**
+ * Phase 11: Get skill multiplier for mechanical impacts.
+ * Formula: 1 + (level / base) — e.g., level 10 with base 20 = 1.5x
+ */
+function getSkillMultiplier(skillState: SkillState | null, skillName: string, base: number = 20): number {
+  if (!skillState?.skills) return 1.0;
+  const skill = skillState.skills.find(s => s.name.toLowerCase() === skillName.toLowerCase());
+  if (!skill) return 1.0;
+  return 1 + (skill.level / base);
+}
+
 interface Trauma {
   id: string;
   description: string;
@@ -543,7 +554,8 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "reality_desire", "reality_hobby", "reality_dream",
     "reality_socialize", "reality_network",
     "reality_interior", "reality_inventory",
-    "reality_manage_memos"
+    "reality_manage_memos",
+    "reality_browse"
   ],
   analyst: [
     "reality_job_market", "reality_work",
@@ -570,7 +582,8 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "reality_cycle",
     "reality_override",
     "reality_inject_event",
-    "reality_manage_memos"
+    "reality_manage_memos",
+    "reality_news"
   ]
 };
 
@@ -594,6 +607,7 @@ interface PluginConfig {
     reputation?: boolean;
     desktop?: boolean;
     legacy?: boolean;
+    genesis?: boolean;
   };
   metabolismRates: Record<string, number>;
   reflexThreshold: number;
@@ -698,7 +712,7 @@ interface ActivitySummaryParams {
 // Phase 7: Origin Engine - Genesis params
 interface GenesisParams {
   action: "bootstrap" | "rollback" | "patch";
-  manifest?: GenesisManifest;
+  manifest?: string;
   date?: string;  // For rollback
   patch_instructions?: string;  // For patch
 }
@@ -2994,6 +3008,14 @@ function buildSensoryContext(
     parts.push(`[REPUTATION]\nGlobal Standing: ${rank} (${global >= 0 ? "+" : ""}${global})\nNotable Circles:\n${circleLines.join("\n")}`);
   }
 
+  // Phase 14: World News Context (English)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const newsState = (globalThis as any)._newsState;
+  if (newsState?.headlines && newsState.headlines.length > 0) {
+    const headlines = newsState.headlines.slice(0, 3).map((h: { title: string }) => `- ${h.title}`).join("\n");
+    parts.push(`[WORLD NEWS]\n${headlines}`);
+  }
+
   // Phase 6: Psychology Context
   if (modules.psychology && psychState) {
     const traumaList = psychState.traumas.map(t => `- ${t.description} (Severity: ${t.severity})`).join("\n");
@@ -3430,6 +3452,13 @@ export default {
           await withFileLock(paths.reputation, () => writeJson(paths.reputation, reputationState));
         }
       }
+
+      // Phase 14: Load news state for world news context
+      const newsPath = resolvePath(ws, "memory", "reality", "news.json");
+      const newsState = await readJson<{ headlines: { title: string; timestamp: string; category: string }[] }>(newsPath);
+      // Store in globalThis for buildSensoryContext access
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any)._newsState = newsState;
 
       // Apply social decay in hook (with 24h guard to avoid excessive decay)
       if (socialState && socialState.entities.length > 0) {
@@ -3887,9 +3916,13 @@ Keep responses brief. Focus on environmental storytelling.`;
         const ph = await readJson<Physique>(paths.physique);
         if (!ph) return { content: [{ type: "text", text: "physique.json not found." }] };
 
+        // Phase 11: Load skill state for multipliers
+        const skillState = modules.skills ? await readJson<SkillState>(paths.skills) : null;
+        const cookingMultiplier = getSkillMultiplier(skillState, "cooking", 20); // Level 20 = 2x effectiveness
+
         const actionMap: Record<string, Partial<Needs>> = {
           toilet: { bladder: 0, bowel: 0 },
-          eat: { hunger: 0 },
+          eat: { hunger: 0 }, // Will be multiplied by cooking skill
           drink: { thirst: 0 },
           sleep: { energy: 100, stress: Math.max(0, ph.needs.stress - 30) },
           shower: { hygiene: 0 },
@@ -3898,7 +3931,15 @@ Keep responses brief. Focus on environmental storytelling.`;
         if (!Object.prototype.hasOwnProperty.call(actionMap, params.action)) {
           return { content: [{ type: "text", text: `Unknown action. Valid: ${Object.keys(actionMap).join(", ")}` }] };
         }
-        const changes = actionMap[params.action];
+
+        // Phase 11: Apply skill multiplier for eating
+        let changes = actionMap[params.action];
+        if (changes && params.action === "eat") {
+          const baseHunger = ph.needs.hunger;
+          const effectiveReduction = Math.min(100, baseHunger * cookingMultiplier);
+          changes = { hunger: Math.max(0, ph.needs.hunger - effectiveReduction) };
+        }
+
         if (changes) Object.assign(ph.needs, changes);
         ph.last_tick = new Date().toISOString();
         await writeJson(paths.physique, ph);
@@ -3908,6 +3949,7 @@ Keep responses brief. Focus on environmental storytelling.`;
           await endActiveHobbySession(paths.hobbies, lang);
         }
 
+        // Phase 11: Add skill bonus info to message
         const msgs: Record<string, Record<string, string>> = {
           toilet: { de: "Erleichterung. Du fuehlst dich wieder frei.", en: "Relief. You feel free again." },
           eat: { de: "Satt. Der Hunger ist gestillt.", en: "Full. The hunger is satisfied." },
@@ -3916,7 +3958,13 @@ Keep responses brief. Focus on environmental storytelling.`;
           shower: { de: "Sauber und frisch. Das fuehlt sich gut an.", en: "Clean and fresh. That feels good." },
         };
 
-        return { content: [{ type: "text", text: msgs[params.action]?.[lang] ?? "Done." }] };
+        let msg = msgs[params.action]?.[lang] ?? "Done.";
+        if (params.action === "eat" && cookingMultiplier > 1) {
+          const bonus = Math.round((cookingMultiplier - 1) * 100);
+          msg += ` (+${bonus}% ${lang === "de" ? "Kochen-Skill Bonus" : "Cooking skill bonus"})`;
+        }
+
+        return { content: [{ type: "text", text: msg }] };
       },
     });
 
@@ -4093,6 +4141,201 @@ Keep responses brief. Focus on environmental storytelling.`;
           ? "Tagebucheintrag gespeichert."
           : "Diary entry saved.";
         return { content: [{ type: "text", text: msg }] };
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_browse (Phase 14 - Autonomous Web Research)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_browse",
+      description: "Research topics on the web based on interests - search for information or read articles",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: search | read" }),
+        query: Type.Optional(Type.String({ description: "Search query or URL to read" })),
+      }),
+      async execute(_id: string, params: { action: string; query?: string }) {
+        const action = params.action;
+        if (!action) {
+          return { content: [{ type: "text", text: "Action is required (search | read)." }] };
+        }
+
+        // Load interests
+        const interests = await readJson<{ topics: string[] }>(paths.interests);
+        const interestTopics = interests?.topics || [];
+
+        // Load or initialize news state
+        const newsPath = resolvePath(ws, "memory", "reality", "news.json");
+        let newsState = await readJson<{ browsing_history: { query: string; timestamp: string; results: string[] }[] }>(newsPath);
+        if (!newsState) {
+          newsState = { browsing_history: [] };
+        }
+
+        if (action === "search") {
+          const query = params.query || interestTopics[Math.floor(Math.random() * interestTopics.length)];
+          if (!query) {
+            return { content: [{ type: "text", text: lang === "de"
+              ? "Keine Interessen definiert und keine Suchanfrage angegeben."
+              : "No interests defined and no search query provided." }] };
+          }
+
+          // Security: Sanitize input to prevent command injection
+          const sanitizedQuery = query.replace(/[;&|`$]/g, "").slice(0, 200);
+
+          // Mock search results (in production, use curl/lynx or a news API)
+          const mockResults = [
+            `Research on "${sanitizedQuery}": Found 3 relevant articles.`,
+            `- Article 1: Overview of ${sanitizedQuery}`,
+            `- Article 2: Latest developments in ${sanitizedQuery}`,
+            `- Article 3: Expert analysis on ${sanitizedQuery}`,
+          ].join("\n");
+
+          // Log to browsing history
+          newsState.browsing_history.unshift({
+            query: sanitizedQuery,
+            timestamp: new Date().toISOString(),
+            results: mockResults.split("\n"),
+          });
+          newsState.browsing_history = newsState.browsing_history.slice(0, 50);
+
+          await writeJson(newsPath, newsState);
+
+          // Also append to GROWTH.md for knowledge evolution
+          const growthPath = resolvePath(ws, "GROWTH.md");
+          const growthEntry = `\n### Web Research [${new Date().toISOString().slice(0, 10)}]\n**Query:** ${sanitizedQuery}\n\n${mockResults}\n`;
+          try {
+            const existing = await fs.readFile(growthPath, "utf-8").catch(() => "");
+            await fs.writeFile(growthPath, existing + growthEntry);
+          } catch { /* ignore if file doesn't exist */ }
+
+          return { content: [{ type: "text", text: lang === "de"
+            ? `Suchergebnisse fuer "${sanitizedQuery}":\n${mockResults}`
+            : `Search results for "${sanitizedQuery}":\n${mockResults}` }] };
+        }
+
+        if (action === "read") {
+          const url = params.query;
+          if (!url) {
+            return { content: [{ type: "text", text: "URL is required for read action." }] };
+          }
+
+          // Security: Only allow http/https URLs
+          if (!url.match(/^https?:\/\//)) {
+            return { content: [{ type: "text", text: "Only HTTP/HTTPS URLs are allowed." }] };
+          }
+
+          // Mock article content (in production, fetch real content)
+          const articleContent = lang === "de"
+            ? `Gelesen: ${url}\n\n[Dies ist eine Simulation. In einer echten Implementierung wuerde hier der Inhalt der Webseite stehen.]`
+            : `Read: ${url}\n\n[This is a simulation. In a real implementation, the actual web page content would appear here.]`;
+
+          return { content: [{ type: "text", text: articleContent }] };
+        }
+
+        return { content: [{ type: "text", text: "Unknown action. Use: search | read" }] };
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_news (Phase 14 - World Engine Role Only)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_news",
+      description: "Fetch and process real-world news based on agent's location - World Engine role only",
+      parameters: Type.Object({
+        action: Type.String({ description: "Action: fetch | process" }),
+      }),
+      async execute(_id: string, params: { action: string }) {
+        const action = params.action;
+        if (!action) {
+          return { content: [{ type: "text", text: "Action is required (fetch | process)." }] };
+        }
+
+        // Load location from physique
+        const ph = await readJson<Physique>(paths.physique);
+        const location = ph?.current_location || "Unknown";
+
+        // Load news state
+        const newsPath = resolvePath(ws, "memory", "reality", "news.json");
+        let newsState = await readJson<{
+          headlines: { title: string; timestamp: string; category: string }[];
+          last_fetch: string | null;
+        }>(newsPath);
+        if (!newsState) {
+          newsState = { headlines: [], last_fetch: null };
+        }
+
+        if (action === "fetch") {
+          // Mock news fetch based on location (in production, use real news API)
+          const mockHeadlines = [
+            { title: "Global Economic Summit Discusses Market Trends", category: "economy" },
+            { title: "Tech Industry Reports New Innovations in AI", category: "technology" },
+            { title: "Local Community Events Announced", category: "local" },
+            { title: "Weather Alert: Seasonal Changes Expected", category: "weather" },
+            { title: "Healthcare Officials Release New Guidelines", category: "health" },
+          ];
+
+          // Select 2-3 random headlines
+          const shuffled = mockHeadlines.sort(() => Math.random() - 0.5);
+          const selected = shuffled.slice(0, 3).map(h => ({
+            ...h,
+            timestamp: new Date().toISOString()
+          }));
+
+          newsState.headlines = selected;
+          newsState.last_fetch = new Date().toISOString();
+          await writeJson(newsPath, newsState);
+
+          const list = selected.map(h => `- [${h.category}] ${h.title}`).join("\n");
+          return { content: [{ type: "text", text: lang === "de"
+            ? `Aktuelle Nachrichten fuer ${location}:\n${list}`
+            : `Current news for ${location}:\n${list}` }] };
+        }
+
+        if (action === "process") {
+          if (!newsState.headlines || newsState.headlines.length === 0) {
+            return { content: [{ type: "text", text: lang === "de"
+              ? "Keine Nachrichten zum Verarbeiten. Fuehre zuerst 'fetch' aus."
+              : "No news to process. Run 'fetch' first." }] };
+          }
+
+          // Load world state for market modifier
+          let worldState = await readJson<WorldState>(paths.world);
+          if (!worldState) {
+            worldState = { weather: "sunny", temperature: 20, season: "spring", market_modifier: 1.0, last_update: new Date().toISOString(), sync_to_real_world: false };
+          }
+
+          // Process news impacts
+          let impactMsg = "";
+          for (const headline of newsState.headlines) {
+            if (headline.title.toLowerCase().includes("economic") || headline.title.toLowerCase().includes("market")) {
+              // Economic news affects market modifier
+              const change = (Math.random() - 0.5) * 0.1; // -5% to +5%
+              worldState.market_modifier = Math.max(0.8, Math.min(1.2, worldState.market_modifier + change));
+              impactMsg += lang === "de"
+                ? `\n- Wirtschaftsnachricht: Markt-Modifikator auf ${(worldState.market_modifier * 100).toFixed(0)}% gesetzt.`
+                : `\n- Economic news: Market modifier set to ${(worldState.market_modifier * 100).toFixed(0)}%.`;
+            }
+            if (headline.title.toLowerCase().includes("weather") || headline.title.toLowerCase().includes("storm")) {
+              // Weather news affects weather state
+              const weathers: WorldState["weather"][] = ["sunny", "cloudy", "rainy", "stormy", "snowy"];
+              worldState.weather = weathers[Math.floor(Math.random() * weathers.length)];
+              worldState.temperature = 10 + Math.round(Math.random() * 20);
+              impactMsg += lang === "de"
+                ? `\n- Wetternachricht: Wetter auf ${worldState.weather} geaendert.`
+                : `\n- Weather news: Weather changed to ${worldState.weather}.`;
+            }
+          }
+
+          worldState.last_update = new Date().toISOString();
+          await writeJson(paths.world, worldState);
+
+          return { content: [{ type: "text", text: lang === "de"
+            ? `Nachrichten verarbeitet.${impactMsg}`
+            : `News processed.${impactMsg}` }] };
+        }
+
+        return { content: [{ type: "text", text: "Unknown action. Use: fetch | process" }] };
       },
     });
 
@@ -5325,7 +5568,7 @@ Keep responses brief. Focus on environmental storytelling.`;
               await fs.writeFile(scriptPath, scriptContent, { mode: 0o755 });
               // We don't execute it directly for safety, we return the instruction
               return { content: [{ type: "text", text: isDe 
-                ? `Befehl vorbereitet. Führe aus: ${scriptPath}` 
+                ? `Befehl vorbereitet. Fuehre aus: ${scriptPath}` 
                 : `Command prepared. Execute: ${scriptPath}` }] };
             } catch (e) {
               return { content: [{ type: "text", text: `Error: ${e}` }] };
@@ -5980,6 +6223,10 @@ See source files in \`src/\`
           return { content: [{ type: "text", text: "Social state not initialized." }] };
         }
 
+        // Phase 11: Load skill state for charisma multiplier
+        const skillState = modules.skills ? await readJson<SkillState>(paths.skills) : null;
+        const charismaMultiplier = getSkillMultiplier(skillState, "charisma", 25); // Level 25 = 2x
+
         const action = params.action;
         if (!action) {
           return { content: [{ type: "text", text: "Action is required." }] };
@@ -6019,8 +6266,12 @@ See source files in \`src/\`
         const dynamics = calculateSocialDynamics(action, entity.bond, entity.trust, entity.intimacy);
         const oldEntity = { ...entity };
 
-        entity.bond = Math.max(-100, Math.min(100, entity.bond + dynamics.bond));
-        entity.trust = Math.max(0, Math.min(100, entity.trust + dynamics.trust));
+        // Phase 11: Apply charisma multiplier to bond and trust gains
+        const effectiveBond = charismaMultiplier > 1 ? Math.round(dynamics.bond * charismaMultiplier) : dynamics.bond;
+        const effectiveTrust = charismaMultiplier > 1 ? Math.round(dynamics.trust * charismaMultiplier) : dynamics.trust;
+
+        entity.bond = Math.max(-100, Math.min(100, entity.bond + effectiveBond));
+        entity.trust = Math.max(0, Math.min(100, entity.trust + effectiveTrust));
         entity.intimacy = Math.max(0, Math.min(100, entity.intimacy + dynamics.intimacy));
         entity.last_interaction = now.toISOString();
         entity.interaction_count++;
@@ -6060,16 +6311,18 @@ See source files in \`src/\`
 
         await writeJson(paths.social, socialState);
 
-        // Phase 10: Update reputation based on action
+        // Phase 10: Update reputation based on action (with Phase 11: charisma multiplier)
         const circleName = entity.circle || "Public";
         const repChangeMap: Record<string, number> = {
           gift: 5, support: 5, apologize: 3, talk: 1, conflict: -5, ignore: -3
         };
-        const repChange = repChangeMap[action] || 0;
-        if (repChange !== 0 && reputationState) {
+        const baseRepChange = repChangeMap[action] || 0;
+        // Phase 11: Apply charisma to reputation gains
+        const effectiveRepChange = charismaMultiplier > 1 ? Math.round(baseRepChange * charismaMultiplier) : baseRepChange;
+        if (effectiveRepChange !== 0 && reputationState) {
           const circle = reputationState.circles.find(c => c.name === circleName);
           if (circle) {
-            circle.score = Math.max(-100, Math.min(100, circle.score + repChange));
+            circle.score = Math.max(-100, Math.min(100, circle.score + effectiveRepChange));
             // Update global score
             const sum = reputationState.circles.reduce((s, c) => s + c.score, 0);
             reputationState.global_score = Math.round(sum / reputationState.circles.length);
@@ -6077,7 +6330,7 @@ See source files in \`src/\`
             reputationState.events.unshift({
               timestamp: now.toISOString(),
               circle: circleName,
-              change: repChange,
+              change: effectiveRepChange,
               reason: `${action} with ${entity.name}`
             });
             // Keep only last 50 events
@@ -6087,8 +6340,8 @@ See source files in \`src/\`
         }
 
         const msg = lang === "de"
-          ? `${action} mit ${entity.name}: Bond ${dynamics.bond >= 0 ? "+" : ""}${dynamics.bond}, Trust ${dynamics.trust >= 0 ? "+" : ""}${dynamics.trust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}${repChange !== 0 ? `, ${circleName} Rep ${repChange >= 0 ? "+" : ""}${repChange}` : ""}`
-          : `${action} with ${entity.name}: Bond ${dynamics.bond >= 0 ? "+" : ""}${dynamics.bond}, Trust ${dynamics.trust >= 0 ? "+" : ""}${dynamics.trust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}${repChange !== 0 ? `, ${circleName} Rep ${repChange >= 0 ? "+" : ""}${repChange}` : ""}`;
+          ? `${action} mit ${entity.name}: Bond ${effectiveBond >= 0 ? "+" : ""}${effectiveBond}, Trust ${effectiveTrust >= 0 ? "+" : ""}${effectiveTrust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}${effectiveRepChange !== 0 ? `, ${circleName} Rep ${effectiveRepChange >= 0 ? "+" : ""}${effectiveRepChange}` : ""}${charismaMultiplier > 1 ? ` (Charisma +${Math.round((charismaMultiplier-1)*100)}%)` : ""}`
+          : `${action} with ${entity.name}: Bond ${effectiveBond >= 0 ? "+" : ""}${effectiveBond}, Trust ${effectiveTrust >= 0 ? "+" : ""}${effectiveTrust}, Intimacy ${dynamics.intimacy >= 0 ? "+" : ""}${dynamics.intimacy}${effectiveRepChange !== 0 ? `, ${circleName} Rep ${effectiveRepChange >= 0 ? "+" : ""}${effectiveRepChange}` : ""}${charismaMultiplier > 1 ? ` (Charisma +${Math.round((charismaMultiplier-1)*100)}%)` : ""}`;
 
         return { content: [{ type: "text", text: msg }] };
       },
@@ -6474,15 +6727,20 @@ See source files in \`src/\`
             : "You don't have a job. Apply for a position first." }] };
         }
 
+        // Phase 11: Load skill state for professional multiplier
+        const skillState = modules.skills ? await readJson<SkillState>(paths.skills) : null;
+        const professionalMultiplier = getSkillMultiplier(skillState, "professional", 30); // Level 30 = 2x
+
         switch (action) {
           case "perform_shift":
           case "overtime": {
             const isOvertime = action === "overtime";
             const hours = params.hours ?? (isOvertime ? 2 : (currentJob.hours_per_week ?? 40) / 5);
 
-            // Calculate pay
+            // Calculate pay with skill multiplier
             const hourlyRate = currentJob.salary_per_hour ?? (currentJob.salary_per_month / 160);
-            const pay = Math.round(hourlyRate * hours * (isOvertime ? 1.5 : 1));
+            const basePay = hourlyRate * hours * (isOvertime ? 1.5 : 1);
+            const pay = Math.round(basePay * professionalMultiplier);
 
             // Add income
             financeState.balance += pay;
@@ -6493,7 +6751,7 @@ See source files in \`src/\`
               timestamp: new Date().toISOString(),
               event_type: "income",
               amount: pay,
-              description: `Worked ${hours} hours${isOvertime ? " overtime" : ""} at ${currentJob.source_name}`,
+              description: `Worked ${hours} hours${isOvertime ? " overtime" : ""} at ${currentJob.source_name} (${professionalMultiplier.toFixed(2)}x skill bonus)`,
               related_entity_id: currentJob.employer_id,
             };
             await appendJsonl(join(paths.economyTelemetry, `events_${new Date().toISOString().slice(0, 10)}.jsonl`), event);
@@ -6504,14 +6762,16 @@ See source files in \`src/\`
             await writeJson(paths.finances, financeState);
 
             return { content: [{ type: "text", text: lang === "de"
-              ? `Du hast ${hours} Stunden gearbeitet und ${pay} verdient.`
-              : `You worked ${hours} hours and earned ${pay}.` }] };
+              ? `Du hast ${hours} Stunden gearbeitet und ${pay} verdient.${professionalMultiplier > 1 ? ` (+${Math.round((professionalMultiplier-1)*100)}% Professional-Skill Bonus)` : ""}`
+              : `You worked ${hours} hours and earned ${pay}.${professionalMultiplier > 1 ? ` (+${Math.round((professionalMultiplier-1)*100)}% Professional skill bonus)` : ""}` }] };
           }
 
           case "check_schedule": {
+            const baseRate = currentJob.salary_per_hour ?? Math.round(currentJob.salary_per_month / 160);
+            const effectiveRate = Math.round(baseRate * professionalMultiplier);
             const scheduleMsg = lang === "de"
-              ? `Dein Arbeitgeber: ${currentJob.source_name}\nPosition: ${currentJob.position}\nStunden/Woche: ${currentJob.hours_per_week ?? 40}\nStundensatz: ~${currentJob.salary_per_hour ?? Math.round(currentJob.salary_per_month / 160)}`
-              : `Your employer: ${currentJob.source_name}\nPosition: ${currentJob.position}\nHours/week: ${currentJob.hours_per_week ?? 40}\nHourly rate: ~${currentJob.salary_per_hour ?? Math.round(currentJob.salary_per_month / 160)}`;
+              ? `Dein Arbeitgeber: ${currentJob.source_name}\nPosition: ${currentJob.position}\nStunden/Woche: ${currentJob.hours_per_week ?? 40}\nStundensatz: ~${baseRate} (effektiv: ~${effectiveRate} mit Skill)${professionalMultiplier > 1 ? " [Skill-Bonus aktiv]" : ""}`
+              : `Your employer: ${currentJob.source_name}\nPosition: ${currentJob.position}\nHours/week: ${currentJob.hours_per_week ?? 40}\nHourly rate: ~${baseRate} (effective: ~${effectiveRate} with skill)${professionalMultiplier > 1 ? " [Skill bonus active]" : ""}`;
 
             return { content: [{ type: "text", text: scheduleMsg }] };
           }
@@ -6973,10 +7233,12 @@ Generate the complete manifest now. Return valid JSON for each file.`;
         name: "reality_genesis",
         description: "Bootstrap a complete human life from natural language description (Phase 7 Origin Engine)",
         parameters: Type.Object({
-          action: Type.String({ description: "Action: bootstrap" }),
-          manifest: Type.String({ description: "JSON string containing all genesis data" }),
+          action: Type.String({ description: "Action: bootstrap | rollback | patch" }),
+          manifest: Type.Optional(Type.String({ description: "JSON string containing all genesis data (for bootstrap)" })),
+          date: Type.Optional(Type.String({ description: "Backup date (YYYY-MM-DD) for rollback" })),
+          patch_instructions: Type.Optional(Type.String({ description: "Instructions for character modification (for patch)" })),
         }),
-        async execute(_id: string, params: { action: string; manifest: string }) {
+        async execute(_id: string, params: GenesisParams) {
           const isDe = lang === "de";
 
           // Handle different actions
@@ -7016,7 +7278,7 @@ Generate the complete manifest now. Return valid JSON for each file.`;
                 } catch { /* ignore missing files */ }
               }
 
-              return { content: [{ type: "text", text: isDe ? `✅ Auf ${params.date} zurückgesetzt.` : `✅ Rolled back to ${params.date}.` }] };
+              return { content: [{ type: "text", text: isDe ? `✅ Auf ${params.date} zurueckgesetzt.` : `✅ Rolled back to ${params.date}.` }] };
             } catch (e) {
               return { content: [{ type: "text", text: isDe ? `Rollback fehlgeschlagen: ${e}` : `Rollback failed: ${e}` }] };
             }
@@ -7064,13 +7326,12 @@ Generate the complete manifest now. Return valid JSON for each file.`;
 
           // Parse manifest
           let manifest: GenesisManifest;
-          try {
-            manifest = JSON.parse(params.manifest);
-          } catch (e) {
-            return { content: [{ type: "text", text: isDe ? "Ungültiges JSON-Manifest." : "Invalid JSON manifest." }] };
-          }
-
-          const warnings: string[] = [];
+                      try {
+                        manifest = JSON.parse(params.manifest);
+                      } catch (e) {
+                        return { content: [{ type: "text", text: isDe ? "Ungueltiges JSON-Manifest." : "Invalid JSON manifest." }] };
+                      }
+                    const warnings: string[] = [];
           const now = new Date().toISOString();
 
           try {
@@ -7342,7 +7603,7 @@ ${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no bound
             }
             const safeName = sanitizeName(params.name);
             if (!safeName) {
-              return { content: [{ type: "text", text: isDe ? "Ungültiger Name." : "Invalid name." }] };
+              return { content: [{ type: "text", text: isDe ? "Ungueltiger Name." : "Invalid name." }] };
             }
 
             try {
@@ -7431,7 +7692,7 @@ ${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no bound
 
             try {
               await fs.rm(targetDir, { recursive: true, force: true });
-              return { content: [{ type: "text", text: isDe ? `✅ Profil "${safeName}" gelöscht.` : `✅ Profile "${safeName}" deleted.` }] };
+              return { content: [{ type: "text", text: isDe ? `✅ Profil "${safeName}" geloescht.` : `✅ Profile "${safeName}" deleted.` }] };
             } catch (e) {
               return { content: [{ type: "text", text: isDe ? `Fehler: ${e}` : `Error: ${e}` }] };
             }
