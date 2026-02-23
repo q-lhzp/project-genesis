@@ -197,6 +197,7 @@ def collect_data(workspace: str) -> dict:
     news = load_json(os.path.join(memory_dir, "reality", "news.json"))
     internal_comm = load_json(os.path.join(memory_dir, "reality", "internal_comm.json"))
     social_events = load_json(os.path.join(memory_dir, "reality", "social_events.json"))
+    vault_state = load_json(os.path.join(memory_dir, "reality", "vault_state.json"))
 
     # Photos
     photos = []
@@ -271,6 +272,7 @@ def collect_data(workspace: str) -> dict:
         "news": news,
         "internal_comm": internal_comm,
         "social_events": social_events,
+        "vault_state": vault_state,
         "photos": photos,
         "telemetry_vitality": vitality_data[-100:] if len(vitality_data) > 100 else vitality_data,  # Last 100 entries
         "telemetry_economy": economy_data[-100:] if len(economy_data) > 100 else economy_data,
@@ -1440,6 +1442,31 @@ body::after {{
   border-bottom: 1px solid var(--border);
 }}
 
+/* Notifications */
+.toast-container {{
+  position: fixed; top: 2rem; right: 2rem;
+  display: flex; flex-direction: column; gap: 0.75rem;
+  z-index: 10000;
+}}
+.toast {{
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  color: var(--text-bright);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  min-width: 280px;
+  animation: slideIn 0.3s ease-out;
+  cursor: pointer;
+}}
+@keyframes slideIn {{
+  from {{ transform: translateX(100%); opacity: 0; }}
+  to {{ transform: translateX(0); opacity: 1; }}
+}}
+.toast.success {{ border-left-color: var(--growth); }}
+.toast.info {{ border-left-color: var(--accent); }}
+
 /* Cycle Tab */
 .cycle-phase-banner {{
   text-align: center;
@@ -1767,6 +1794,7 @@ body::after {{
 </style>
 </head>
 <body>
+<div class="toast-container" id="toast-container"></div>
 <div class="news-ticker" id="news-ticker">
   <div class="ticker-content" id="ticker-content">
     <div class="ticker-item">Project Genesis Simulation Active</div>
@@ -2577,12 +2605,20 @@ body::after {{
         </div>
       </div>
 
-      <!-- Transactions -->
+      <!-- Market Analysis -->
       <div class="panel-card">
-        <h3>Recent Transactions</h3>
-        <div id="vault-transactions" style="margin-top:1rem;max-height:300px;overflow-y:auto;">
-          <p style="color:var(--text-dim);font-size:0.85rem;">No transactions yet.</p>
+        <h3>Daily Market Analysis</h3>
+        <div id="vault-reports" style="margin-top:1rem;font-size:0.9rem;font-style:italic;line-height:1.4;">
+          <p style="color:var(--text-dim);font-size:0.85rem;">Waiting for AI morning report...</p>
         </div>
+      </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="panel-card" style="margin-top:1rem;">
+      <h3>Recent Transactions</h3>
+      <div id="vault-transactions" style="margin-top:1rem;max-height:300px;overflow-y:auto;">
+        <p style="color:var(--text-dim);font-size:0.85rem;">No transactions yet.</p>
       </div>
     </div>
   </div>
@@ -3411,6 +3447,24 @@ renderReflections();
       location.reload();
     }}
   }}, 30000);
+// --- Notifications ---
+function showToast(message, type = 'info') {{
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.innerHTML = message;
+  toast.onclick = () => toast.remove();
+  
+  container.appendChild(toast);
+  
+  setTimeout(() => {{
+    toast.style.animation = 'slideIn 0.3s ease-in reverse forwards';
+    setTimeout(() => toast.remove(), 300);
+  }}, 5000);
+}}
+
 // ---------------------------------------------------------------------------
 // Tab Navigation
 // ---------------------------------------------------------------------------
@@ -4528,11 +4582,28 @@ async function loadVaultData() {{
     const response = await fetch('/api/vault/status');
     const result = await response.json();
 
+    // Check for new transactions
+    const lastTxId = localStorage.getItem('vault_last_tx_id');
+    const transactions = result.transactions || [];
+    if (transactions.length > 0) {{
+      const latest = transactions[0];
+      if (lastTxId && lastTxId !== latest.id) {{
+        showToast(`<strong>Trade Executed</strong><br>${{latest.type.toUpperCase()}} ${{latest.amount}} ${{latest.symbol}} @ $${{latest.price.toFixed(2)}}`, 'success');
+      }}
+      localStorage.setItem('vault_last_tx_id', latest.id);
+    }}
+
     // Update mode display
     const modeEl = document.getElementById('vault-mode');
     if (modeEl && result.mode) {{
       modeEl.textContent = result.mode === 'paper' ? 'Paper Trading (Sandbox)' : 'Live Trading';
     }}
+
+    // Populate config fields
+    if (result.provider) document.getElementById('vault-provider').value = result.provider;
+    if (result.mode) document.getElementById('vault-mode-select').value = result.mode;
+    if (result.api_key) document.getElementById('vault-api-key').value = result.api_key;
+    if (result.api_secret) document.getElementById('vault-api-secret').value = result.api_secret;
 
     // Update portfolio
     const portfolioDiv = document.getElementById('vault-portfolio');
@@ -4559,6 +4630,42 @@ async function loadVaultData() {{
           html += '</div>';
         }}
         portfolioDiv.innerHTML = html;
+      }}
+    }}
+
+    // Update transactions
+    const txDiv = document.getElementById('vault-transactions');
+    if (txDiv) {{
+      if (transactions.length === 0) {{
+        txDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No transactions yet.</p>';
+      }} else {{
+        txDiv.innerHTML = transactions.slice(0, 20).map(tx => `
+          <div style="background:var(--bg-dim);padding:0.5rem;border-radius:4px;margin-bottom:0.5rem;font-size:0.85rem;border-left:3px solid ${{tx.type === 'buy' ? 'var(--growth)' : 'var(--core)'}};">
+            <div style="display:flex;justify-content:space-between;">
+              <strong>${{tx.type.toUpperCase()}} ${{tx.symbol}}</strong>
+              <span>$${{tx.total.toFixed(2)}}</span>
+            </div>
+            <div style="color:var(--text-dim);font-size:0.75rem;">
+              ${{tx.amount}} @ $${{tx.price.toFixed(2)}} · ${{new Date(tx.timestamp).toLocaleString()}}
+            </div>
+          </div>
+        `).join('');
+      }}
+    }}
+
+    // Update reports
+    const reportsDiv = document.getElementById('vault-reports');
+    if (reportsDiv) {{
+      const reports = result.market_reports || [];
+      if (reports.length === 0) {{
+        reportsDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Waiting for AI morning report...</p>';
+      }} else {{
+        const latest = reports[0];
+        reportsDiv.innerHTML = `
+          <div style="margin-bottom:0.5rem;color:var(--accent);font-size:0.75rem;text-transform:uppercase;">Latest: ${{latest.date}}</div>
+          <div>"${{esc(latest.content)}}"</div>
+          ${{reports.length > 1 ? `<div style="margin-top:0.5rem;font-size:0.7rem;color:var(--text-dim);">+ ${{reports.length - 1}} older reports</div>` : ''}}
+        `;
       }}
     }}
   }} catch (e) {{

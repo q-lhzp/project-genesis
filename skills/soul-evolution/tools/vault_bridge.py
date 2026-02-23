@@ -270,8 +270,13 @@ def handle_action(action: str, params: Dict) -> Dict:
             "success": True,
             "mode": state.get("mode", "paper"),
             "provider": provider,
+            "api_key": state.get("api_key", ""),
+            "api_secret": state.get("api_secret", ""),
             "total_deposited": state.get("total_deposited", 0),
+            "balances": state.get("balances", {}),
             "positions": state.get("positions", {}),
+            "transactions": state.get("transactions", []),
+            "market_reports": state.get("market_reports", []),
             "transaction_count": len(state.get("transactions", []))
         }
 

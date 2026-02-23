@@ -3492,9 +3492,11 @@ export default {
               genesisEnabled: resolvePath(ws, "memory", "reality", "genesis_enabled.json"),
               voiceEnabled: resolvePath(ws, "memory", "reality", "voice_enabled.json"),
               modelConfig: resolvePath(ws, "memory", "reality", "model_config.json"),
-              news: resolvePath(ws, "memory", "reality", "news.json"),
-              socialEvents: resolvePath(ws, "memory", "reality", "social_events.json"),
-              profiles: resolvePath(ws, "memory", "profiles"),
+                              news: resolvePath(ws, "memory", "reality", "news.json"),
+                              socialEvents: resolvePath(ws, "memory", "reality", "social_events.json"),
+                              vaultState: resolvePath(ws, "memory", "reality", "vault_state.json"),
+                              profiles: resolvePath(ws, "memory", "profiles"),
+              
               backups: resolvePath(ws, "memory", "backups"),
               genesisRequest: resolvePath(ws, "memory", "reality", "genesis_request.json"),
             };
@@ -3607,6 +3609,18 @@ export default {
       const today = new Date().toISOString().slice(0, 10);
       const todayBackupDir = join(paths.backups, today);
       const snapshotMarker = join(todayBackupDir, ".snapshot_done");
+
+      // Morning Market Report Logic
+      const now = new Date();
+      const hour = now.getHours();
+      let marketReportDirective = "";
+      if (hour >= 7 && hour <= 10) {
+        const vaultState = await readJson<any>(paths.vaultState);
+        const lastReport = vaultState?.last_report_date;
+        if (lastReport !== today) {
+          marketReportDirective = `\n[MORNING MARKET REPORT] It's morning. Please check your portfolio in The Vault using reality_trade(action: "check") and write a brief analysis of your performance and strategy in your internal narrative. Then use reality_trade(action: "report", symbol: "DAILY", amount: 0) to mark this task as done.`;
+        }
+      }
       try {
         const markerExists = await fs.access(snapshotMarker).then(() => true).catch(() => false);
         if (!markerExists) {
@@ -4007,7 +4021,7 @@ Keep responses brief. Focus on environmental storytelling.`;
         dreamState, hobbySuggestion, lifecycleState, socialState, financeState,
         worldState, skillState, psychState, reputationState,
         activeSocialEvent
-      ) + dreamTriggerHint;
+      ) + dreamTriggerHint + marketReportDirective;
 
       // Combine contexts based on role - COST OPTIMIZED
       let finalContext: string;
@@ -8220,14 +8234,15 @@ ${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no bound
     // -------------------------------------------------------------------
     api.registerTool({
       name: "reality_trade",
-      description: "Trade real assets (crypto/stocks) via The Vault. Use 'check' to view portfolio, 'buy'/'sell' to trade. Always uses paper trading by default.",
+      description: "Trade real assets (crypto/stocks) via The Vault. Use 'check' to view portfolio, 'buy'/'sell' to trade, 'report' to mark morning analysis as done.",
       parameters: Type.Object({
-        action: Type.String({ description: "Action: check | buy | sell | status" }),
+        action: Type.String({ description: "Action: check | buy | sell | status | report" }),
         symbol: Type.Optional(Type.String({ description: "Asset symbol (e.g., BTC, ETH, AAPL)" })),
         amount: Type.Optional(Type.Number({ description: "Amount to trade" })),
         type: Type.Optional(Type.String({ description: "Trade type: buy or sell (default: buy)" })),
+        text: Type.Optional(Type.String({ description: "Report text for 'report' action" })),
       }),
-      async execute(_id: string, params: { action: string; symbol?: string; amount?: number; type?: string }) {
+      async execute(_id: string, params: { action: string; symbol?: string; amount?: number; type?: string; text?: string }) {
         try {
           const { exec } = await import("node:child_process");
           const { promisify } = await import("node:util");
@@ -8270,6 +8285,24 @@ ${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no bound
               }
             }
             return { content: [{ type: "text", text: lines.join("\n") }] };
+          }
+
+          if (params.action === "report") {
+            const vaultState = await readJson<any>(paths.vaultState);
+            if (vaultState) {
+              vaultState.last_report_date = new Date().toISOString().slice(0, 10);
+              if (params.text) {
+                if (!vaultState.market_reports) vaultState.market_reports = [];
+                vaultState.market_reports.unshift({
+                  date: vaultState.last_report_date,
+                  timestamp: new Date().toISOString(),
+                  content: params.text
+                });
+                vaultState.market_reports = vaultState.market_reports.slice(0, 10);
+              }
+              await writeJson(paths.vaultState, vaultState);
+            }
+            return { content: [{ type: "text", text: isDe ? "Marktanalyse fuer heute gespeichert." : "Market analysis for today stored." }] };
           }
 
           if (params.action === "buy" || params.action === "sell") {
