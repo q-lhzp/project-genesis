@@ -41,7 +41,13 @@ Project Genesis is a decentralized Multi-Agent Cluster (MAC) simulation of human
 - **Impact:** News adjust `market_modifier` or trigger world events.
 - **Autonomous Browsing:** Agent tool `reality_browse` for research and internet exploration.
 
-## 9. Tool Specifications (Consolidated)
+## 9. Phase 15: Desktop Sovereignty & Visual Browsing (Upcoming)
+**Goal:** Give the AI visible control over the host machine and reinforce ownership.
+- **Visual Browser:** `reality_browse` launches a visible Chromium instance (Playwright `headless=False`) on the user's desktop. The user sees the AI scrolling and reading.
+- **System Ownership:** The prompt explicitly states: *"This is YOUR computer. You have full control."*
+- **Self-Maintenance:** The AI can install necessary packages (pip/npm/apt) to perform its tasks.
+
+## 10. Tool Specifications (Consolidated)
 - `reality_genesis`: bootstrap | patch | rollback
 - `reality_profile`: save | load | list | delete
 - `reality_skill`: train | list | check
