@@ -6,33 +6,34 @@
 
 ## 1. Core Pillars
 
-### A. The Living World (Phase 6)
+### A. The Living World (Phase 6 & 14)
 - **Real-World Sync:** Simulation time, seasons, and weather are synchronized with the host system's real-time environment.
+- **Live News Feed:** The `world_engine` fetches LIVE RSS headlines based on character location, influencing market modifiers.
 - **Dynamic Weather:** Affects metabolism and energy consumption.
-- **Market Modifiers:** Global reputation and world events influence shop prices and job opportunities.
 
-### B. The Origin Engine (Phase 7)
-- **Neural Bootstrapping:** Generate a complete life story, financial status, social circle, and psychological profile from a single text prompt (e.g., *"Create a 24-year-old artist living in Berlin"*).
-- **Automated Setup:** Instantly populates all JSON state files and Markdown identity documents.
+### B. The Origin Engine & Identity (Phase 7, 8 & 17)
+- **Neural Bootstrapping:** Generate a complete life story, financial status, and psychological profile from a single prompt.
+- **Neural Photography:** AI generates consistent self-portraits using internal engines (Flux, Venice, Nano Banana) synced with wardrobe and location.
+- **Face-ID Integration:** Detailed facial feature extraction for visual consistency.
 
-### C. Identity Governance (Phase 8)
-- **Profile Management:** Save and switch between different character "slots" (`memory/profiles/`).
-- **Time Vault (Rollback):** Daily automated snapshots allow you to revert the simulation to any previous day.
-- **Evolutionary Edits (Patching):** Tweak specific character traits (e.g., *"Make her more confident"*) without resetting the entire biography.
+### C. Cognitive Resonance & Voice (Phase 18 & 20)
+- **Long-Term Memory (Mem0):** Searchable persistent memory using local **Qdrant** and **Ollama (bge-m3)**. 
+- **Vocal Identity:** Local high-speed Text-to-Speech via **Chatterbox-Turbo** with voice cloning support.
+- **Memory Lab:** Dedicated WebUI tab to search and manage the AI's "unconscious mind".
 
-### D. Multi-Model Cluster (Phase 9)
-- **Model Specialization:** Optimized role-to-model mapping (e.g., Persona on Opus 4.6, Limbic System on Haiku) to maximize reasoning quality while minimizing costs.
-- **Cost Optimization:** Pruned context delivery for lightweight background roles.
+### D. Digital Extroversion & Sovereignty (Phase 15 & 16)
+- **Desktop Sovereignty:** AI acts as the owner of the machine with visual browser control (Playwright) and universal mouse/keyboard input.
+- **Interactive Socializing:** AI can autonomously chat on Discord, WhatsApp Web, or within 3D games (like 3DXChat).
 
-### E. Social Reputation (Phase 10)
-- **Reputation Meter:** Tracks global standing from *Pariah* to *Icon*.
-- **Social Circles:** Manage standing in Professional, Family, Friends, and Underground groups.
-- **Consequences:** Reputation affects job requirements and networking success.
+### E. Social Fabric & CRM (Phase 10, 12 & 19)
+- **Social Reputation:** Tracks global standing across professional and private circles.
+- **Visual NPC Network:** Consistent visual identities for all social contacts, manageable via a WebUI CRM.
+- **Autonomous Social Life:** NPCs initiate contact autonomously based on relationship dynamics.
 
-### F. Neural Photography & Face-ID (Phase 17)
-- **Visual Identity:** Extracts and maintains a consistent "Face-ID" for the character.
-- **Reality Camera:** AI generates consistent self-portraits and photos using internal image generation engines (Flux, Venice, Nano Banana).
-- **Standalone Vision:** Fully integrated facial analysis and image generation logic within the plugin.
+### F. The Vault - Real Economy (Phase 21)
+- **Real Asset Trading:** Autonomous trading of Crypto (Kraken) and Stocks (Alpaca).
+- **Morning Analysis:** AI writes daily performance reports.
+- **Safety First:** Default Paper Trading mode with real-time Toast notifications.
 
 ---
 
@@ -41,7 +42,9 @@
 ### Prerequisites
 - [OpenClaw](https://github.com/openclaw/openclaw) (v2026.1.26+)
 - Node.js & npm
-- Python 3 (for WebUI Lab)
+- Python 3 (for WebUI and Bridges)
+- **Ollama** (with `bge-m3` model for memory)
+- **Qdrant** (running on localhost:6333)
 
 ### Setup
 1. **Install Plugin:**
@@ -49,42 +52,40 @@
    cd project-genesis
    npm install
    ```
-2. **System Requirements:**
-   - **Python 3** with `pip`
-   - **Playwright** (Automatically installed on first browse, or run `pip install playwright && playwright install chromium`)
-3. **Configure OpenClaw:** Add `project_genesis` to your `openclaw.json` plugins list.
-3. **Bootstrap Your First Life:**
-   - Start the agent.
-   - Open the **Genesis Lab** tab in the WebUI.
-   - Enter a description and click **🚀 Generate Character**.
+2. **Setup Voice Models:**
+   ```bash
+   python3 skills/soul-evolution/tools/voice/download_voice_models.py
+   ```
+3. **Configure OpenClaw:** Add `project_genesis` to your `openclaw.json`.
+4. **Bootstrap Your Life:** Use the **Genesis Lab** in the WebUI to generate your character.
 
 ---
 
 ## 3. The Visual Lab (Dashboard)
-Run the visualizer to monitor and manage the simulation:
+Run the visualizer:
 ```bash
 python3 skills/soul-evolution/tools/soul-viz.py "$(pwd)" --serve 8080
 ```
 **Tabs:**
-- **Dashboard:** Vitals, Soul Map, and Timeline.
-- **Social Standing:** Reputation meter and Circle standing.
-- **Skills:** XP-based progression tracking.
-- **Psychology:** Resilience and Trauma management.
-- **Genesis Lab:** Profile switching, Time Vault, and Model Configuration.
+- **Dashboard:** Vitals, Soul Map, and Cognitive Activity (Inner Voice).
+- **Life Stream:** Photo gallery of captured moments.
+- **The Vault:** Real-time portfolio and trading terminal.
+- **Memory:** Fact search and long-term memory management.
+- **Social Standing:** Reputation and Contact CRM.
+- **Genesis Lab:** Profile switching, Voice Lab, and Model Configuration.
 
 ---
 
 ## 4. Architecture: "English Mind / Bilingual UI"
-- **Mind:** All internal prompt injections (logic, somatic feelings, directives) are hardcoded in **English** for maximum model performance.
-- **Interface:** All user-facing tool outputs, file templates, and dashboard labels support both **German (DE)** and **English (EN)** via the `language` config setting.
+- **Mind:** Internal logic and prompt injections are in **English**.
+- **Interface:** User-facing labels and tool outputs support **German (DE)** and **English (EN)**.
 
 ---
 
 ## 5. Technical Specifications
 - **ID:** `project_genesis`
-- **Data Layer:** JSON persistence in `memory/reality/`.
-- **MAC Roles:** Persona, Analyst, Limbic, World Engine, Developer.
-- **Safety:** Strict path-traversal guards and atomic file writes.
+- **Standalone:** All vision, trading, and voice engines are internalized.
+- **Compliance:** Uses the OpenClaw `async activate` pattern for SDK v2026+.
 
 ---
-*Official Documentation for Project Genesis v2.2.0.*
+*Official Documentation for Project Genesis v3.5.1.*
