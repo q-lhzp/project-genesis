@@ -8151,7 +8151,71 @@ ${(manifest.soul.boundaries ?? []).map(t => `- ${t}`).join("\n") || "- (no bound
       },
     });
 
-    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + (modules.genesis ? 1 : 0) + 2 + 2 + 3 + 3; // +2 social, +2 economy, +3 analytics, +3 research lab, +1 genesis
-    api.logger.info(`[genesis] Registered: 3 hooks, ${baseToolCount + devToolsLoaded} tools (eros=${modules.eros}, cycle=${modules.cycle}, dreams=${modules.dreams}, hobbies=${modules.hobbies}, genesis=${modules.genesis}). Ready.`);
+    // -------------------------------------------------------------------
+    // Tool: reality_voice (Phase 20 - Vocal Identity)
+    // -------------------------------------------------------------------
+    if (modules.voice_enabled) {
+      // Add voice path
+      const voicePath = resolvePath(ws, "memory", "reality", "media", "voice");
+
+      api.registerTool({
+        name: "reality_voice",
+        description: "Generate spoken audio from text using Chatterbox-Turbo TTS. Only works if voice_enabled module is active.",
+        parameters: Type.Object({
+          text: Type.String({ description: "Text to speak" }),
+          emotionality: Type.Optional(Type.Number({ description: "Emotional intensity 0.0-1.0 (default: 0.5)" })),
+          pitch: Type.Optional(Type.Number({ description: "Pitch adjustment -1.0 to 1.0 (default: 0)" })),
+          speed: Type.Optional(Type.Number({ description: "Speed 0.5 to 2.0 (default: 1.0)" })),
+        }),
+        async execute(_id: string, params: { text: string; emotionality?: number; pitch?: number; speed?: number }) {
+          if (!params.text) {
+            return { content: [{ type: "text", text: "Text is required for voice generation." }] };
+          }
+
+          try {
+            const { exec } = await import("node:child_process");
+            const { promisify } = await import("node:util");
+            const execAsync = promisify(exec);
+
+            const voiceBridge = join(__dirname, "skills", "soul-evolution", "tools", "voice", "voice_bridge.py");
+
+            const settings = {
+              emotional_intensity: params.emotionality ?? 0.5,
+              pitch: params.pitch ?? 0.0,
+              speed: params.speed ?? 1.0,
+            };
+
+            const cmd = `python3 "${voiceBridge}" '${JSON.stringify({ text: params.text, settings })}'`;
+
+            const { stdout, stderr } = await execAsync(cmd, { timeout: 60000 });
+
+            let result;
+            try {
+              result = JSON.parse(stdout);
+            } catch {
+              return { content: [{ type: "text", text: "Voice generation failed: " + stderr }] };
+            }
+
+            if (result.success) {
+              return {
+                content: [
+                  { type: "text", text: `[Voice Generated]\nText: ${params.text}\nAudio: ${result.url}` },
+                  { type: "audio", url: result.url, text: params.text },
+                ],
+              };
+            } else {
+              return { content: [{ type: "text", text: "Voice generation failed: " + result.error }] };
+            }
+          } catch (error) {
+            return { content: [{ type: "text", text: "Voice generation error: " + String(error) }] };
+          }
+        },
+      });
+
+      api.logger.info("[genesis] Voice module enabled: reality_voice tool registered.");
+    }
+
+    const baseToolCount = 13 + (modules.eros ? 1 : 0) + (modules.cycle ? 1 : 0) + (modules.dreams ? 1 : 0) + (modules.hobbies ? 1 : 0) + (modules.genesis ? 1 : 0) + (modules.voice_enabled ? 1 : 0) + 2 + 2 + 3 + 3; // +2 social, +2 economy, +3 analytics, +3 research lab, +1 genesis, +1 voice
+    api.logger.info(`[genesis] Registered: 3 hooks, ${baseToolCount + devToolsLoaded} tools (eros=${modules.eros}, cycle=${modules.cycle}, dreams=${modules.dreams}, hobbies=${modules.hobbies}, genesis=${modules.genesis}, voice=${modules.voice_enabled}). Ready.`);
   },
 };

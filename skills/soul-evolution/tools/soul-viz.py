@@ -2275,6 +2275,55 @@ body::after {{
       </div>
     </div>
 
+    <!-- Voice Lab - Phase 20 -->
+    <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;border-left:4px solid var(--accent);">
+      <strong>Voice Lab - Chatterbox TTS</strong>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Configure voice synthesis settings</p>
+
+      <!-- Voice Sample Upload -->
+      <div style="margin-top:0.75rem;">
+        <label style="font-size:0.8rem;">Voice Sample (.wav)</label>
+        <input type="file" id="voice-sample" accept=".wav" style="display:block;margin-top:0.25rem;">
+        <p style="font-size:0.7rem;color:var(--text-dim);margin:0.25rem 0 0 0;">Upload a voice sample for cloning (optional)</p>
+      </div>
+
+      <!-- Voice Parameters -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-top:0.75rem;">
+        <div>
+          <label style="font-size:0.8rem;">Pitch</label>
+          <input type="range" id="voice-pitch" min="-1" max="1" step="0.1" value="0" style="width:100%;" oninput="updateVoiceLabel('pitch')">
+          <span id="voice-pitch-val" style="font-size:0.7rem;">0</span>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Speed</label>
+          <input type="range" id="voice-speed" min="0.5" max="2" step="0.1" value="1" style="width:100%;" oninput="updateVoiceLabel('speed')">
+          <span id="voice-speed-val" style="font-size:0.7rem;">1.0x</span>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Emotional Intensity</label>
+          <input type="range" id="voice-emotion" min="0" max="1" step="0.1" value="0.5" style="width:100%;" oninput="updateVoiceLabel('emotion')">
+          <span id="voice-emotion-val" style="font-size:0.7rem;">0.5</span>
+        </div>
+      </div>
+
+      <!-- Test Voice -->
+      <div style="margin-top:0.75rem;">
+        <label style="font-size:0.8rem;">Test Text</label>
+        <input type="text" id="voice-test-text" placeholder="Enter text to speak..." style="width:100%;background:var(--bg-dim);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
+      </div>
+
+      <button onclick="generateVoice()" style="margin-top:0.75rem;background:var(--accent);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">🔊 Generate Voice</button>
+      <span id="voice-status" style="margin-left:0.5rem;font-size:0.8rem;"></span>
+
+      <!-- Recent Voice Lines -->
+      <div style="margin-top:1rem;">
+        <label style="font-size:0.8rem;">Recent Voice Lines</label>
+        <div id="voice-history" style="margin-top:0.5rem;max-height:150px;overflow-y:auto;">
+          <p style="color:var(--text-dim);font-size:0.8rem;">No voice generated yet.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Danger Warning -->
     <div class="panel-card" style="border-left:4px solid var(--danger);background:rgba(224,80,80,0.1);margin-top:1rem;">
       <h3 style="color:var(--danger);">⚠️ DANGER</h3>
@@ -4286,6 +4335,83 @@ function renderSkillsPanel() {{
 }}
 
 // ---------------------------------------------------------------------------
+// Voice Lab Functions - Phase 20
+// ---------------------------------------------------------------------------
+function updateVoiceLabel(param) {{
+  const slider = document.getElementById('voice-' + param);
+  const label = document.getElementById('voice-' + param + '-val');
+  if (slider && label) {{
+    if (param === 'speed') {{
+      label.textContent = parseFloat(slider.value).toFixed(1) + 'x';
+    }} else {{
+      label.textContent = slider.value;
+    }}
+  }}
+}}
+
+function getVoiceSettings() {{
+  return {{
+    pitch: parseFloat(document.getElementById('voice-pitch').value) || 0,
+    speed: parseFloat(document.getElementById('voice-speed').value) || 1.0,
+    emotional_intensity: parseFloat(document.getElementById('voice-emotion').value) || 0.5
+  }};
+}}
+
+async function generateVoice() {{
+  const text = document.getElementById('voice-test-text').value.trim();
+  const statusDiv = document.getElementById('voice-status');
+
+  if (!text) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter text to speak.</span>';
+    return;
+  }}
+
+  statusDiv.innerHTML = '<span style="color:var(--text-dim);">Generating...</span>';
+
+  try {{
+    const settings = getVoiceSettings();
+    const response = await fetch('/api/voice/generate', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{ text: text, settings: settings }})
+    }});
+    const result = await response.json();
+
+    if (result.success) {{
+      statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Generated!</span>';
+
+      // Add to history
+      const historyDiv = document.getElementById('voice-history');
+      const audioHtml = `<div style="background:var(--bg-dim);padding:0.5rem;border-radius:4px;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;">
+        <div style="flex:1;overflow:hidden;">
+          <div style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${{text}}</div>
+          <div style="font-size:0.7rem;color:var(--text-dim);">${{result.timestamp || new Date().toISOString()}}</div>
+        </div>
+        <audio controls src="${{result.url}}" style="height:30px;margin-left:0.5rem;"></audio>
+      </div>`;
+
+      // Prepend to history
+      const existing = historyDiv.innerHTML;
+      if (existing.includes('No voice generated')) {{
+        historyDiv.innerHTML = audioHtml;
+      }} else {{
+        // Keep only last 5 items
+        const items = [audioHtml];
+        const existingItems = historyDiv.querySelectorAll('div[style*="background"]');
+        existingItems.forEach((item, i) => {{
+          if (i < 4) items.push(item.outerHTML);
+        }});
+        historyDiv.innerHTML = items.join('');
+      }}
+    }} else {{
+      statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + (result.error || 'Unknown') + '</span>';
+    }}
+  }} catch (e) {{
+    statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+  }}
+}}
+
+// ---------------------------------------------------------------------------
 // Genesis Lab Tab
 // ---------------------------------------------------------------------------
 async function toggleGenesis(enabled) {{
@@ -6133,6 +6259,7 @@ def main():
                         ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
                         ".png": "image/png", ".gif": "image/gif",
                         ".webp": "image/webp", ".svg": "image/svg+xml",
+                        ".wav": "audio/wav", ".mp3": "audio/mpeg",
                     }
                     ct = content_types.get(ext, "application/octet-stream")
                     with open(real_path, "rb") as f:
@@ -6657,6 +6784,71 @@ def main():
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
                         self.wfile.write(json.dumps({{"enabled": False, "error": str(e)}}).encode())
+
+                elif self.path == "/api/voice/generate":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+                        text = data.get("text", "")
+                        settings = data.get("settings", {{}})
+
+                        if not text:
+                            self.send_response(400)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({{"success": False, "error": "Text is required"}}).encode())
+                            return
+
+                        # Call voice bridge
+                        import subprocess
+                        voice_bridge = os.path.join(os.path.dirname(__file__), "voice", "voice_bridge.py")
+                        voice_dir = os.path.join(workspace, "memory", "reality", "media", "voice")
+                        os.makedirs(voice_dir, exist_ok=True)
+
+                        cmd = [
+                            sys.executable,
+                            voice_bridge,
+                            json.dumps({{"text": text, "settings": settings}})
+                        ]
+
+                        result = subprocess.run(
+                            cmd,
+                            capture_output=True,
+                            text=True,
+                            timeout=120
+                        )
+
+                        if result.returncode == 0:
+                            try:
+                                voice_result = json.loads(result.stdout)
+                                if voice_result.get("success"):
+                                    self.send_response(200)
+                                    self.send_header("Content-Type", "application/json")
+                                    self.end_headers()
+                                    self.wfile.write(json.dumps({{
+                                        "success": True,
+                                        "url": voice_result.get("url"),
+                                        "text": text,
+                                        "timestamp": voice_result.get("timestamp")
+                                    }}).encode())
+                                else:
+                                    raise Exception(voice_result.get("error", "Generation failed"))
+                            except json.JSONDecodeError:
+                                raise Exception("Invalid response from voice bridge")
+                        else:
+                            raise Exception(result.stderr or "Voice generation failed")
+
+                    except subprocess.TimeoutExpired:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "error": "Generation timed out"}}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
 
                 elif self.path == "/api/mem0/config":
                     try:
