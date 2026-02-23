@@ -44,7 +44,10 @@
    cd project-genesis
    npm install
    ```
-2. **Configure OpenClaw:** Add `project_genesis` to your `openclaw.json` plugins list.
+2. **System Requirements:**
+   - **Python 3** with `pip`
+   - **Playwright** (Automatically installed on first browse, or run `pip install playwright && playwright install chromium`)
+3. **Configure OpenClaw:** Add `project_genesis` to your `openclaw.json` plugins list.
 3. **Bootstrap Your First Life:**
    - Start the agent.
    - Open the **Genesis Lab** tab in the WebUI.

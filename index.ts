@@ -3225,6 +3225,7 @@ export default {
       desktop: cfg?.modules?.desktop ?? false,
       legacy: cfg?.modules?.legacy ?? false,
       genesis: cfg?.modules?.genesis ?? false, // Can also be enabled via WebUI (genesis_enabled.json)
+      multi_model_optimization: cfg?.modules?.multi_model_optimization ?? true,
     };
     const growthContextEntries = cfg?.growthContextEntries ?? 10;
     const dreamWindow = cfg?.dreamWindow ?? { start: 23, end: 5 };
@@ -3748,20 +3749,25 @@ Keep responses brief. Focus on environmental storytelling.`;
 
       // Combine contexts based on role - COST OPTIMIZED
       let finalContext: string;
-      if (agentRole === "persona") {
-        // Persona gets: emotional narrative from Limbic + minimal context
-        finalContext = roleContext;
-      } else if (agentRole === "limbic") {
-        // Limbic gets: role context (raw data) only - lightweight
-        finalContext = roleContext + memoContext;
-      } else if (agentRole === "world_engine") {
-        // World Engine gets: world context only - lightweight
-        finalContext = roleContext;
-      } else if (agentRole === "analyst") {
-        // Analyst gets: full context for governance
-        finalContext = roleContext + defaultContext + memoContext;
+      if (modules.multi_model_optimization) {
+        if (agentRole === "persona") {
+          // Persona gets: emotional narrative from Limbic + minimal context
+          finalContext = roleContext;
+        } else if (agentRole === "limbic") {
+          // Limbic gets: role context (raw data) only - lightweight
+          finalContext = roleContext + memoContext;
+        } else if (agentRole === "world_engine") {
+          // World Engine gets: world context only - lightweight
+          finalContext = roleContext;
+        } else if (agentRole === "analyst") {
+          // Analyst gets: full context for governance
+          finalContext = roleContext + defaultContext + memoContext;
+        } else {
+          // Developer and others get: role context + default context + memos
+          finalContext = roleContext + defaultContext + memoContext;
+        }
       } else {
-        // Developer and others get: role context + default context + memos
+        // Optimization disabled: Everyone gets full context
         finalContext = roleContext + defaultContext + memoContext;
       }
 

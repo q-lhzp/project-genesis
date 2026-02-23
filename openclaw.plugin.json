@@ -2,7 +2,7 @@
   "id": "project_genesis",
   "name": "Project Genesis",
   "description": "The Human Lifecycle — Full biological, social, and economic simulation",
-  "version": "1.0.0",
+  "version": "1.9.0",
   "skills": ["./skills/soul-evolution"],
   "configSchema": {
     "type": "object",
@@ -40,7 +40,8 @@
           "reputation": { "type": "boolean", "default": true },
           "desktop": { "type": "boolean", "default": false },
           "legacy": { "type": "boolean", "default": false },
-          "genesis": { "type": "boolean", "default": false }
+          "genesis": { "type": "boolean", "default": false },
+          "multi_model_optimization": { "type": "boolean", "default": true }
         }
       },
       "metabolismRates": {
@@ -403,6 +404,16 @@
       "label": "Skill: Train/Check",
       "category": "Life Simulation",
       "help": "Train skills or check competence level"
+    },
+    "reality_browse": {
+      "label": "Web Research",
+      "category": "System",
+      "help": "Research topics on the web using a VISUAL browser on your desktop."
+    },
+    "reality_news": {
+      "label": "World News",
+      "category": "World",
+      "help": "Fetch and process real-world news based on agent's location."
     },
     "reality_desktop": {
       "label": "Desktop Control",
