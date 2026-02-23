@@ -2175,6 +2175,56 @@ body::after {{
         <button onclick="saveModelConfig()" style="margin-top:0.5rem;background:var(--core);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Save Model Config</button>
         <span id="model-config-status" style="margin-left:0.5rem;font-size:0.8rem;"></span>
       </div>
+
+      <!-- Advanced Providers (Image & Vision) -->
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;border-left:4px solid var(--growth);">
+        <strong>Visual & Identity Providers</strong>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Configure Image Generation and Visual Analysis</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
+          <div>
+            <label style="font-size:0.8rem;">Image Provider (Photography)</label>
+            <select id="provider-image" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+              <option value="nano">Nano Banana (Imagen 3)</option>
+              <option value="venice">Venice.ai</option>
+              <option value="dalle">DALL-E 3</option>
+              <option value="gemini">Gemini Image</option>
+              <option value="grok">Grok Imagine</option>
+              <option value="flux">Flux (via fal.ai)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">Vision AI (Screen Analysis)</label>
+            <select id="provider-vision" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+              <option value="gpt-4o">GPT-4o Vision</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Vision</option>
+              <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:0.75rem;display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+          <div>
+            <label style="font-size:0.8rem;">Venice.ai API Key</label>
+            <input type="password" id="key-venice" placeholder="sk-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.2rem;">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">Fal.ai (Flux) Key</label>
+            <input type="password" id="key-fal" placeholder="Key..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.2rem;">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">xAI Key (Grok)</label>
+            <input type="password" id="key-xai" placeholder="xai-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.2rem;">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;">Google Image Key</label>
+            <input type="password" id="key-gemini-img" placeholder="AI Studio Key..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.2rem;">
+          </div>
+        </div>
+
+        <button onclick="saveAdvancedConfig()" style="margin-top:0.75rem;background:var(--growth);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Save Visual Config</button>
+        <span id="adv-config-status" style="margin-left:0.5rem;font-size:0.8rem;"></span>
+      </div>
     </div>
 
     <!-- Danger Warning -->
@@ -4180,11 +4230,45 @@ async function loadModelConfig() {{
       if (config.models.analyst) document.getElementById('model-analyst').value = config.models.analyst;
       if (config.models.world_engine) document.getElementById('model-world').value = config.models.world_engine;
     }}
-    if (config.api_key) {{
-      document.getElementById('api-key').value = config.api_key;
-    }}
+    if (config.image_provider) document.getElementById('provider-image').value = config.image_provider;
+    if (config.vision_provider) document.getElementById('provider-vision').value = config.vision_provider;
+    
+    if (config.api_key) document.getElementById('api-key').value = config.api_key;
+    if (config.key_venice) document.getElementById('key-venice').value = config.key_venice;
+    if (config.key_fal) document.getElementById('key-fal').value = config.key_fal;
+    if (config.key_xai) document.getElementById('key-xai').value = config.key_xai;
+    if (config.key_gemini_img) document.getElementById('key-gemini-img').value = config.key_gemini_img;
   }} catch (e) {{
     console.log('Could not load model config:', e);
+  }}
+}}
+
+async function saveAdvancedConfig() {{
+  const payload = {{
+    image_provider: document.getElementById('provider-image').value,
+    vision_provider: document.getElementById('provider-vision').value,
+    key_venice: document.getElementById('key-venice').value,
+    key_fal: document.getElementById('key-fal').value,
+    key_xai: document.getElementById('key-xai').value,
+    key_gemini_img: document.getElementById('key-gemini-img').value,
+  }};
+
+  try {{
+    const response = await fetch('/api/model/config', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify(payload)
+    }});
+    const result = await response.json();
+    const statusEl = document.getElementById('adv-config-status');
+    if (result.success) {{
+      statusEl.innerHTML = '<span style="color:var(--growth);">✓ Saved!</span>';
+      setTimeout(() => statusEl.innerHTML = '', 2000);
+    }} else {{
+      statusEl.innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
+    }}
+  }} catch (e) {{
+    document.getElementById('adv-config-status').innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
   }}
 }}
 
@@ -5666,25 +5750,38 @@ def main():
                                     config = json.load(f)
                             except:
                                 pass
-                        # Don't send API key to frontend for security
-                        config_safe = {{"models": config.get("models", {{}})}}
+                        
+                        # Return config with placeholder for existing keys
+                        config_ui = config.copy()
+                        for key in ["api_key", "key_venice", "key_fal", "key_xai", "key_gemini_img"]:
+                            if config.get(key):
+                                config_ui[key] = "****"
+                        
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps(config_safe).encode())
+                        self.wfile.write(json.dumps(config_ui).encode())
                     else:
-                        # Save config
+                        # Save config (Merge with existing)
                         length = int(self.headers.get("Content-Length", 0))
                         body = self.rfile.read(length).decode("utf-8")
                         try:
-                            data = json.loads(body)
-                            models = data.get("models", {{}})
-                            api_key = data.get("api_key", "")
-
-                            # Save to file (API key stored locally only)
-                            config = {{"models": models}}
-                            if api_key:
-                                config["api_key"] = api_key
+                            new_data = json.loads(body)
+                            
+                            # Load existing
+                            config = {{}}
+                            if os.path.exists(model_config_path):
+                                with open(model_config_path) as f:
+                                    config = json.load(f)
+                            
+                            # Update with new data (Handle empty values carefully)
+                            for k, v in new_data.items():
+                                if v == "****": continue # Don't overwrite with placeholder
+                                if k == "models" and isinstance(v, dict):
+                                    if "models" not in config: config["models"] = {{}}
+                                    config["models"].update(v)
+                                else:
+                                    config[k] = v
 
                             os.makedirs(os.path.dirname(model_config_path), exist_ok=True)
                             with open(model_config_path, "w") as f:
@@ -5694,7 +5791,7 @@ def main():
                             self.send_header("Content-Type", "application/json")
                             self.end_headers()
                             self.wfile.write(json.dumps({{"success": True}}).encode())
-                            print(f"  ✓ Model config saved")
+                            print(f"  ✓ Model config updated")
                         except Exception as e:
                             self.send_response(500)
                             self.send_header("Content-Type", "application/json")

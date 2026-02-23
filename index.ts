@@ -4417,13 +4417,23 @@ Keep responses brief. Focus on environmental storytelling.`;
         const bridgeParams = {
           ...params,
           physique: ph,
-          identity_visual: { visual_description: visualDescription }
+          identity_visual: { visual_description: visualDescription },
+          provider: getImageProvider()
         };
 
         const cmd = `python3 "${bridgeScript}" '${JSON.stringify(bridgeParams)}'`;
 
+        // Inject API keys into environment for the child process
+        const env = { 
+          ...process.env,
+          VENICE_INFERENCE_KEY: modelConfig.key_venice || process.env.VENICE_INFERENCE_KEY,
+          FAL_API_KEY: modelConfig.key_fal || process.env.FAL_API_KEY,
+          XAI_API_KEY: modelConfig.key_xai || process.env.XAI_API_KEY,
+          GEMINI_API_KEY: modelConfig.key_gemini_img || process.env.GEMINI_API_KEY
+        };
+
         try {
-          const { stdout } = await execPromise(cmd);
+          const { stdout } = await execPromise(cmd, { env });
           const result = JSON.parse(stdout.trim());
           if (result.error) throw new Error(result.error);
 
@@ -7245,16 +7255,27 @@ See source files in \`src/\`
     }
 
     // Load model configuration for multi-model cluster
-    let modelConfig: { models?: Record<string, string>; api_key?: string } = {};
+    let modelConfig: { 
+      models?: Record<string, string>; 
+      api_key?: string;
+      image_provider?: string;
+      vision_provider?: string;
+      key_venice?: string;
+      key_fal?: string;
+      key_xai?: string;
+      key_gemini_img?: string;
+    } = {};
     try {
-      const mc = await readJson<{ models?: Record<string, string>; api_key?: string }>(paths.modelConfig);
+      const mc = await readJson<any>(paths.modelConfig);
       if (mc) modelConfig = mc;
     } catch { /* ignore - use defaults */ }
 
-    // Helper to get model for role
+    // Helpers for multi-model cluster
     const getModelForRole = (role: string): string => {
       return modelConfig.models?.[role] ?? "gpt-4o-mini"; // default to lightweight
     };
+    const getImageProvider = () => modelConfig.image_provider ?? "nano";
+    const getVisionProvider = () => modelConfig.vision_provider ?? "gpt-4o";
 
     if (genesisEnabled) {
       // Origin System Prompt - defines the JSON schemas for character generation
@@ -7320,9 +7341,14 @@ JSON SCHEMAS REQUIRED:
 ## Age: [years]
 ## Occupation: [job title]
 
-[VISUAL]
-Detailed physical description: [eyes, hair, bone structure, skin details, height, weight, notable features]. Use extreme detail for AI consistency.
-
+  [VISUAL]
+  - BONE STRUCTURE: [high cheekbones, jawline, chin shape]
+  - EYES: [shape, tilt, iris color, crease]
+  - NOSE: [bridge, tip, philtrum]
+  - LIPS: [cupid's bow, thickness, corners]
+  - SKIN: [tone, undertones, features like freckles]
+  - HAIR: [base color, style, highlights]
+  Use extreme detail for AI consistency across photos.
 8. SOUL.md (Markdown with tags):
 [CORE]
 ## Personality

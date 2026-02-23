@@ -13,7 +13,6 @@ def build_prompt(params, physique, identity, wardrobe):
     Builds a highly detailed photorealistic prompt.
     """
     # 1. Physical Base (from Identity Manifest)
-    # We look for [VISUAL] section in IDENTITY.md or use defaults
     visual_base = identity.get("visual_description", "A beautiful young woman")
     
     # 2. Current Outfit
@@ -24,16 +23,19 @@ def build_prompt(params, physique, identity, wardrobe):
     location = physique.get("current_location", "at home")
     action = params.get("action_description", "posing for a photo")
     
-    # 4. Photo Type
+    # 4. Photo Type & Aesthetics
     photo_type = params.get("type", "selfie")
-    style_suffix = "shot on iPhone 15 Pro, amateur mobile photography, natural lighting, high detail, realistic skin texture"
+    
+    # Cinematic parameters from Q's best practices
+    aesthetic = "shot on 35mm fujifilm, depth of field, natural skin texture, highly detailed, 8k, raw photo, realistic imperfections"
+    lighting = "cinematic lighting, soft shadows, natural highlights"
     
     if photo_type == "mirror":
         action = "taking a mirror selfie in a bathroom, phone visible in hand, reflection in mirror"
     elif photo_type == "candid":
         action = "captured in a natural moment, not looking at camera"
     
-    prompt = f"Highly detailed photorealistic {photo_type}, {visual_base}, wearing {outfit_str}, {action}, {location}, {style_suffix}"
+    prompt = f"Highly detailed photorealistic {photo_type}, {visual_base}, wearing {outfit_str}, {action}, {location}, {aesthetic}, {lighting}"
     return prompt
 
 def main():
@@ -43,9 +45,10 @@ def main():
 
     params = json.loads(sys.argv[1])
     
-    # Load state data from caller (provided via JSON string)
+    # Load state data from caller
     physique = params.get("physique", {})
     identity = params.get("identity_visual", {})
+    provider = params.get("provider", "nano")
     
     # Build prompt
     prompt = build_prompt(params, physique, identity, {})
@@ -61,7 +64,7 @@ def main():
         "python3", IMAGE_GEN_SCRIPT,
         "--prompt", prompt,
         "--output", output_path,
-        "--provider", "nano" # Default to Nano for quality
+        "--provider", provider
     ]
     
     try:
