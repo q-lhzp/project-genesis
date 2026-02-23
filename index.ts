@@ -568,7 +568,8 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "reality_interior", "reality_inventory",
     "reality_manage_memos",
     "reality_browse",
-    "reality_camera"
+    "reality_camera",
+    "reality_vision_analyze"
   ],
   analyst: [
     "reality_job_market", "reality_work",
@@ -580,7 +581,8 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "reality_manage_memos",
     "reality_genesis",
     "reality_profile",
-    "reality_camera"
+    "reality_camera",
+    "reality_vision_analyze"
   ],
   developer: [
     "reality_develop",
@@ -4442,6 +4444,31 @@ Keep responses brief. Focus on environmental storytelling.`;
             : `📸 Photo captured!\n- Type: ${params.type}\n- URL: ${result.url}\n- Prompt: ${result.prompt}` }] };
         } catch (e) {
           return { content: [{ type: "text", text: `Camera Error: ${e}` }] };
+        }
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_vision_analyze (Face-ID Integration)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_vision_analyze",
+      description: "Analyze a face in an image to extract detailed physical features (Bone structure, Eyes, Skin).",
+      parameters: Type.Object({
+        image_path: Type.String({ description: "Absolute path to the image to analyze" }),
+      }),
+      async execute(_id: string, params: { image_path: string }) {
+        const isDe = lang === "de";
+        const analyzeScript = join(__dirname, "skills", "soul-evolution", "tools", "vision", "face_id.py");
+        const cmd = `python3 "${analyzeScript}" analyze --image "${params.image_path}"`;
+
+        try {
+          const { stdout } = await execPromise(cmd);
+          return { content: [{ type: "text", text: isDe 
+            ? `Analyse-Anfrage fuer ${params.image_path} gestartet. Siehe Terminal fuer manuelle Anweisungen.` 
+            : `Analysis request for ${params.image_path} started. See terminal for manual instructions.` }] };
+        } catch (e) {
+          return { content: [{ type: "text", text: `Analysis Error: ${e}` }] };
         }
       },
     });

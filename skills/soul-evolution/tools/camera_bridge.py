@@ -4,8 +4,9 @@ import subprocess
 import os
 from datetime import datetime
 
-# Paths
-IMAGE_GEN_SCRIPT = "/home/leo/Schreibtisch/q-image-gen/scripts/generate_image.py"
+# Paths (Relative to this script's location)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGE_GEN_SCRIPT = os.path.join(SCRIPT_DIR, "vision", "generate_image.py")
 PHOTO_DIR = os.path.abspath("memory/reality/photos")
 
 def build_prompt(params, physique, identity, wardrobe):
