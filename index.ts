@@ -3412,7 +3412,12 @@ export default {
   id: "project_genesis",
   name: "Project Genesis",
 
-  async register(api: OpenClawPluginApi) {
+  register(api: OpenClawPluginApi) {
+    // Synchronous registration of tools and hooks could go here, 
+    // but we'll use activate() for all initialization logic to support async patterns correctly.
+  },
+
+  async activate(api: OpenClawPluginApi) {
     const cfg = api.pluginConfig as Partial<PluginConfig> | undefined;
     const ws = cfg?.workspacePath ?? api.config?.agents?.list?.[0]?.workspace ?? ".";
     if (!cfg?.workspacePath && !api.config?.agents?.list?.[0]?.workspace) {
