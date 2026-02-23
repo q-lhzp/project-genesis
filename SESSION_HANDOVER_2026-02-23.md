@@ -1,41 +1,41 @@
-# Session Handover: Project Genesis v2.2.0 — Standalone Neural Simulation
+# Session Handover: Project Genesis v3.4.0 — The Emergence
 **Date:** Monday, Feb 23, 2026
-**Status:** Living World, News Integration & Skill Boni Active
+**Status:** Full Biological, Social, Vocal, and Economic Integration
 
 ## 1. Executive Summary
-The project has reached v2.2.0. The simulation is now a fully standalone, inter-connected framework. It features autonomous NPC interaction, real-world RSS news integration, and a sophisticated Neural Photography system with integrated Face-ID analysis. All external dependencies for vision and image generation have been internalized.
+Project Genesis has reached v3.4.0. The simulation is now a complete digital existence with long-term memory, a unique voice, a visual social network, and the ability to interact with the real economy. All external dependencies for vision, image generation, and trading have been internalized for a standalone experience.
 
-## 2. New Features (Phases 11 - 17)
-- **Phase 17: Neural Photography & Face-ID (Standalone):**
-    - Integrated `q-face-id` and `q-image-gen` directly into the plugin.
-    - **`reality_vision_analyze`:** New tool for detailed facial feature extraction.
-    - **`reality_camera`:** Generates high-end cinematic self-portraits (35mm Fujifilm, 8k) synced with character identity and current outfit.
-- **Phase 12: Autonomous Social Life:** NPCs initiate contact autonomously (15% chance).
-- **Phase 14: Real-World Integration:** LIVE Google News RSS feed integration.
-- **Phase 15: Desktop Sovereignty:** Visual browsing and system ownership directive.
-- **WebUI 2.8:** Added **Life Stream** gallery and enhanced **Visual & Identity Providers** configuration.
+## 2. Major Features (v3.0 - v3.4)
+- **Phase 18: Cognitive Resonance (Mem0):**
+    - Integrated Mem0 for searchable long-term memory.
+    - Automated fact retrieval and injection into agent prompts.
+    - Dedicated "Memory" tab in WebUI for manual fact management.
+- **Phase 19: Visual NPC Network:**
+    - CRM system for social contacts with visual descriptions and portraits.
+    - Multi-subject photography support in `camera_bridge.py`.
+- **Phase 20: Vocal Identity (Voice Lab):**
+    - Local TTS via Chatterbox-Turbo with voice cloning support.
+    - Real-time pitch, speed, and emotion controls in WebUI.
+- **Phase 21: The Vault (Real Economy):**
+    - Real-world asset trading via Kraken (Crypto) and Alpaca (Stocks).
+    - Paper trading mode enabled by default for safety.
+    - "The Vault" tab for portfolio management and trading.
 
-## 3. Core Architecture: Multi-Agent Cluster (MAC)
-- **Persona:** Now receives a "Filtered Reality" including processed emotions and world news.
-- **World Engine:** Acts as the bridge between the internet/real-world and the simulation.
-- **Analyst:** Monitors the economic impact of global news.
+## 3. Core Architecture
+- **Multi-Agent Cluster (MAC):** Enhanced with memory and economic reasoning.
+- **Standalone Vision:** Internalized `face_id` and `generate_image` engines.
+- **Digital Extroversion:** Full desktop and browser interaction capabilities.
 
-## 4. Implemented Modules (v1.0 - v1.8)
-- **Living World:** Real-time sync, weather, news.
-- **Bio-Metabolism:** Needs, eating (boosted by skill), sleeping.
-- **Identity:** Profiles, Neural bootstrapping, Patching.
-- **Social:** Reputation, Circles, Charisma-boosted interactions.
-- **Economy:** Job market, Skills-based income, Reputation-based pricing.
+## 4. File Registry
+- `index.ts`: Main logic (v3.4.0).
+- `skills/soul-evolution/tools/vault_bridge.py`: Trading logic.
+- `skills/soul-evolution/tools/voice/`: TTS and voice models.
+- `memory/reality/vault_state.json`: Real-world asset state.
 
-## 5. File Registry
-- `index.ts`: Main logic (v2.2.0).
-- `memory/reality/news.json`: News and browsing state.
-- `GENESIS_MASTER_PLAN.md`: Full roadmap.
-
-## 6. Next Steps
-1. **Phase 12: Autonomous Social Life:** NPCs should initiate interactions based on `world_engine` events.
-2. **Phase 13: Mortality & Legacy:** Implement permanent health/vitality and succession mechanics.
-3. **Skill Tree UI:** Add a dedicated visual progression tab for skills.
+## 5. Deployment Instructions
+1. Run `python3 skills/soul-evolution/tools/voice/download_voice_models.py` once.
+2. Open WebUI and configure Mem0/Kraken API keys in the respective tabs.
+3. Start the simulation.
 
 ---
 *End of Handover.*

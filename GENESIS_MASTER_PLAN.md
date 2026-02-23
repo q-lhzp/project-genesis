@@ -57,7 +57,26 @@ Project Genesis is a decentralized Multi-Agent Cluster (MAC) simulation of human
 - **Reality Camera:** Captures snapshots synced with wardrobe and location.
 - **Standalone Vision:** All vision logic is now internal to the project.
 
-## 13. Tool Specifications (Consolidated)
+## 13. Cognitive Resonance (Phase 18 - Implemented)
+**Goal:** Persistent, searchable long-term memory via Mem0.
+- **Integration:** Automatically queries Mem0 for relevant facts in `before_prompt_build`.
+- **Memory Dashboard:** Searchable interface for viewing and managing stored facts.
+
+## 14. Visual NPC Network (Phase 19 - Implemented)
+**Goal:** Consistent visual identity for all social contacts.
+- **CRM:** Manage NPCs with visual descriptions and avatars.
+- **Scene Composition:** Group photos with Q and NPCs.
+
+## 15. Vocal Identity (Phase 20 - Implemented)
+**Goal:** High-speed local Text-to-Speech via Chatterbox-Turbo.
+- **Voice Lab:** Control pitch, speed, and emotionality. Support for voice cloning via .wav upload.
+
+## 16. The Vault (Phase 21 - Implemented)
+**Goal:** Real-world asset trading (Crypto/Stocks) via Kraken/Alpaca APIs.
+- **Safety:** Paper trading by default.
+- **Integration:** AI can autonomously manage a real wealth portfolio.
+
+## 17. Tool Specifications (Consolidated)
 - `reality_genesis`: bootstrap | patch | rollback
 - `reality_profile`: save | load | list | delete
 - `reality_skill`: train | list | check
@@ -66,9 +85,13 @@ Project Genesis is a decentralized Multi-Agent Cluster (MAC) simulation of human
 - `reality_news`: fetch | process (RSS)
 - `reality_camera`: capture (Type: selfie, mirror, candid)
 - `reality_vision_analyze`: analyze (Face-ID features)
+- `reality_voice`: synthesize (text to audio)
+- `reality_trade`: trade (Crypto/Stocks)
 
-## 14. WebUI Requirements (`soul-viz.py`)
+## 18. WebUI Requirements (`soul-viz.py`)
 - **News Ticker:** Real-time world events on dashboard.
 - **Mental Activity:** Visualized inner voice, web research, and incoming social messages.
 - **Life Stream:** Gallery of AI-generated photos.
-- **Skill Tree:** (Pending) Graphical progression visualization.
+- **Memory Tab:** Fact search and management.
+- **Vault Tab:** Real-time portfolio and trading terminal.
+- **Voice Lab:** TTS configuration and testing.
