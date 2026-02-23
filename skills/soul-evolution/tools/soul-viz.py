@@ -196,6 +196,7 @@ def collect_data(workspace: str) -> dict:
     reputation = load_json(os.path.join(memory_dir, "reality", "reputation.json"))
     news = load_json(os.path.join(memory_dir, "reality", "news.json"))
     internal_comm = load_json(os.path.join(memory_dir, "reality", "internal_comm.json"))
+    social_events = load_json(os.path.join(memory_dir, "reality", "social_events.json"))
 
     # Phase 4: Analytics & Lab - Read telemetry for visualization
     telemetry_dir = os.path.join(memory_dir, "telemetry")
@@ -262,6 +263,7 @@ def collect_data(workspace: str) -> dict:
         "reputation": reputation,
         "news": news,
         "internal_comm": internal_comm,
+        "social_events": social_events,
         "telemetry_vitality": vitality_data[-100:] if len(vitality_data) > 100 else vitality_data,  # Last 100 entries
         "telemetry_economy": economy_data[-100:] if len(economy_data) > 100 else economy_data,
     }
@@ -2809,10 +2811,23 @@ function vitalColor(value, key) {{
     const news = DATA.news || {{}};
     const comms = DATA.internal_comm || {{}};
     const refs = DATA.reflections || [];
+    const social = DATA.social_events || {{ pending: [] }};
     
     let html = '';
 
-    // 1. Current Thought (from latest Limbic memo or Reflection)
+    // 1. Incoming Social Message (Phase 12)
+    const activeSocial = social.pending.find(e => !e.processed);
+    if (activeSocial) {{
+      html += `
+        <div class="mental-card" style="border-left-color: #f0a050;">
+          <span class="mental-label">Incoming Message from ${{esc(activeSocial.sender_name)}}</span>
+          <div class="mental-content">"${{esc(activeSocial.message)}}"</div>
+          <span class="mental-sub">${{new Date(activeSocial.timestamp).toLocaleTimeString()}}</span>
+        </div>
+      `;
+    }}
+
+    // 2. Current Thought (from latest Limbic memo or Reflection)
     const latestMemo = (comms.memos || []).find(m => m.sender === 'limbic' && m.type === 'emotion');
     const latestRef = refs[refs.length - 1];
     

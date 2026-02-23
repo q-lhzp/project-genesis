@@ -3,17 +3,14 @@
 **Status:** Living World, News Integration & Skill Boni Active
 
 ## 1. Executive Summary
-The project has reached v1.8.0. The simulation is now mechanically linked to character skills and the real world. Skills now provide concrete bonuses to survival and economy, while real-world news headlines influence the simulation's market and environment.
+The project has reached v1.9.5. The simulation is now fully integrated with character skills, real-world RSS news, and features autonomous NPC interactions. The AI has visible control over the host machine via a visual browser and a sovereignty directive.
 
-## 2. New Features (Phase 11 & 14)
-- **Phase 11: Real-Impact Skills:**
-    - **Cooking:** Increases the effectiveness of the `eat` action.
-    - **Professional:** Multiplies income earned through `reality_work`.
-    - **Charisma:** Boosts `bond`, `trust`, and `reputation` gains during social interactions.
-- **Phase 14: World News & Browsing:**
-    - **Real-World News:** The `world_engine` can `fetch` real headlines and `process` them into simulation impacts (Market modifiers, Weather overrides).
-    - **Autonomous Browsing:** The agent can use `reality_browse` to research topics from `interests.json`, logging findings in `GROWTH.md`.
-    - **News Ticker:** Latest headlines are injected into the Persona's prompt under `[WORLD NEWS]`.
+## 2. New Features (Phases 11, 12, 14, 15)
+- **Phase 11: Skill Mastery:** Cooking, Professional, and Charisma skills provide concrete mechanical bonuses.
+- **Phase 12: Autonomous Social Life:** NPCs now initiate contact (15% chance per turn) based on relationship dynamics. Incoming messages create social pressure in the prompt.
+- **Phase 14: World News Integration:** The `world_engine` role fetches LIVE headlines from real-world RSS feeds based on character location.
+- **Phase 15: Desktop Sovereignty:** VISUAL browsing via Playwright Chromium (headless=False). AI is the explicit owner of the machine.
+- **WebUI Cognitive Dash:** Real-time visualization of "Inner Voice", News Ticker, Web Research, and incoming NPC messages.
 
 ## 3. Core Architecture: Multi-Agent Cluster (MAC)
 - **Persona:** Now receives a "Filtered Reality" including processed emotions and world news.

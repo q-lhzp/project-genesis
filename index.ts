@@ -217,6 +217,15 @@ interface ReputationState {
   last_propagation: string | null;
 }
 
+interface SocialEvent {
+  timestamp: string;
+  sender_name: string;
+  sender_id: string;
+  message: string;
+  category: "chat" | "request" | "conflict" | "support";
+  processed: boolean;
+}
+
 interface Inventory {
   items: InventoryItem[];
   categories: string[];
@@ -603,6 +612,8 @@ interface PluginConfig {
     cycle: boolean;
     dreams: boolean;
     hobbies: boolean;
+    economy?: boolean;
+    social?: boolean;
     utility?: boolean;
     psychology?: boolean;
     skills?: boolean;
@@ -611,6 +622,7 @@ interface PluginConfig {
     desktop?: boolean;
     legacy?: boolean;
     genesis?: boolean;
+    multi_model_optimization?: boolean;
   };
   metabolismRates: Record<string, number>;
   reflexThreshold: number;
@@ -2990,13 +3002,20 @@ function buildSensoryContext(
   socialState?: SocialState | null,
   financeState?: FinanceState | null,
   worldState?: WorldState | null,
-  skillState?: SkillState | null,
-  psychState?: PsychState | null,
-  reputationState?: ReputationState | null,
-): string {
-  const parts: string[] = [];
-
-  // [IDENTITY]
+      skillState?: SkillState | null,
+      psychState?: PsychState | null,
+      reputationState?: ReputationState | null,
+      socialEvent?: SocialEvent | null,
+    ): string {
+      const parts: string[] = [];
+  
+      // Phase 12: Autonomous Social Event (NPC Contact)
+      if (socialEvent) {
+        parts.push(`[SOCIAL CONTACT]\nIncoming message from ${socialEvent.sender_name} (${socialEvent.category}):\n"${socialEvent.message}"\nTASK: You should react to this message in your narrative or actions.`);
+      }
+  
+      // [IDENTITY]
+  
   if (identityLine) {
     parts.push(`[IDENTITY]\n${identityLine}`);
   }
@@ -3218,6 +3237,8 @@ export default {
       dreams: cfg?.modules?.dreams ?? false,
       hobbies: cfg?.modules?.hobbies ?? false,
       utility: cfg?.modules?.utility ?? true,
+      economy: cfg?.modules?.economy ?? true,
+      social: cfg?.modules?.social ?? true,
       psychology: cfg?.modules?.psychology ?? true,
       skills: cfg?.modules?.skills ?? true,
       world: cfg?.modules?.world ?? true,
@@ -3273,15 +3294,16 @@ export default {
       skills: resolvePath(ws, "memory", "reality", "skills.json"),
       world: resolvePath(ws, "memory", "reality", "world_state.json"),
       psychology: resolvePath(ws, "memory", "reality", "psychology.json"),
-      reputation: resolvePath(ws, "memory", "reality", "reputation.json"),
-      genesisEnabled: resolvePath(ws, "memory", "reality", "genesis_enabled.json"),
-      modelConfig: resolvePath(ws, "memory", "reality", "model_config.json"),
-      profiles: resolvePath(ws, "memory", "profiles"),
-      backups: resolvePath(ws, "memory", "backups"),
-      genesisRequest: resolvePath(ws, "memory", "reality", "genesis_request.json"),
-    };
-
-    // -------------------------------------------------------------------
+              reputation: resolvePath(ws, "memory", "reality", "reputation.json"),
+              genesisEnabled: resolvePath(ws, "memory", "reality", "genesis_enabled.json"),
+              modelConfig: resolvePath(ws, "memory", "reality", "model_config.json"),
+              news: resolvePath(ws, "memory", "reality", "news.json"),
+              socialEvents: resolvePath(ws, "memory", "reality", "social_events.json"),
+              profiles: resolvePath(ws, "memory", "profiles"),
+              backups: resolvePath(ws, "memory", "backups"),
+              genesisRequest: resolvePath(ws, "memory", "reality", "genesis_request.json"),
+            };
+          // -------------------------------------------------------------------
     // Sync Skill Configuration from WebUI
     // -------------------------------------------------------------------
     if (cfg?.evolution) {
@@ -3321,8 +3343,10 @@ export default {
       agent?: { id?: string; name?: string };
     }
 
-    api.on("before_prompt_build", async (_event: unknown, ctx: unknown) => {
-      const promptCtx = ctx as PromptBuildCtx;
+          api.on("before_prompt_build", async (_event: unknown, ctx: unknown) => {
+            const isDe = lang === "de";
+            const promptCtx = ctx as PromptBuildCtx;
+    
       const agentId = promptCtx?.agent?.id ?? promptCtx?.agent?.name ?? "persona";
       const roleMapping = cfg?.roleMapping;
       const agentRole = detectAgentRole(agentId, roleMapping);
@@ -3417,6 +3441,48 @@ export default {
       // Load social and finance state for role-specific contexts
       let socialState: SocialState | null = await readJson<SocialState>(paths.social);
       let financeState: FinanceState | null = await readJson<FinanceState>(paths.finances);
+
+      // Phase 12: Autonomous Social Life - NPCs initiate interactions
+      let activeSocialEvent: SocialEvent | null = null;
+      if (modules.social && socialState && socialState.entities.length > 0) {
+        const events = await readJson<{ pending: SocialEvent[] }>(paths.socialEvents);
+        activeSocialEvent = events?.pending.find(e => !e.processed) || null;
+
+        // 15% chance to trigger a new event if none is active
+        if (!activeSocialEvent && Math.random() < 0.15) {
+          const entity = socialState.entities[Math.floor(Math.random() * socialState.entities.length)];
+          const bond = entity.bond;
+          
+          let category: SocialEvent["category"] = "chat";
+          let message = "";
+
+          if (bond < -20) {
+            category = "conflict";
+            message = isDe ? `Hey, wir haben noch eine Rechnung offen.` : `Hey, we have some unfinished business.`;
+          } else if (bond > 50) {
+            category = Math.random() < 0.5 ? "support" : "request";
+            message = category === "support" 
+              ? (isDe ? `Ich dachte an dich, hoffe es geht dir gut!` : `Just thought of you, hope you're doing well!`)
+              : (isDe ? `Kannst du mir bei einer Sache helfen?` : `Can you help me with something?`);
+          } else {
+            message = isDe ? `Lange nicht gesprochen, was gibts neues?` : `Long time no see, what's new?`;
+          }
+
+          activeSocialEvent = {
+            timestamp: new Date().toISOString(),
+            sender_name: entity.name,
+            sender_id: entity.id,
+            message,
+            category,
+            processed: false
+          };
+
+          // Persist the event
+          const allEvents = events || { pending: [] };
+          allEvents.pending.push(activeSocialEvent);
+          await writeJson(paths.socialEvents, allEvents);
+        }
+      }
 
       // Phase 10: Reputation - Auto-initialize if missing
       let reputationState: ReputationState | null = await withFileLock(paths.reputation, async () => {
@@ -3567,10 +3633,10 @@ export default {
         } catch { /* ignore */ }
       }
 
-      const devManifest = await readJson<DevManifest>(paths.devManifest);
-      const isDe = lang === "de";
-
-      // Phase 6: Living World State Load
+              const devManifest = await readJson<DevManifest>(paths.devManifest);
+      
+              // Phase 6: Living World State Load
+      
       let skillState: SkillState | null = null;
       let worldState: WorldState | null = null;
       let psychState: PsychState | null = null;
@@ -3744,7 +3810,8 @@ Keep responses brief. Focus on environmental storytelling.`;
         ph, lang, modules, cycleState, cycleProfile,
         emotionState, desireState, identityLine, growthCtx,
         dreamState, hobbySuggestion, lifecycleState, socialState, financeState,
-        worldState, skillState, psychState, reputationState
+        worldState, skillState, psychState, reputationState,
+        activeSocialEvent
       ) + dreamTriggerHint;
 
       // Combine contexts based on role - COST OPTIMIZED
@@ -3916,6 +3983,13 @@ Keep responses brief. Focus on environmental storytelling.`;
 
       const expPath = join(paths.experiences, `${todayStr()}.jsonl`);
       await appendJsonl(expPath, entry);
+
+      // Phase 12: Mark social events as processed after AI output
+      const socialEvents = await readJson<{ pending: SocialEvent[] }>(paths.socialEvents);
+      if (socialEvents && socialEvents.pending.some(e => !e.processed)) {
+        socialEvents.pending.forEach(e => e.processed = true);
+        await writeJson(paths.socialEvents, socialEvents);
+      }
     });
 
     // -------------------------------------------------------------------
@@ -4234,30 +4308,28 @@ Keep responses brief. Focus on environmental storytelling.`;
         }
 
         if (action === "fetch") {
-          // Mock news fetch based on location (in production, use real news API)
-          const mockHeadlines = [
-            { title: "Global Economic Summit Discusses Market Trends", category: "economy" },
-            { title: "Tech Industry Reports New Innovations in AI", category: "technology" },
-            { title: "Local Community Events Announced", category: "local" },
-            { title: "Weather Alert: Seasonal Changes Expected", category: "weather" },
-            { title: "Healthcare Officials Release New Guidelines", category: "health" },
-          ];
+          const fetcherScript = join(__dirname, "skills", "soul-evolution", "tools", "news_fetcher.py");
+          const cmd = `python3 "${fetcherScript}" "${location}"`;
 
-          // Select 2-3 random headlines
-          const shuffled = mockHeadlines.sort(() => Math.random() - 0.5);
-          const selected = shuffled.slice(0, 3).map(h => ({
-            ...h,
-            timestamp: new Date().toISOString()
-          }));
+          try {
+            const { stdout } = await execPromise(cmd);
+            const result = JSON.parse(stdout.trim());
+            
+            if (result.success && result.headlines) {
+              newsState.headlines = result.headlines.slice(0, 5);
+              newsState.last_fetch = new Date().toISOString();
+              await writeJson(newsPath, newsState);
 
-          newsState.headlines = selected;
-          newsState.last_fetch = new Date().toISOString();
-          await writeJson(newsPath, newsState);
-
-          const list = selected.map(h => `- [${h.category}] ${h.title}`).join("\n");
-          return { content: [{ type: "text", text: lang === "de"
-            ? `Aktuelle Nachrichten fuer ${location}:\n${list}`
-            : `Current news for ${location}:\n${list}` }] };
+              const list = newsState.headlines.map((h: any) => `- ${h.title}`).join("\n");
+              return { content: [{ type: "text", text: lang === "de"
+                ? `Aktuelle Nachrichten fuer ${location}:\n${list}`
+                : `Current news for ${location}:\n${list}` }] };
+            } else {
+              throw new Error(result.error || "Unknown fetch error");
+            }
+          } catch (e) {
+            return { content: [{ type: "text", text: `News fetch failed: ${e}` }] };
+          }
         }
 
         if (action === "process") {

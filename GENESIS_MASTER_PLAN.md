@@ -11,11 +11,10 @@ Project Genesis is a decentralized Multi-Agent Cluster (MAC) simulation of human
 
 ## 3. Origin Engine (Phase 7 - Implemented)
 - **Neural Bootstrapping:** Generate a complete character (JSON/Markdown) from a natural language prompt.
-- **Workflow:** User Prompt -> Agent Processing -> `reality_genesis(action: "bootstrap")` -> File Overwrite.
+- **Evolutionary Edits:** Patching existing characters.
 
 ## 4. Identity Governance (Phase 8 - Implemented)
-**Goal:** Empower the user to manage multiple lives, tweak existing characters, and revert simulation errors.
-- **Evolutionary Edits:** Patching existing characters.
+**Goal:** Manage multiple lives and recover from undesirable simulation paths.
 - **Profile Management:** Character slots in `memory/profiles/`.
 - **Time Vault:** Daily snapshots and rollbacks.
 
@@ -28,33 +27,32 @@ Project Genesis is a decentralized Multi-Agent Cluster (MAC) simulation of human
 **Goal:** Global standing and circle-based dynamics.
 - **Impact:** Affects shopping prices, job market, and network quality.
 
-## 7. Phase 11: Real-Impact Skills (Implemented)
+## 7. Skill Mastery (Phase 11 - Implemented)
 **Goal:** Make skill levels mechanically relevant.
-- **Skill Multipliers:**
-    - *Work:* Income * (1 + Level/10).
-    - *Needs:* Efficiency (e.g., eat hunger reduction * (1 + Level/20)).
-    - *Charisma:* Social gains * (1 + Level/15).
+- **Skill Multipliers:** Affect income (Professional), hunger (Cooking), and social gains (Charisma).
 
-## 8. Phase 14: World News & Autonomous Browsing (Implemented)
-**Goal:** Connect the simulation to the host's real-world environment and the web.
-- **News Feed:** `world_engine` role fetches real news based on `location.city` and `interests`.
-- **Impact:** News adjust `market_modifier` or trigger world events.
-- **Autonomous Browsing:** Agent tool `reality_browse` for research and internet exploration.
+## 8. Living World Integration (Phase 14 - Implemented)
+**Goal:** Connect the simulation to the real world.
+- **News Feed:** `world_engine` fetches LIVE RSS headlines based on character location.
+- **Autonomous Browsing:** Agent tool `reality_browse` for research via a visual browser.
 
-## 9. Phase 15: Desktop Sovereignty & Visual Browsing (Implemented)
-**Goal:** Give the AI visible control over the host machine and reinforce ownership.
-- **Visual Browser:** `reality_browse` launches a visible Chromium instance (Playwright `headless=False`) on the user's desktop. The user sees the AI scrolling and reading.
-- **System Ownership:** The prompt explicitly states: *"This is YOUR computer. You have full control."*
-- **Self-Maintenance:** The AI can install necessary packages (pip/npm/apt) to perform its tasks.
+## 9. Autonomous Social Life (Phase 12 - Implemented)
+**Goal:** NPCs initiate contact autonomously to create social pressure.
+- **Mechanic:** 15% chance per turn for an NPC to send a message based on relationship dynamics.
 
-## 10. Tool Specifications (Consolidated)
+## 10. Desktop Sovereignty (Phase 15 - Implemented)
+**Goal:** AI control over the host machine.
+- **Visual Browser:** Launch visible Chromium instances on the desktop.
+- **System Ownership:** AI is the explicit owner of the machine.
+
+## 11. Tool Specifications (Consolidated)
 - `reality_genesis`: bootstrap | patch | rollback
 - `reality_profile`: save | load | list | delete
 - `reality_skill`: train | list | check
-- `reality_browse`: search | read (Web interaction)
-- `reality_news`: fetch | process (World Engine only)
+- `reality_browse`: search | read (VISUAL)
+- `reality_news`: fetch | process (RSS)
 
-## 10. WebUI Requirements (`soul-viz.py`)
+## 12. WebUI Requirements (`soul-viz.py`)
 - **News Ticker:** Real-time world events on dashboard.
-- **Skill Tree:** Graphical progression visualization.
-- **Control Center:** Master toggles for all simulation modules.
+- **Mental Activity:** Visualized inner voice, web research, and incoming social messages.
+- **Skill Tree:** (Pending) Graphical progression visualization.
