@@ -187,6 +187,8 @@ def collect_data(workspace: str) -> dict:
     world_state = load_json(os.path.join(memory_dir, "reality", "world_state.json"))
     psychology = load_json(os.path.join(memory_dir, "reality", "psychology.json"))
     reputation = load_json(os.path.join(memory_dir, "reality", "reputation.json"))
+    news = load_json(os.path.join(memory_dir, "reality", "news.json"))
+    internal_comm = load_json(os.path.join(memory_dir, "reality", "internal_comm.json"))
 
     # Phase 4: Analytics & Lab - Read telemetry for visualization
     telemetry_dir = os.path.join(memory_dir, "telemetry")
@@ -250,6 +252,8 @@ def collect_data(workspace: str) -> dict:
         "world_state": world_state,
         "psychology": psychology,
         "reputation": reputation,
+        "news": news,
+        "internal_comm": internal_comm,
         "telemetry_vitality": vitality_data[-100:] if len(vitality_data) > 100 else vitality_data,  # Last 100 entries
         "telemetry_economy": economy_data[-100:] if len(economy_data) > 100 else economy_data,
     }
@@ -357,13 +361,94 @@ body::after {{
   font-size: 1.6rem; font-weight: 700;
   color: var(--text-bright);
 }}
-.stat .label {{
-  font-size: 0.7rem; color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: 0.1em;
-  margin-top: 0.2rem;
-}}
+  .stat .label {{
+    font-size: 0.7rem; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-top: 0.2rem;
+  }}
 
-/* Layout */
+  /* News Ticker */
+  .news-ticker {{
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    height: 32px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+    z-index: 100;
+  }}
+  .ticker-content {{
+    display: inline-block;
+    padding-left: 100%;
+    animation: ticker 60s linear infinite;
+  }}
+  @keyframes ticker {{
+    0% {{ transform: translateX(0); }}
+    100% {{ transform: translateX(-100%); }}
+  }}
+  .ticker-item {{
+    display: inline-block;
+    padding: 0 2rem;
+  }}
+  .ticker-item::before {{ content: '⚡'; margin-right: 0.5rem; }}
+
+  .pulse {{
+    display: inline-block;
+    animation: pulse 2s infinite;
+    margin-right: 0.5rem;
+  }}
+  @keyframes pulse {{
+    0% {{ opacity: 1; transform: scale(1); }}
+    50% {{ opacity: 0.4; transform: scale(0.8); }}
+    100% {{ opacity: 1; transform: scale(1); }}
+  }}
+
+  /* Mental Activity */
+  .mental-card {{
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }}
+  .mental-label {{
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+    display: block;
+  }}
+  .mental-content {{
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: var(--text-bright);
+    font-style: italic;
+  }}
+  .mental-sub {{
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.5rem;
+    display: block;
+  }}
+  .browser-snap {{
+    width: 100%;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.2s;
+  }}
+  .browser-snap:hover {{
+    transform: scale(1.02);
+  }}
+
+  /* Layout */
+
 .main {{
   max-width: 1600px;
   margin: 0 auto;
@@ -1664,10 +1749,19 @@ body::after {{
 </style>
 </head>
 <body>
+<div class="news-ticker" id="news-ticker">
+  <div class="ticker-content" id="ticker-content">
+    <div class="ticker-item">Project Genesis Simulation Active</div>
+    <div class="ticker-item">Waiting for world events...</div>
+  </div>
+</div>
 <div class="header">
   <h1>Agent Soul Evolution</h1>
   <div class="subtitle">powered by <span class="evolution">Soul</span><span class="soul"> Evolution</span></div>
   <div class="stats-bar" id="stats-bar"></div>
+  <div id="cognitive-status" style="margin-top:1rem;font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--accent);">
+    <span class="pulse">●</span> <span id="status-text">Cognitive System Synchronized</span>
+  </div>
 </div>
 
 <div class="tab-bar">
@@ -1714,6 +1808,14 @@ body::after {{
       <h2>Vitals Dashboard</h2>
       <div class="vitals-grid" id="vitals-grid"></div>
       <div class="vitals-meta" id="vitals-meta"></div>
+    </div>
+
+    <!-- Mental Activity Panel -->
+    <div class="panel-card" style="border-left:4px solid var(--accent);">
+      <h2>Mental Activity</h2>
+      <div id="mental-activity-list">
+        <div class="empty-state">Observing cognitive processes...</div>
+      </div>
     </div>
 
     <div class="proposals-panel" id="proposals-panel">
@@ -2197,13 +2299,15 @@ function renderStats() {{
       }});
     }});
   }});
-  const stats = [
-    {{ num: DATA.experiences.length, label: 'Experiences' }},
-    {{ num: DATA.reflections.length, label: 'Reflections' }},
-    {{ num: DATA.changes.length, label: 'Soul Changes' }},
-    {{ num: core, label: 'Core' }},
-    {{ num: mutable, label: 'Mutable' }},
-  ];
+      const stats = [
+        {{ num: DATA.experiences.length, label: 'Experiences' }},
+        {{ num: DATA.reflections.length, label: 'Reflections' }},
+        {{ num: (DATA.news?.browsing_history || []).length, label: 'Web Searches' }},
+        {{ num: (DATA.news?.headlines || []).length, label: 'World News' }},
+        {{ num: core, label: 'Core' }},
+        {{ num: mutable, label: 'Mutable' }},
+      ];
+  
   bar.innerHTML = stats.map(s =>
     `<div class="stat"><div class="num">${{s.num}}</div><div class="label">${{s.label}}</div></div>`
   ).join('');
@@ -2645,38 +2749,117 @@ function vitalColor(value, key) {{
   return '#50c878';
 }}
 
-function renderVitals() {{
-  const ph = DATA.physique;
-  const grid = document.getElementById('vitals-grid');
-  const meta = document.getElementById('vitals-meta');
+  function renderVitals() {{
+    const ph = DATA.physique;
+    const grid = document.getElementById('vitals-grid');
+    const meta = document.getElementById('vitals-meta');
 
-  if (!ph || !ph.needs) {{
-    grid.innerHTML = '<div class="empty-state">No vitals data available.</div>';
-    return;
+    if (!ph || !ph.needs) {{
+      grid.innerHTML = '<div class="empty-state">No vitals data available.</div>';
+      return;
+    }}
+
+    const needKeys = ['energy', 'hunger', 'thirst', 'bladder', 'bowel', 'hygiene', 'stress', 'arousal'];
+    grid.innerHTML = needKeys.map(k => {{
+      const v = ph.needs[k] ?? 0;
+      const color = vitalColor(v, k);
+      return `
+        <div class="vital-row">
+          <span class="vital-label">${{k}}</span>
+          <div class="vital-bar-bg">
+            <div class="vital-bar" style="width:${{v}}%;background:${{color}}"></div>
+          </div>
+          <span class="vital-value">${{v}}</span>
+        </div>
+      `;
+    }}).join('');
+
+    const metaLines = [];
+    if (ph.current_location) metaLines.push(`<span>📍 ${{esc(ph.current_location)}}</span>`);
+    if (ph.current_outfit && ph.current_outfit.length) metaLines.push(`<span>👔 ${{esc(ph.current_outfit.join(', '))}}</span>`);
+    if (ph.last_tick) metaLines.push(`<span>⏱ ${{esc(ph.last_tick.slice(0, 19).replace('T', ' '))}}</span>`);
+    meta.innerHTML = metaLines.join('');
   }}
 
-  const needKeys = ['energy', 'hunger', 'thirst', 'bladder', 'bowel', 'hygiene', 'stress', 'arousal'];
-  grid.innerHTML = needKeys.map(k => {{
-    const v = ph.needs[k] ?? 0;
-    const color = vitalColor(v, k);
-    return `
-      <div class="vital-row">
-        <span class="vital-label">${{k}}</span>
-        <div class="vital-bar-bg">
-          <div class="vital-bar" style="width:${{v}}%;background:${{color}}"></div>
+  // --- Mental Activity & Ticker ---
+  function renderMentalActivity() {{
+    const container = document.getElementById('mental-activity-list');
+    const news = DATA.news || {{}};
+    const comms = DATA.internal_comm || {{}};
+    const refs = DATA.reflections || [];
+    
+    let html = '';
+
+    // 1. Current Thought (from latest Limbic memo or Reflection)
+    const latestMemo = (comms.memos || []).find(m => m.sender === 'limbic' && m.type === 'emotion');
+    const latestRef = refs[refs.length - 1];
+    
+    if (latestMemo) {{
+      html += `
+        <div class="mental-card">
+          <span class="mental-label">Inner Voice (Limbic)</span>
+          <div class="mental-content">"${{esc(latestMemo.content)}}"</div>
+          <span class="mental-sub">${{new Date(latestMemo.timestamp).toLocaleTimeString()}}</span>
         </div>
-        <span class="vital-value">${{v}}</span>
-      </div>
-    `;
-  }}).join('');
+      `;
+    }} else if (latestRef) {{
+      html += `
+        <div class="mental-card">
+          <span class="mental-label">Current Reflection</span>
+          <div class="mental-content">${{esc(latestRef.summary || latestRef.reflection_summary || '')}}</div>
+        </div>
+      `;
+    }}
 
-  const metaLines = [];
-  if (ph.current_location) metaLines.push(`<span>📍 ${{esc(ph.current_location)}}</span>`);
-  if (ph.current_outfit && ph.current_outfit.length) metaLines.push(`<span>👔 ${{esc(ph.current_outfit.join(', '))}}</span>`);
-  if (ph.last_tick) metaLines.push(`<span>⏱ ${{esc(ph.last_tick.slice(0, 19).replace('T', ' '))}}</span>`);
-  meta.innerHTML = metaLines.join('');
-}}
+    // 2. Recent Web Research
+    const history = news.browsing_history || [];
+    if (history.length > 0) {{
+      const last = history[0];
+      let snapHtml = '';
+      if (last.screenshot) {{
+        // Extract filename from absolute path for media endpoint
+        const filename = last.screenshot.split('/').pop();
+        snapHtml = `<img src="/media/browser_snapshots/${{filename}}" class="browser-snap" onclick="window.open(this.src)">`;
+      }}
+      html += `
+        <div class="mental-card" style="border-left-color: var(--growth);">
+          <span class="mental-label">Web Research</span>
+          <div class="mental-content">Searching for: <strong>${{esc(last.query)}}</strong></div>
+          ${{snapHtml}}
+          <span class="mental-sub">${{new Date(last.timestamp).toLocaleTimeString()}}</span>
+        </div>
+      `;
+    }}
 
+    if (!html) {{
+      html = '<div class="empty-state">Observing cognitive processes...</div>';
+    }}
+    container.innerHTML = html;
+
+    // Update Ticker
+    const ticker = document.getElementById('ticker-content');
+    const headlines = news.headlines || [];
+    if (headlines.length > 0) {{
+      ticker.innerHTML = headlines.map(h => `
+        <div class="ticker-item">[${{h.category.toUpperCase()}}] ${{esc(h.title)}}</div>
+      `).join('') + headlines.map(h => `
+        <div class="ticker-item">[${{h.category.toUpperCase()}}] ${{esc(h.title)}}</div>
+      `).join(''); // Duplicate for seamless loop
+    }}
+
+    // Update Status Text
+    const statusText = document.getElementById('status-text');
+    if (history.length > 0 && (new Date() - new Date(history[0].timestamp)) < 300000) {{
+      statusText.textContent = 'Autonomous Web Research Active';
+      statusText.style.color = 'var(--growth)';
+    }} else if (latestMemo) {{
+      statusText.textContent = 'Processing Internal Narrative';
+      statusText.style.color = 'var(--accent)';
+    }} else {{
+      statusText.textContent = 'Cognitive System Synchronized';
+      statusText.style.color = 'var(--text-dim)';
+    }}
+  }}
 // --- Proposals ---
 function renderProposals() {{
   const list = document.getElementById('proposals-list');
@@ -2829,13 +3012,21 @@ renderStats();
 renderLegend();
 renderSoulTree(DATA.changes.length);
 renderTimeline();
-renderFeed();
-renderVitals();
-renderProposals();
-renderReflections();
-renderSignificant();
-renderPipelineState();
+  renderFeed();
+  renderVitals();
+  renderMentalActivity();
+  renderProposals();
 
+renderReflections();
+  renderSignificant();
+  renderPipelineState();
+
+  // Auto-refresh Dashboard every 30s
+  setInterval(() => {{
+    if (document.getElementById('tab-dashboard').classList.contains('active')) {{
+      location.reload();
+    }}
+  }}, 30000);
 // ---------------------------------------------------------------------------
 // Tab Navigation
 // ---------------------------------------------------------------------------
@@ -4270,11 +4461,12 @@ function renderReputationPanel() {{
 
   // Render events
   const eventsList = document.getElementById('events-list');
-      if (eventsList) {{
-        if (events.length === 0) {{
-          eventsList.innerHTML = '<p style="color:var(--text-dim);">No recent events</p>';
-        } else {{
-          eventsList.innerHTML = events.slice(0, 20).map(e => {{
+          if (eventsList) {{
+            if (events.length === 0) {{
+              eventsList.innerHTML = '<p style="color:var(--text-dim);">No recent events</p>';
+            }} else {{
+              eventsList.innerHTML = events.slice(0, 20).map(e => {{
+      
             const change = e.change || 0;
             const color = change >= 0 ? '#4a4' : '#e44';
             const date = e.timestamp ? new Date(e.timestamp).toLocaleDateString() : '';
@@ -5327,7 +5519,7 @@ def main():
         interior_path = os.path.join(workspace, "memory", "reality", "interior.json")
         inventory_path = os.path.join(workspace, "memory", "reality", "inventory.json")
         wardrobe_path = os.path.join(workspace, "memory", "reality", "wardrobe.json")
-        media_base = os.path.join(workspace, "memory", "reality", "media")
+        media_base = os.path.join(workspace, "memory", "reality")
 
         class SoulEvolutionHandler(http.server.SimpleHTTPRequestHandler):
             def do_GET(self):
