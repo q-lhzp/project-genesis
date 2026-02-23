@@ -198,6 +198,13 @@ def collect_data(workspace: str) -> dict:
     internal_comm = load_json(os.path.join(memory_dir, "reality", "internal_comm.json"))
     social_events = load_json(os.path.join(memory_dir, "reality", "social_events.json"))
 
+    # Photos
+    photos = []
+    photo_dir = os.path.join(memory_dir, "reality", "photos")
+    if os.path.isdir(photo_dir):
+        for fp in sorted(glob.glob(os.path.join(photo_dir, "*.png")), reverse=True):
+            photos.append(os.path.basename(fp))
+
     # Phase 4: Analytics & Lab - Read telemetry for visualization
     telemetry_dir = os.path.join(memory_dir, "telemetry")
     vitality_data = []
@@ -264,6 +271,7 @@ def collect_data(workspace: str) -> dict:
         "news": news,
         "internal_comm": internal_comm,
         "social_events": social_events,
+        "photos": photos,
         "telemetry_vitality": vitality_data[-100:] if len(vitality_data) > 100 else vitality_data,  # Last 100 entries
         "telemetry_economy": economy_data[-100:] if len(economy_data) > 100 else economy_data,
     }
@@ -1785,6 +1793,7 @@ body::after {{
   <button class="tab-btn" onclick="switchTab('skills')">Skills</button>
   <button class="tab-btn" onclick="switchTab('psychology')">Psychology</button>
   <button class="tab-btn" onclick="switchTab('reputation')">Social Standing</button>
+  <button class="tab-btn" onclick="switchTab('stream')">Life Stream</button>
   <button class="tab-btn" onclick="switchTab('genesis')">Genesis Lab</button>
 </div>
 
@@ -2076,6 +2085,18 @@ body::after {{
           <li>Social network: High reputation attracts quality contacts</li>
         </ul>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Life Stream Tab -->
+<div id="tab-stream" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <h1>Life Stream</h1>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;">A visual history of captured moments and neural photography.</p>
+    
+    <div id="photo-stream" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;">
+      <div class="empty-state">No photos captured yet. Use reality_camera to take a photo.</div>
     </div>
   </div>
 </div>
@@ -3086,6 +3107,7 @@ function switchTab(tabId) {{
   if (tabId === 'skills' && !window._skillsRendered) {{ renderSkillsPanel(); window._skillsRendered = true; }}
   if (tabId === 'psychology' && !window._psychRendered) {{ renderPsychPanel(); window._psychRendered = true; }}
   if (tabId === 'reputation' && !window._repRendered) {{ renderReputationPanel(); window._repRendered = true; }}
+  if (tabId === 'stream' && !window._streamRendered) {{ renderPhotoStream(); window._streamRendered = true; }}
   if (tabId === 'genesis' && !window._genesisRendered) {{ window._genesisRendered = true; loadGenesisStatus(); }}
 }}
 
@@ -4526,47 +4548,68 @@ function renderReputationPanel() {{
 // ---------------------------------------------------------------------------
 // Psychology Tab
 // ---------------------------------------------------------------------------
-function renderPsychPanel() {{
-  const psych = DATA.psychology || {{}};
+  function renderPsychPanel() {{
+    const psych = DATA.psychology || {{}};
 
-  // Resilience
-  const res = psych.resilience || 0;
-  const resColor = res > 70 ? 'var(--growth)' : (res < 30 ? 'var(--danger)' : 'var(--text)');
-  document.getElementById('psych-resilience').innerHTML = `
-    <div style="width:100%;height:20px;background:var(--border);border-radius:10px;overflow:hidden;">
-      <div style="width:${{res}}%;height:100%;background:${{resColor}};transition:width 0.5s;"></div>
-    </div>
-    <p style="text-align:center;margin-top:0.5rem;">${{res}}/100</p>`;
+    // Resilience
+    const res = psych.resilience || 0;
+    const resColor = res > 70 ? 'var(--growth)' : (res < 30 ? 'var(--danger)' : 'var(--text)');
+    document.getElementById('psych-resilience').innerHTML = `
+      <div style="width:100%;height:20px;background:var(--border);border-radius:10px;overflow:hidden;">
+        <div style="width:${{res}}%;height:100%;background:${{resColor}};transition:width 0.5s;"></div>
+      </div>
+      <p style="text-align:center;margin-top:0.5rem;">${{res}}/100</p>`;
 
-  // Traumas
-  const traumas = psych.traumas || [];
-  if (traumas.length === 0) {{
-    document.getElementById('psych-traumas').innerHTML = '<p style="color:var(--text-dim);">No active traumas</p>';
-  }} else {{
-    document.getElementById('psych-traumas').innerHTML = traumas.map(t => `
-      <div style="padding:0.5rem;margin-bottom:0.5rem;background:rgba(224,80,80,0.1);border-left:3px solid var(--danger);border-radius:4px;">
-        <div style="display:flex;justify-content:space-between;">
-          <strong>${{t.description?.slice(0, 50) || 'Trauma'}}${{t.description?.length > 50 ? '...' : ''}}</strong>
-          <span style="color:var(--danger);">${{t.severity}}/100</span>
-        </div>
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.2rem;">
-          Trigger: ${{t.trigger || 'unknown'}} · Decay: ${{t.decay_rate}}/day
-        </div>
-      </div>`).join('');
+    // Traumas
+    const traumas = psych.traumas || [];
+    if (traumas.length === 0) {{
+      document.getElementById('psych-traumas').innerHTML = '<p style="color:var(--text-dim);">No active traumas</p>';
+    }} else {{
+      document.getElementById('psych-traumas').innerHTML = traumas.map(t => `
+        <div style="padding:0.5rem;margin-bottom:0.5rem;background:rgba(224,80,80,0.1);border-left:3px solid var(--danger);border-radius:4px;">
+          <div style="display:flex;justify-content:space-between;">
+            <strong>${{t.description?.slice(0, 50) || 'Trauma'}}${{t.description?.length > 50 ? '...' : ''}}</strong>
+            <span style="color:var(--danger);">${{t.severity}}/100</span>
+          </div>
+          <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.2rem;">
+            Trigger: ${{t.trigger || 'unknown'}} · Decay: ${{t.decay_rate}}/day
+          </div>
+        </div>`).join('');
+    }}
+
+    // Phobias
+    const phobias = psych.phobias || [];
+    document.getElementById('psych-phobias').innerHTML = phobias.length > 0
+      ? phobias.map(p => `<span style="display:inline-block;padding:0.2rem 0.5rem;margin:0.2rem;background:var(--border);border-radius:4px;font-size:0.85rem;">${{p}}</span>`).join('')
+      : '<p style="color:var(--text-dim);">No phobias recorded</p>';
+
+    // Joys
+    const joys = psych.joys || [];
+    document.getElementById('psych-joys').innerHTML = joys.length > 0
+      ? joys.map(j => `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);">${{j}}</div>`).join('')
+      : '<p style="color:var(--text-dim);">No joys recorded</p>';
   }}
 
-  // Phobias
-  const phobias = psych.phobias || [];
-  document.getElementById('psych-phobias').innerHTML = phobias.length > 0
-    ? phobias.map(p => `<span style="display:inline-block;padding:0.2rem 0.5rem;margin:0.2rem;background:var(--border);border-radius:4px;font-size:0.85rem;">${{p}}</span>`).join('')
-    : '<p style="color:var(--text-dim);">No phobias recorded</p>';
+  // --- Life Stream ---
+  function renderPhotoStream() {{
+    const container = document.getElementById('photo-stream');
+    const photos = DATA.photos || [];
 
-  // Joys
-  const joys = psych.joys || [];
-  document.getElementById('psych-joys').innerHTML = joys.length > 0
-    ? joys.map(j => `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);">${{j}}</div>`).join('')
-    : '<p style="color:var(--text-dim);">No joys recorded</p>';
-}}
+    if (photos.length === 0) {{
+      container.innerHTML = '<div class="empty-state">No photos captured yet. Use reality_camera to take a photo.</div>';
+      return;
+    }}
+
+    container.innerHTML = photos.map(p => `
+      <div class="panel-card" style="padding:0.5rem;overflow:hidden;">
+        <img src="/media/photos/${{p}}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;" onclick="window.open(this.src)">
+        <div style="padding:0.5rem;font-size:0.75rem;color:var(--text-dim);">
+          ${{p.replace('photo_', '').replace('.png', '').replace(/_/g, ' ')}}
+        </div>
+      </div>
+    `).join('');
+  }}
+
 </script>
 </body>
 </html>"""

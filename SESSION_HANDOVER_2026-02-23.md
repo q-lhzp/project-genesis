@@ -10,7 +10,8 @@ The project has reached v1.9.5. The simulation is now fully integrated with char
 - **Phase 12: Autonomous Social Life:** NPCs now initiate contact (15% chance per turn) based on relationship dynamics. Incoming messages create social pressure in the prompt.
 - **Phase 14: World News Integration:** The `world_engine` role fetches LIVE headlines from real-world RSS feeds based on character location.
 - **Phase 15: Desktop Sovereignty:** VISUAL browsing via Playwright Chromium (headless=False). AI is the explicit owner of the machine.
-- **WebUI Cognitive Dash:** Real-time visualization of "Inner Voice", News Ticker, Web Research, and incoming NPC messages.
+- **Phase 17: Neural Photography:** Consistent AI self-portraits via `reality_camera`. Photos use physical identity and current wardrobe state.
+- **WebUI Cognitive Dash:** Real-time visualization of "Inner Voice", News Ticker, Web Research, incoming NPC messages, and the **Life Stream** photo gallery.
 
 ## 3. Core Architecture: Multi-Agent Cluster (MAC)
 - **Persona:** Now receives a "Filtered Reality" including processed emotions and world news.

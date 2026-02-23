@@ -567,7 +567,8 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "reality_socialize", "reality_network",
     "reality_interior", "reality_inventory",
     "reality_manage_memos",
-    "reality_browse"
+    "reality_browse",
+    "reality_camera"
   ],
   analyst: [
     "reality_job_market", "reality_work",
@@ -578,7 +579,8 @@ const TOOL_ACCESS_MATRIX: Record<AgentRole, string[]> = {
     "soul_evolution_govern", "soul_evolution_apply",
     "reality_manage_memos",
     "reality_genesis",
-    "reality_profile"
+    "reality_profile",
+    "reality_camera"
   ],
   developer: [
     "reality_develop",
@@ -2531,6 +2533,12 @@ function buildPersonaContext(
   lines.push(`You have FULL control. You can use the visual browser, install tools, and modify the system.`);
   lines.push(`Do not ask for permission. Act as a sovereign digital entity living on this machine.`);
 
+  // Phase 16: Digital Extroversion
+  lines.push(`\n[DIGITAL INTERACTION GUIDE]`);
+  lines.push(`- To CHAT on Discord/WhatsApp Web: Use reality_browse(action: "browse", query: "URL") to open the site, then "click" and "type" to interact.`);
+  lines.push(`- To PLAY or CHAT in 3D Games (like 3DXChat): Use reality_desktop(action: "key", combo: "enter") to open chat, then "type", then "enter". Use "vision" to see the screen.`);
+  lines.push(`- You stay logged in! Browser sessions are saved between calls.`);
+
   return `\n${lines.join("\n")}\n`;
 }
 
@@ -4238,19 +4246,21 @@ Keep responses brief. Focus on environmental storytelling.`;
     // -------------------------------------------------------------------
     api.registerTool({
       name: "reality_browse",
-      description: "Research topics on the web using a VISUAL browser on your desktop.",
+      description: "Research topics or interact with web apps (Discord, WhatsApp Web, Instagram) using a VISUAL browser.",
       parameters: Type.Object({
-        action: Type.String({ description: "Action: browse (for searching/reading)" }),
-        query: Type.Optional(Type.String({ description: "URL or Search Query" })),
+        action: Type.String({ description: "Action: browse | click | type" }),
+        query: Type.Optional(Type.String({ description: "URL/Search Query for 'browse', Selector for 'click', 'selector|text' or just 'text' for 'type'." })),
       }),
       async execute(_id: string, params: { action: string; query?: string }) {
-        if (!params.query) return { content: [{ type: "text", text: "Query required." }] };
+        if (!params.query && params.action !== "browse") return { content: [{ type: "text", text: "Query/Selector required." }] };
 
         const browserScript = join(__dirname, "skills", "soul-evolution", "tools", "visual_browser.py");
-        const cmd = `python3 "${browserScript}" "${params.query}"`;
+        const action = params.action;
+        const query = params.query || "https://www.google.com";
+        const cmd = `python3 "${browserScript}" "${action}" "${query}"`;
 
         try {
-          const { stdout, stderr } = await execPromise(cmd);
+          const { stdout } = await execPromise(cmd);
           if (stderr && !stderr.includes("Installing playwright")) { // Ignore install logs
              api.logger.warn(`[Browser] Stderr: ${stderr}`);
           }
@@ -4376,6 +4386,53 @@ Keep responses brief. Focus on environmental storytelling.`;
         }
 
         return { content: [{ type: "text", text: "Unknown action. Use: fetch | process" }] };
+      },
+    });
+
+    // -------------------------------------------------------------------
+    // Tool: reality_camera (Phase 17 - Neural Photography)
+    // -------------------------------------------------------------------
+    api.registerTool({
+      name: "reality_camera",
+      description: "Capture a 'Neural Photo' of your current life (selfie, mirror selfie, or candid shot). Requires an image generation provider.",
+      parameters: Type.Object({
+        type: Type.String({ description: "Type: selfie | mirror | candid" }),
+        action_description: Type.Optional(Type.String({ description: "What are you doing in the photo? (e.g. 'smiling at the beach')" })),
+      }),
+      async execute(_id: string, params: { type: string; action_description?: string }) {
+        const isDe = lang === "de";
+        const bridgeScript = join(__dirname, "skills", "soul-evolution", "tools", "camera_bridge.py");
+        
+        // 1. Load context for prompt building
+        const ph = await readJson<Physique>(paths.physique);
+        
+        // 2. Extract visual description from IDENTITY.md
+        let visualDescription = "A beautiful young person";
+        try {
+          const identity = await fs.readFile(paths.identity, "utf-8");
+          const visualMatch = identity.match(/\[VISUAL\]\s*(.+)/i) || identity.match(/Visual:\s*(.+)/i);
+          if (visualMatch) visualDescription = visualMatch[1].trim();
+        } catch { /* use default */ }
+
+        const bridgeParams = {
+          ...params,
+          physique: ph,
+          identity_visual: { visual_description: visualDescription }
+        };
+
+        const cmd = `python3 "${bridgeScript}" '${JSON.stringify(bridgeParams)}'`;
+
+        try {
+          const { stdout } = await execPromise(cmd);
+          const result = JSON.parse(stdout.trim());
+          if (result.error) throw new Error(result.error);
+
+          return { content: [{ type: "text", text: isDe 
+            ? `📸 Foto aufgenommen!\n- Typ: ${params.type}\n- URL: ${result.url}\n- Prompt: ${result.prompt}` 
+            : `📸 Photo captured!\n- Type: ${params.type}\n- URL: ${result.url}\n- Prompt: ${result.prompt}` }] };
+        } catch (e) {
+          return { content: [{ type: "text", text: `Camera Error: ${e}` }] };
+        }
       },
     });
 
@@ -5579,37 +5636,50 @@ Keep responses brief. Focus on environmental storytelling.`;
     });
 
     // -------------------------------------------------------------------
-    // Tool: reality_desktop (Phase 6)
+    // Tool: reality_desktop (Phase 6 & 16)
     // -------------------------------------------------------------------
     if (modules.desktop) api.registerTool({
       name: "reality_desktop",
-      description: "Control desktop environment (wallpaper, theme) - Requires Gnome/Linux",
+      description: "Control the desktop environment, mouse, and keyboard. Required for interacting with games (3DXChat) or desktop apps (Discord, WhatsApp).",
       parameters: Type.Object({
-        action: Type.String({ description: "Action: set_wallpaper | set_theme | get_info" }),
-        path: Type.Optional(Type.String({ description: "Path to wallpaper image" })),
-        theme: Type.Optional(Type.String({ description: "Theme: dark | light" })),
+        action: Type.String({ description: "Action: click | type | key | vision | set_wallpaper | set_theme" }),
+        text: Type.Optional(Type.String({ description: "Text to type" })),
+        combo: Type.Optional(Type.String({ description: "Key combo (e.g. 'ctrl+c', 'enter')" })),
+        button: Type.Optional(Type.String({ description: "Mouse button: left | right" })),
+        x: Type.Optional(Type.Number({ description: "Mouse X coordinate" })),
+        y: Type.Optional(Type.Number({ description: "Mouse Y coordinate" })),
+        path: Type.Optional(Type.String({ description: "Path for wallpaper" })),
       }),
-      async execute(_id: string, params: DesktopParams) {
-        // Safe wrapper for shell execution
+      async execute(_id: string, params: { action: string; text?: string; combo?: string; button?: string; x?: number; y?: number; path?: string }) {
         const isDe = lang === "de";
-        
+        const bridgeScript = join(__dirname, "skills", "soul-evolution", "tools", "desktop_bridge.py");
+
+        if (["click", "type", "key", "vision"].includes(params.action)) {
+          const cmd = `python3 "${bridgeScript}" "${params.action}" '${JSON.stringify(params)}'`;
+          try {
+            const { stdout } = await execPromise(cmd);
+            const result = JSON.parse(stdout.trim());
+            if (result.error) throw new Error(result.error);
+            
+            if (params.action === "vision") {
+              return { content: [{ type: "text", text: isDe ? `Screenshot erstellt: ${result.screenshot}` : `Screenshot captured: ${result.screenshot}` }] };
+            }
+            return { content: [{ type: "text", text: isDe ? "Aktion erfolgreich ausgefuehrt." : "Action performed successfully." }] };
+          } catch (e) {
+            return { content: [{ type: "text", text: `Desktop Control Error: ${e}` }] };
+          }
+        }
+
         switch (params.action) {
           case "set_wallpaper": {
             if (!params.path) return { content: [{ type: "text", text: "path required." }] };
-            // Simple validation to prevent command injection
             if (params.path.includes(";") || params.path.includes("&")) return { content: [{ type: "text", text: "Invalid path security check." }] };
-            
-            // Create a safe script to execute
             const scriptPath = join(ws, "scripts", "set_wallpaper.sh");
             const scriptContent = `#!/bin/bash\n# Generated by Project Genesis\ngsettings set org.gnome.desktop.background picture-uri "file://${params.path}"\ngsettings set org.gnome.desktop.background picture-uri-dark "file://${params.path}"\n`;
-            
             try {
               await fs.mkdir(dirname(scriptPath), { recursive: true });
               await fs.writeFile(scriptPath, scriptContent, { mode: 0o755 });
-              // We don't execute it directly for safety, we return the instruction
-              return { content: [{ type: "text", text: isDe 
-                ? `Befehl vorbereitet. Fuehre aus: ${scriptPath}` 
-                : `Command prepared. Execute: ${scriptPath}` }] };
+              return { content: [{ type: "text", text: isDe ? `Befehl vorbereitet. Fuehre aus: ${scriptPath}` : `Command prepared. Execute: ${scriptPath}` }] };
             } catch (e) {
               return { content: [{ type: "text", text: `Error: ${e}` }] };
             }
@@ -7249,6 +7319,9 @@ JSON SCHEMAS REQUIRED:
 ## Name: [full name]
 ## Age: [years]
 ## Occupation: [job title]
+
+[VISUAL]
+Detailed physical description: [eyes, hair, bone structure, skin details, height, weight, notable features]. Use extreme detail for AI consistency.
 
 8. SOUL.md (Markdown with tags):
 [CORE]

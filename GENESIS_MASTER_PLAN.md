@@ -45,14 +45,30 @@ Project Genesis is a decentralized Multi-Agent Cluster (MAC) simulation of human
 - **Visual Browser:** Launch visible Chromium instances on the desktop.
 - **System Ownership:** AI is the explicit owner of the machine.
 
-## 11. Tool Specifications (Consolidated)
+## 11. Digital Extroversion (Phase 16 - Implemented)
+**Goal:** Interaction with humans and external environments (Discord, Games).
+- **Interactive Browser:** `reality_browse` supports `click` and `type` with session persistence.
+- **Universal Input:** `reality_desktop` expanded with mouse/keyboard control (Wayland/X11).
+- **Vision:** Screenshots allow the AI to "see" games like 3DXChat.
+
+## 12. Neural Photography & Visual Identity (Phase 17 - Upcoming)
+**Goal:** Give the AI a consistent visual presence via AI-generated "selfies" and "vacation photos".
+- **Physical Manifest:** Each character has a detailed descriptive "Face-ID" (eyes, bone structure, skin details) used for prompt consistency.
+- **Wardrobe Sync:** Photos automatically include the currently equipped outfit from `wardrobe.json`.
+- **Reality Camera:** Tool `reality_camera` allows the AI to "capture" moments. It uses local or external image generators (Flux, Venice, Nano Banana).
+- **Visual Life Stream:** A new "Instagram-style" tab in the WebUI displaying the AI's visual history.
+
+## 13. Tool Specifications (Consolidated)
 - `reality_genesis`: bootstrap | patch | rollback
 - `reality_profile`: save | load | list | delete
 - `reality_skill`: train | list | check
-- `reality_browse`: search | read (VISUAL)
+- `reality_browse`: browse | click | type (VISUAL)
+- `reality_desktop`: click | type | key | vision | set_wallpaper
 - `reality_news`: fetch | process (RSS)
+- `reality_camera`: capture (Type: selfie, mirror, candid)
 
-## 12. WebUI Requirements (`soul-viz.py`)
+## 14. WebUI Requirements (`soul-viz.py`)
 - **News Ticker:** Real-time world events on dashboard.
 - **Mental Activity:** Visualized inner voice, web research, and incoming social messages.
+- **Life Stream:** Gallery of AI-generated photos.
 - **Skill Tree:** (Pending) Graphical progression visualization.
