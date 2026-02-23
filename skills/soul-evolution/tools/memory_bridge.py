@@ -14,9 +14,11 @@ config = {
         }
     },
     "embedder": {
-        "provider": "huggingface",
+        "provider": "ollama",
         "config": {
-            "model": "sentence-transformers/all-MiniLM-L6-v2",
+            "model": "bge-m3",
+            "ollama_base_url": "http://localhost:11434",
+            "embeddingDims": 1024
         }
     }
 }
