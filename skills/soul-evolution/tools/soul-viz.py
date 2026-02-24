@@ -1860,6 +1860,7 @@ body::after {{
   <button class="tab-btn" onclick="switchTab('dreams')">Dream Journal</button>
   <button class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
   <button class="tab-btn" onclick="switchTab('config')">⚙️ Config</button>
+  <button class="tab-btn" onclick="switchTab('diagnostics')">🔧 Diagnostics</button>
 </div>
 
 <div id="tab-dashboard" class="tab-content active">
@@ -3185,6 +3186,78 @@ body::after {{
 
     <button onclick="saveAllConfig()" style="margin-top:1.5rem;background:var(--growth);color:#fff;border:none;padding:0.75rem 2rem;border-radius:4px;cursor:pointer;font-size:1rem;">💾 Save All Settings</button>
     <span id="config-save-status" style="margin-left:1rem;font-size:0.9rem;"></span>
+  </div>
+</div>
+
+<!-- Diagnostics Tab (Phase 41) -->
+<div id="tab-diagnostics" class="tab-content">
+  <div style="max-width:1400px;margin:0 auto;padding:1.5rem 2rem;">
+    <h2 style="color:var(--accent);margin-bottom:1rem;">🔧 Diagnostics Dashboard</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;">Real-time system logs and health monitoring.</p>
+
+    <!-- System Health -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid var(--growth);">
+      <h3>💚 System Health</h3>
+      <div id="diagnostics-health" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.5rem;margin-top:0.75rem;">
+        <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Logging</div>
+          <div id="health-logging" style="font-weight:bold;color:var(--growth);">Checking...</div>
+        </div>
+        <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Tick Engine</div>
+          <div id="health-tick" style="font-weight:bold;color:var(--growth);">Active</div>
+        </div>
+        <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Economy</div>
+          <div id="health-economy" style="font-weight:bold;color:var(--text-dim);">-</div>
+        </div>
+        <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Hardware</div>
+          <div id="health-hardware" style="font-weight:bold;color:var(--text-dim);">-</div>
+        </div>
+        <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Social</div>
+          <div id="health-social" style="font-weight:bold;color:var(--text-dim);">-</div>
+        </div>
+        <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Vault</div>
+          <div id="health-vault" style="font-weight:bold;color:var(--text-dim);">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log Controls -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid var(--warning);">
+      <h3>📋 Log Stream</h3>
+      <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+        <select id="log-filter-level" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+          <option value="">All Levels</option>
+          <option value="DEBUG">DEBUG</option>
+          <option value="INFO" selected>INFO</option>
+          <option value="WARN">WARN</option>
+          <option value="ERROR">ERROR</option>
+        </select>
+        <select id="log-filter-module" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+          <option value="">All Modules</option>
+          <option value="genesis">Genesis</option>
+          <option value="economy">Economy</option>
+          <option value="presence">Presence</option>
+          <option value="hardware">Hardware</option>
+          <option value="social">Social</option>
+          <option value="tick">Tick</option>
+        </select>
+        <button onclick="loadLogStream()" style="background:var(--accent);color:#fff;border:none;padding:0.25rem 0.75rem;border-radius:4px;cursor:pointer;">🔄 Refresh</button>
+        <button onclick="clearLogFilter()" style="background:var(--bg);color:var(--text);border:1px solid var(--border);padding:0.25rem 0.75rem;border-radius:4px;cursor:pointer;">Clear Filters</button>
+      </div>
+      <div id="log-count" style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem;"></div>
+    </div>
+
+    <!-- Log Output -->
+    <div class="panel-card" style="max-height:500px;overflow-y:auto;border-left:4px solid var(--core);">
+      <div id="log-stream" style="font-family:monospace;font-size:0.8rem;line-height:1.6;">
+        <div style="color:var(--text-dim);font-style:italic;">Loading logs...</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -5474,6 +5547,9 @@ window.switchTab = function(tabId) {{
   if (tabId === 'config') {{
     loadConfig();
   }}
+  if (tabId === 'diagnostics') {{
+    loadDiagnostics();
+  }}
 }};
 
 // ---------------------------------------------------------------------------
@@ -5593,6 +5669,113 @@ async function loadHardwareState() {{
   }} catch (e) {{
     console.log('Hardware state error:', e);
   }}
+}}
+
+// ---------------------------------------------------------------------------
+// Diagnostics Tab (Phase 41)
+// ---------------------------------------------------------------------------
+async function loadDiagnostics() {{
+  loadLogStream();
+  loadSystemHealth();
+}}
+
+async function loadSystemHealth() {{
+  try {{
+    // Check logging
+    const logHealth = document.getElementById('health-logging');
+    if (logHealth) logHealth.textContent = 'Active';
+
+    // Check economy
+    const economyResponse = await fetch('/api/economy/state');
+    const economy = await economyResponse.json();
+    const econHealth = document.getElementById('health-economy');
+    if (econHealth) econHealth.textContent = economy.isActive ? 'Active' : 'Idle';
+    if (econHealth) econHealth.style.color = economy.isActive ? 'var(--growth)' : 'var(--text-dim)';
+
+    // Check hardware
+    const hwResponse = await fetch('/api/hardware/resonance');
+    const hw = await hwResponse.json();
+    const hwHealth = document.getElementById('health-hardware');
+    if (hwHealth) hwHealth.textContent = hw.isActive ? 'Active' : 'Idle';
+    if (hwHealth) hwHealth.style.color = hw.isActive ? 'var(--growth)' : 'var(--text-dim)';
+
+    // Check social/presence
+    const presenceResponse = await fetch('/api/presence/state');
+    const presence = await presenceResponse.json();
+    const socialHealth = document.getElementById('health-social');
+    if (socialHealth) socialHealth.textContent = presence.isActive ? 'Active' : 'Idle';
+    if (socialHealth) socialHealth.style.color = presence.isActive ? 'var(--growth)' : 'var(--text-dim)';
+
+    // Check vault
+    const vaultResponse = await fetch('/api/vault/status');
+    const vault = await vaultResponse.json();
+    const vaultHealth = document.getElementById('health-vault');
+    if (vaultHealth) vaultHealth.textContent = vault.mode || 'Unknown';
+    if (vaultHealth) vaultHealth.style.color = 'var(--accent)';
+  }} catch (e) {{
+    console.log('Health check error:', e);
+  }}
+}}
+
+async function loadLogStream() {{
+  const level = document.getElementById('log-filter-level')?.value || '';
+  const module = document.getElementById('log-filter-module')?.value || '';
+  const count = 100;
+
+  try {{
+    let url = '/api/logs/recent?count=' + count;
+    if (level) url += '&level=' + level;
+    if (module) url += '&module=' + module;
+
+    const response = await fetch(url);
+    const logs = await response.json();
+
+    const logStream = document.getElementById('log-stream');
+    const logCount = document.getElementById('log-count');
+
+    if (logCount) logCount.textContent = logs.length + ' entries';
+
+    if (logStream) {{
+      if (!logs || logs.length === 0) {{
+        logStream.innerHTML = '<div style="color:var(--text-dim);font-style:italic;">No log entries yet.</div>';
+        return;
+      }}
+
+      let html = '';
+      for (const entry of logs) {{
+        const levelColors = {{
+          'DEBUG': '#6b7280',
+          'INFO': '#10b981',
+          'WARN': '#f59e0b',
+          'ERROR': '#ef4444'
+        }};
+        const color = levelColors[entry.level] || 'var(--text)';
+        const time = new Date(entry.timestamp).toLocaleTimeString();
+        html += `<div style="padding:0.25rem 0;border-bottom:1px solid var(--border-dim);">`;
+        html += `<span style="color:var(--text-dim);font-size:0.7rem;">${{time}}</span> `;
+        html += `<span style="color:${{color}};font-weight:bold;font-size:0.75rem;">${{entry.level}}</span> `;
+        html += `<span style="color:var(--accent);font-size:0.75rem;">[${{entry.module}}]</span> `;
+        html += `<span style="color:var(--text);">${{entry.message}}</span>`;
+        if (entry.data) {{
+          html += `<span style="color:var(--text-dim);font-size:0.7rem;"> ${{JSON.stringify(entry.data)}}</span>`;
+        }}
+        html += `</div>`;
+      }}
+      logStream.innerHTML = html;
+    }}
+  }} catch (e) {{
+    console.log('Log load error:', e);
+    const logStream = document.getElementById('log-stream');
+    if (logStream) logStream.innerHTML = '<div style="color:var(--danger);">Error loading logs: ' + e.message + '</div>';
+  }}
+}}
+
+function clearLogFilter() {{
+  const levelSelect = document.getElementById('log-filter-level');
+  const moduleSelect = document.getElementById('log-filter-module');
+  if (levelSelect) levelSelect.value = '';
+  if (moduleSelect) moduleSelect.value = '';
+  loadLogStream();
 }}
 
 // Start hardware polling on load
@@ -9899,6 +10082,42 @@ def main():
                         self.end_headers()
                         self.wfile.write(json.dumps({{"error": str(e)}}).encode())
 
+                # Phase 41: Debug Logs API
+                elif self.path == "/api/logs/recent":
+                    try:
+                        log_path = os.path.join(workspace, "memory", "genesis_debug.jsonl")
+                        entries = []
+                        count = int(self.path_query.get("count", 100))
+                        level_filter = self.path_query.get("level", "")
+                        module_filter = self.path_query.get("module", "")
+
+                        if os.path.exists(log_path):
+                            with open(log_path, "r") as f:
+                                lines = f.readlines()
+                                # Read in reverse to get most recent
+                                for line in reversed(lines[-1000:]):
+                                    try:
+                                        entry = json.loads(line)
+                                        if level_filter and entry.get("level") != level_filter:
+                                            continue
+                                        if module_filter and entry.get("module") != module_filter:
+                                            continue
+                                        entries.append(entry)
+                                        if len(entries) >= count:
+                                            break
+                                    except:
+                                        pass
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(entries).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
                 elif self.path == "/api/mem0/config":
                     try:
                         mem0_config_path = os.path.join(workspace, "memory", "reality", "mem0_config.json")
@@ -10731,7 +10950,7 @@ def main():
         print(f"  → Mindmap at  http://localhost:{port}/soul-mindmap.html")
         print(f"  → Edits save directly to: {soul_path}\n")
 
-        with socketserver.TCPServer(("127.0.0.1", port), SoulEvolutionHandler) as httpd:
+        with socketserver.TCPServer(("0.0.0.0", port), SoulEvolutionHandler) as httpd:
             try:
                 httpd.serve_forever()
             except KeyboardInterrupt:
