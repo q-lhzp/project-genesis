@@ -1791,6 +1791,36 @@ body::after {{
   transition: border-color 0.2s;
 }}
 .detail-images img:hover {{ border-color: var(--accent); }}
+
+/* Avatar Tab (Phase 22) */
+#vrm-canvas {{
+  width: 100%;
+  height: 100%;
+  display: block;
+}}
+#avatar-viewer {{
+  position: relative;
+  border: 2px solid var(--border);
+}}
+#avatar-error {{
+  text-align: center;
+}}
+#avatar-status {{
+  font-family: 'JetBrains Mono', monospace;
+}}
+.avatar-controls button {{
+  padding: 8px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}}
+.avatar-controls button:hover {{
+  background: var(--growth);
+}}
 </style>
 </head>
 <body>
@@ -1825,6 +1855,11 @@ body::after {{
   <button class="tab-btn" onclick="switchTab('genesis')">Genesis Lab</button>
   <button class="tab-btn" onclick="switchTab('memory')">Memory</button>
   <button class="tab-btn" onclick="switchTab('vault')">The Vault</button>
+  <button class="tab-btn" onclick="switchTab('avatar')">Live Avatar</button>
+  <button class="tab-btn" onclick="switchTab('interests')">Interests</button>
+  <button class="tab-btn" onclick="switchTab('dreams')">Dream Journal</button>
+  <button class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
+  <button class="tab-btn" onclick="switchTab('config')">⚙️ Config</button>
 </div>
 
 <div id="tab-dashboard" class="tab-content active">
@@ -1857,6 +1892,30 @@ body::after {{
       <h2>Vitals Dashboard</h2>
       <div class="vitals-grid" id="vitals-grid"></div>
       <div class="vitals-meta" id="vitals-meta"></div>
+    </div>
+
+    <!-- Phase 40: Hardware Resonance Widget -->
+    <div class="panel-card" style="border-left:4px solid #8b5cf6;">
+      <h3>🔮 Hardware Resonance</h3>
+      <p style="color:var(--text-dim);font-size:0.8rem;margin-top:0.25rem;">Q feels the machine's state.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
+        <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
+          <div style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;">CPU</div>
+          <div id="hardware-cpu" style="font-size:1rem;font-weight:bold;color:var(--accent);">-</div>
+        </div>
+        <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
+          <div style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;">RAM</div>
+          <div id="hardware-ram" style="font-size:1rem;font-weight:bold;color:var(--growth);">-</div>
+        </div>
+        <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
+          <div style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;">Temp</div>
+          <div id="hardware-temp" style="font-size:1rem;font-weight:bold;color:var(--core);">-</div>
+        </div>
+      </div>
+      <div style="margin-top:0.5rem;font-size:0.8rem;">
+        <span style="color:var(--text-dim);">Resonance:</span> <span id="hardware-resonance" style="color:var(--accent);font-weight:bold;">Calm</span>
+        <span style="color:var(--text-dim);margin-left:0.5rem;">🎵</span> <span id="hardware-audio" style="color:var(--text);">Off</span>
+      </div>
     </div>
 
     <!-- Mental Activity Panel -->
@@ -1953,10 +2012,38 @@ body::after {{
 <!-- Development Tab -->
 <div id="tab-development" class="tab-content">
   <div style="max-width:1600px;margin:0 auto;padding:1.5rem 2rem;">
+
+    <!-- Phase 34: Self-Expansion Status -->
+    <div class="panel-card" style="border-left:4px solid #a855f7;margin-bottom:1rem;">
+      <h3>🤖 Autonomous Self-Expansion</h3>
+      <div id="expansion-status" style="margin-top:0.5rem;">
+        <div style="color:var(--text-dim);font-size:0.9rem;">Loading expansion state...</div>
+      </div>
+      <!-- Progress bar for active project -->
+      <div id="expansion-progress" style="margin-top:0.75rem;display:none;">
+        <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.25rem;">
+          <span id="expansion-project-name">Project Name</span>
+          <span id="expansion-percent">0%</span>
+        </div>
+        <div style="background:var(--bg-dim);height:8px;border-radius:4px;overflow:hidden;">
+          <div id="expansion-bar" style="background:linear-gradient(90deg,#a855f7,#6366f1);height:100%;width:0%;transition:width 0.5s;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Development Projects -->
     <div class="panel-card">
       <h2>Development Projects</h2>
       <div class="item-grid" id="dev-grid"></div>
       <div id="dev-detail" style="margin-top:1rem;"></div>
+    </div>
+
+    <!-- Projects List -->
+    <div class="panel-card" style="margin-top:1rem;">
+      <h3>📁 Project Files</h3>
+      <div id="projects-list" style="margin-top:0.5rem;">
+        <div style="color:var(--text-dim);font-size:0.9rem;">No projects yet. Q will create autonomous projects when she has high energy and strong technical interests.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -2074,6 +2161,14 @@ body::after {{
     <h1>Social Standing</h1>
     <p style="color:var(--text-dim);margin-bottom:1.5rem;">Your reputation across social circles and public perception.</p>
 
+    <!-- Phase 35: Pending Social Events -->
+    <div class="panel-card" style="margin-bottom:1.5rem;border-left:4px solid #ec4899;">
+      <h3>📱 Pending Messages</h3>
+      <div id="pending-social-events" style="margin-top:0.5rem;">
+        <div style="color:var(--text-dim);font-size:0.9rem;">No pending messages from NPCs.</div>
+      </div>
+    </div>
+
     <!-- Reputation Meter -->
     <div class="panel-card" style="margin-bottom:1.5rem;">
       <h2>Global Reputation</h2>
@@ -2157,9 +2252,35 @@ body::after {{
   <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
     <h1>Life Stream</h1>
     <p style="color:var(--text-dim);margin-bottom:1.5rem;">A visual history of captured moments and neural photography.</p>
-    
+
     <div id="photo-stream" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;">
       <div class="empty-state">No photos captured yet. Use reality_camera to take a photo.</div>
+    </div>
+
+    <!-- Phase 39: Social Feed -->
+    <div class="panel-card" style="margin-top:2rem;border-left:4px solid #ec4899;">
+      <h3>📱 Social Feed</h3>
+      <p style="color:var(--text-dim);font-size:0.85rem;">Q's autonomous social media presence.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem;">
+        <div style="padding:0.75rem;background:var(--bg);border-radius:6px;">
+          <div style="font-size:0.75rem;color:var(--text-dim);text-transform:uppercase;">Status</div>
+          <div id="presence-status" style="font-size:1.1rem;font-weight:bold;color:var(--accent);">Loading...</div>
+        </div>
+        <div style="padding:0.75rem;background:var(--bg);border-radius:6px;">
+          <div style="font-size:0.75rem;color:var(--text-dim);text-transform:uppercase;">Mood</div>
+          <div id="presence-mood" style="font-size:1.1rem;font-weight:bold;color:var(--core);">-</div>
+        </div>
+      </div>
+
+      <div style="margin-top:0.75rem;padding:0.5rem;background:var(--bg);border-radius:6px;font-size:0.85rem;">
+        <span style="color:var(--text-dim);">Total Posts:</span> <span id="presence-total-posts" style="color:var(--text);font-weight:bold;">0</span>
+        <span style="color:var(--text-dim);margin-left:1rem;">Today:</span> <span id="presence-posts-today" style="color:var(--text);font-weight:bold;">0</span>
+      </div>
+
+      <div id="social-feed" style="margin-top:1rem;max-height:400px;overflow-y:auto;">
+        <p style="color:var(--text-dim);font-size:0.85rem;">Loading feed...</p>
+      </div>
     </div>
   </div>
 </div>
@@ -2438,6 +2559,122 @@ body::after {{
       </div>
     </div>
   </div>
+
+  <!-- Simulation Live Editor (Phase 32) -->
+  <div class="panel-card" style="border-left:4px solid var(--growth);margin-top:1rem;">
+    <h3>⚙️ Simulation Tuning</h3>
+    <p style="color:var(--text-dim);margin-top:0.5rem;font-size:0.85rem;">Adjust metabolism rates and behavior thresholds in real-time.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem;">
+      <div>
+        <label style="font-size:0.8rem;">Hunger Rate (+/hr)</label>
+        <input type="range" id="tune-hunger-rate" min="0" max="10" value="2" step="0.5" style="width:100%;">
+        <span id="tune-hunger-rate-val" style="font-size:0.75rem;color:var(--accent);">2.0</span>
+      </div>
+      <div>
+        <label style="font-size:0.8rem;">Thirst Rate (+/hr)</label>
+        <input type="range" id="tune-thirst-rate" min="0" max="10" value="3" step="0.5" style="width:100%;">
+        <span id="tune-thirst-rate-val" style="font-size:0.75rem;color:var(--accent);">3.0</span>
+      </div>
+      <div>
+        <label style="font-size:0.8rem;">Energy Drain (/hr)</label>
+        <input type="range" id="tune-energy-drain" min="0" max="10" value="5" step="0.5" style="width:100%;">
+        <span id="tune-energy-drain-val" style="font-size:0.75rem;color:var(--accent);">5.0</span>
+      </div>
+      <div>
+        <label style="font-size:0.8rem;">Stress Increase (/hr)</label>
+        <input type="range" id="tune-stress-rate" min="0" max="10" value="2" step="0.5" style="width:100%;">
+        <span id="tune-stress-rate-val" style="font-size:0.75rem;color:var(--accent);">2.0</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem;">
+      <div>
+        <label style="font-size:0.8rem;">Reflex Threshold</label>
+        <input type="range" id="tune-reflex-threshold" min="0" max="100" value="95" step="5" style="width:100%;">
+        <span id="tune-reflex-threshold-val" style="font-size:0.75rem;color:var(--accent);">95</span>
+      </div>
+      <div>
+        <label style="font-size:0.8rem;">Dream Energy Threshold</label>
+        <input type="range" id="tune-dream-threshold" min="0" max="50" value="20" step="5" style="width:100%;">
+        <span id="tune-dream-threshold-val" style="font-size:0.75rem;color:var(--accent);">20</span>
+      </div>
+    </div>
+
+    <button onclick="saveSimulationConfig()" style="margin-top:1rem;background:var(--growth);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Save Simulation Config</button>
+  </div>
+
+  <!-- VMC/OSC External Streaming (Phase 32) -->
+  <div class="panel-card" style="border-left:4px solid var(--accent);margin-top:1rem;">
+    <h3>🌐 External Streaming (VMC/OSC)</h3>
+    <p style="color:var(--text-dim);margin-top:0.5rem;font-size:0.85rem;">Stream Q's avatar data to external 3D applications (VRChat, 3DXChat, VSeeFace).</p>
+
+    <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem;">
+      <label style="display:flex;align-items:center;cursor:pointer;">
+        <input type="checkbox" id="vmc-enabled" style="width:20px;height:20px;margin-right:0.5rem;">
+        <span style="font-weight:bold;">Enable VMC Streaming</span>
+      </label>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 100px;gap:0.5rem;margin-top:1rem;">
+      <div>
+        <label style="font-size:0.8rem;">Target IP Address</label>
+        <input type="text" id="vmc-target-ip" placeholder="127.0.0.1" value="127.0.0.1" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;margin-top:0.25rem;">
+      </div>
+      <div>
+        <label style="font-size:0.8rem;">Port</label>
+        <input type="number" id="vmc-target-port" placeholder="39539" value="39539" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;margin-top:0.25rem;">
+      </div>
+    </div>
+
+    <div id="vmc-status" style="margin-top:0.75rem;padding:0.5rem;background:var(--bg);border-radius:4px;font-size:0.8rem;color:var(--text-dim);">
+      VMC streaming is disabled
+    </div>
+
+    <button onclick="saveVMCConfig()" style="margin-top:0.75rem;background:var(--accent);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Save VMC Config</button>
+  </div>
+
+  <!-- Phase 36: Spatial Input Control -->
+  <div class="panel-card" style="border-left:4px solid #06b6d4;margin-top:1rem;">
+    <h3>🖥️ Spatial Input (VRM-to-Desktop)</h3>
+    <p style="color:var(--text-dim);margin-top:0.5rem;font-size:0.85rem;">Q's 3D actions trigger real desktop inputs. Sovereignty Override stops inputs when Q is in reflex lock.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem;">
+      <div>
+        <label style="display:flex;align-items:center;cursor:pointer;">
+          <input type="checkbox" id="spatial-mouse-enabled" checked style="width:18px;height:18px;margin-right:0.5rem;">
+          <span style="font-size:0.9rem;">Ghost Mouse Movements</span>
+        </label>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;cursor:pointer;">
+          <input type="checkbox" id="spatial-keys-enabled" checked style="width:18px;height:18px;margin-right:0.5rem;">
+          <span style="font-size:0.9rem;">Ghost Keystrokes</span>
+        </label>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;cursor:pointer;">
+          <input type="checkbox" id="spatial-scroll-enabled" checked style="width:18px;height:18px;margin-right:0.5rem;">
+          <span style="font-size:0.9rem;">Auto-Scroll</span>
+        </label>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;cursor:pointer;">
+          <input type="checkbox" id="spatial-sovereignty" checked style="width:18px;height:18px;margin-right:0.5rem;">
+          <span style="font-size:0.9rem;">Sovereignty Override</span>
+        </label>
+      </div>
+    </div>
+
+    <div id="spatial-status" style="margin-top:0.75rem;padding:0.5rem;background:var(--bg);border-radius:4px;font-size:0.8rem;color:var(--text-dim);">
+      Loading spatial state...
+    </div>
+
+    <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+      <button onclick="stopSpatialAutomation()" style="background:#ef4444;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">⏹️ Stop All</button>
+      <button onclick="refreshSpatialState()" style="background:var(--bg-dim);color:var(--text);border:1px solid var(--border);padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">🔄 Refresh</button>
+    </div>
+  </div>
 </div>
 
 <!-- Memory Tab -->
@@ -2614,6 +2851,29 @@ body::after {{
       </div>
     </div>
 
+    <!-- Phase 37: Autonomous Trading Engine -->
+    <div class="panel-card" style="margin-top:1rem;border-left:4px solid #10b981;">
+      <h3>🤖 Autonomous Trading Engine</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:0.75rem;">
+        <div style="padding:0.75rem;background:var(--bg);border-radius:6px;">
+          <div style="font-size:0.75rem;color:var(--text-dim);text-transform:uppercase;">Status</div>
+          <div id="economy-status" style="font-size:1.1rem;font-weight:bold;color:var(--accent);">Loading...</div>
+        </div>
+        <div style="padding:0.75rem;background:var(--bg);border-radius:6px;">
+          <div style="font-size:0.75rem;color:var(--text-dim);text-transform:uppercase;">Strategy</div>
+          <div id="economy-strategy" style="font-size:1.1rem;font-weight:bold;color:var(--growth);">-</div>
+        </div>
+        <div style="padding:0.75rem;background:var(--bg);border-radius:6px;">
+          <div style="font-size:0.75rem;color:var(--text-dim);text-transform:uppercase;">Market Mood</div>
+          <div id="economy-mood" style="font-size:1.1rem;font-weight:bold;color:var(--core);">-</div>
+        </div>
+      </div>
+      <div style="margin-top:0.75rem;padding:0.5rem;background:var(--bg);border-radius:6px;font-size:0.85rem;">
+        <span style="color:var(--text-dim);">Total Trades:</span> <span id="economy-trades" style="color:var(--text);font-weight:bold;">0</span>
+        <span style="color:var(--text-dim);margin-left:1rem;">Last Trade:</span> <span id="economy-last-trade" style="color:var(--text);">-</span>
+      </div>
+    </div>
+
     <!-- Recent Transactions -->
     <div class="panel-card" style="margin-top:1rem;">
       <h3>Recent Transactions</h3>
@@ -2621,6 +2881,310 @@ body::after {{
         <p style="color:var(--text-dim);font-size:0.85rem;">No transactions yet.</p>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Live Avatar Tab (Phase 22) -->
+<div id="tab-avatar" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <h2 style="color:var(--accent);margin-bottom:1rem;">Live Avatar</h2>
+
+    <!-- 3D Canvas Container -->
+    <div id="avatar-viewer" style="position:relative;width:100%;height:500px;background:linear-gradient(180deg,#1a1a2e 0%,#16213e 100%);border-radius:12px;overflow:hidden;">
+      <canvas id="vrm-canvas" style="width:100%;height:100%;display:block;"></canvas>
+      <div id="avatar-loading" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;text-align:center;">
+        <div style="font-size:2rem;margin-bottom:0.5rem;">🎭</div>
+        <div>Loading 3D Avatar...</div>
+      </div>
+      <div id="avatar-error" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ff6b6b;text-align:center;display:none;">
+        <div style="font-size:2rem;margin-bottom:0.5rem;">⚠️</div>
+        <div>Failed to load VRM model</div>
+        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem;">Check avatar_config.json and ensure VRM file exists</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div style="display:flex;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;align-items:center;">
+      <span style="color:var(--text-dim);font-size:0.9rem;">Poses:</span>
+      <button class="btn-crud" onclick="setAvatarPose('idle')">Idle</button>
+      <button class="btn-crud" onclick="setAvatarPose('sitting')">Sitting</button>
+      <button class="btn-crud" onclick="setAvatarPose('standing')">Standing</button>
+      <button class="btn-crud" onclick="setAvatarPose('walking')">Walking</button>
+      <span style="color:var(--text-dim);font-size:0.9rem;margin-left:1rem;">Emotes:</span>
+      <button class="btn-crud" onclick="setAvatarEmote('joy')">Joy</button>
+      <button class="btn-crud" onclick="setAvatarEmote('angry')">Angry</button>
+      <button class="btn-crud" onclick="setAvatarEmote('sad')">Sad</button>
+      <button class="btn-crud" onclick="setAvatarEmote('neutral')">Neutral</button>
+      <button class="btn-crud" onclick="setAvatarEmote('relaxed')">Relaxed</button>
+    </div>
+
+    <!-- Status -->
+    <div id="avatar-status" style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:8px;font-size:0.85rem;color:var(--text-dim);">
+      <span style="color:var(--accent);">●</span> <span id="avatar-status-text">Initializing...</span>
+    </div>
+
+    <!-- Phase 33: Interaction Status -->
+    <div id="interaction-status" style="margin-top:0.75rem;padding:0.75rem;background:var(--bg);border-radius:8px;font-size:0.85rem;">
+      <span style="color:var(--text-dim);">Interaction: </span>
+      <span style="color:var(--accent);">Waiting for updates...</span>
+    </div>
+
+    <!-- Phase 33: Light Control -->
+    <div class="panel-card" style="margin-top:1rem;border-left:4px solid #fbbf24;">
+      <h3>💡 Light Control</h3>
+      <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+        <button class="btn-crud" onclick="setLightState('on')">On</button>
+        <button class="btn-crud" onclick="setLightState('off')">Off</button>
+        <button class="btn-crud" onclick="setLightState('dim')">Dim</button>
+        <button class="btn-crud" onclick="setLightState('bright')">Bright</button>
+        <button class="btn-crud" onclick="setLightState('toggle')">Toggle</button>
+      </div>
+    </div>
+
+    <!-- Wardrobe Sync Info -->
+    <div class="panel-card" style="margin-top:1rem;border-left:4px solid var(--accent);">
+      <h3>Wardrobe Sync</h3>
+      <div id="avatar-wardrobe" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.5rem;margin-top:0.5rem;">
+        <div style="color:var(--text-dim);font-size:0.85rem;">Loading wardrobe data...</div>
+      </div>
+      <button onclick="syncAvatarWardrobe()" style="margin-top:0.75rem;background:var(--accent);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">🔄 Sync Outfit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Interests & Hobbies Tab (Phase 31) -->
+<div id="tab-interests" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <h2 style="color:var(--accent);margin-bottom:1rem;">Interests & Hobbies</h2>
+
+    <!-- Current Pursuit Widget -->
+    <div class="panel-card" style="border-left:4px solid var(--accent);margin-bottom:1rem;">
+      <h3>🎯 Current Pursuit</h3>
+      <div id="current-pursuit" style="padding:1rem;background:var(--bg);border-radius:8px;margin-top:0.5rem;">
+        <div style="color:var(--text-dim);font-style:italic;">No active research...</div>
+      </div>
+    </div>
+
+    <!-- Hobby List -->
+    <div class="panel-card">
+      <h3>📚 Discovered Interests</h3>
+      <div id="hobby-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-top:1rem;">
+        <div style="color:var(--text-dim);">Loading interests...</div>
+      </div>
+    </div>
+
+    <!-- Likes/Dislikes -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+      <div class="panel-card">
+        <h3>❤️ Likes</h3>
+        <div id="likes-list" style="margin-top:0.5rem;">
+          <div style="color:var(--text-dim);font-size:0.85rem;">No likes recorded yet</div>
+        </div>
+      </div>
+      <div class="panel-card">
+        <h3>👎 Dislikes</h3>
+        <div id="dislikes-list" style="margin-top:0.5rem;">
+          <div style="color:var(--text-dim);font-size:0.85rem;">No dislikes recorded yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dream Journal Tab (Phase 31) -->
+<div id="tab-dreams" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <h2 style="color:var(--accent);margin-bottom:1rem;">Dream Journal</h2>
+
+    <!-- Dream Stats -->
+    <div class="panel-card" style="border-left:4px solid var(--dream);margin-bottom:1rem;">
+      <h3>🌙 Neural Sleep Statistics</h3>
+      <div id="dream-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:0.5rem;">
+        <div style="text-align:center;padding:0.5rem;background:var(--bg);border-radius:8px;">
+          <div style="font-size:1.5rem;color:var(--accent);" id="dream-count">0</div>
+          <div style="font-size:0.8rem;color:var(--text-dim);">Total Dreams</div>
+        </div>
+        <div style="text-align:center;padding:0.5rem;background:var(--bg);border-radius:8px;">
+          <div style="font-size:1.5rem;color:var(--growth);" id="insight-count">0</div>
+          <div style="font-size:0.8rem;color:var(--text-dim);">Insights</div>
+        </div>
+        <div style="text-align:center;padding:0.5rem;background:var(--bg);border-radius:8px;">
+          <div style="font-size:1.5rem;color:var(--warning);" id="last-dream-date">—</div>
+          <div style="font-size:0.8rem;color:var(--text-dim);">Last Dream</div>
+        </div>
+        <div style="text-align:center;padding:0.5rem;background:var(--bg);border-radius:8px;">
+          <div style="font-size:1.5rem;color:var(--core);" id="dream-state">Awake</div>
+          <div style="font-size:0.8rem;color:var(--text-dim);">State</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Dreams -->
+    <div class="panel-card">
+      <h3>📖 Recent Dreams</h3>
+      <div id="dream-list" style="margin-top:1rem;max-height:500px;overflow-y:auto;">
+        <div style="color:var(--text-dim);font-style:italic;">No dreams recorded yet. Dreams occur between 23:00-05:00 with low energy.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Analytics Tab (v5.1.0) -->
+<div id="tab-analytics" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <h2 style="color:var(--accent);margin-bottom:1rem;">📊 Analytics Dashboard</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;">Real-time telemetry and historical trends.</p>
+
+    <!-- Vitals Heatmap -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid var(--accent);">
+      <h3>❤️ Vitals Timeline (24h)</h3>
+      <div id="analytics-vitals" style="margin-top:1rem;">
+        <div style="color:var(--text-dim);font-style:italic;">Loading vitals data...</div>
+      </div>
+    </div>
+
+    <!-- Hardware vs Stress Overlay -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid #8b5cf6;">
+      <h3>🔮 Hardware Resonance vs Stress</h3>
+      <div id="analytics-hardware" style="margin-top:1rem;">
+        <div style="color:var(--text-dim);font-style:italic;">Loading hardware data...</div>
+      </div>
+    </div>
+
+    <!-- Economy Net Worth -->
+    <div class="panel-card" style="border-left:4px solid var(--growth);">
+      <h3>💰 Net Worth History</h3>
+      <div id="analytics-economy" style="margin-top:1rem;">
+        <div style="color:var(--text-dim);font-style:italic;">Loading economy data...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- System Config Tab (v5.1.0) -->
+<div id="tab-config" class="tab-content">
+  <div style="max-width:1200px;margin:0 auto;padding:1.5rem 2rem;">
+    <h2 style="color:var(--accent);margin-bottom:1rem;">⚙️ System Configuration</h2>
+    <p style="color:var(--text-dim);margin-bottom:1.5rem;">Centralized settings for all simulation engines.</p>
+
+    <!-- Character Identity -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid var(--core);">
+      <h3>👤 Character Identity</h3>
+      <div style="margin-top:0.75rem;">
+        <label style="font-size:0.85rem;">Active Character Name</label>
+        <input type="text" id="config-character-name" placeholder="Q" style="width:100%;max-width:300px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
+      </div>
+      <button onclick="saveCharacterConfig()" style="margin-top:0.75rem;background:var(--accent);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">Save</button>
+      <span id="config-character-status" style="margin-left:0.5rem;font-size:0.8rem;"></span>
+    </div>
+
+    <!-- Metabolism Settings -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid var(--danger);">
+      <h3>� Metabolism Rates</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem;">
+        <div>
+          <label style="font-size:0.8rem;">Hunger Rate</label>
+          <input type="range" id="config-hunger-rate" min="0" max="1" step="0.1" value="0.5" style="width:100%;">
+          <span id="config-hunger-rate-val" style="font-size:0.8rem;">0.5</span>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Thirst Rate</label>
+          <input type="range" id="config-thirst-rate" min="0" max="1" step="0.1" value="0.5" style="width:100%;">
+          <span id="config-thirst-rate-val" style="font-size:0.8rem;">0.5</span>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Energy Rate</label>
+          <input type="range" id="config-energy-rate" min="0" max="1" step="0.1" value="0.5" style="width:100%;">
+          <span id="config-energy-rate-val" style="font-size:0.8rem;">0.5</span>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Stress Accumulation</label>
+          <input type="range" id="config-stress-rate" min="0" max="1" step="0.1" value="0.3" style="width:100%;">
+          <span id="config-stress-rate-val" style="font-size:0.8rem;">0.3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hardware Resonance -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid #8b5cf6;">
+      <h3>🔮 Hardware Resonance</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem;">
+        <div>
+          <label style="font-size:0.8rem;">CPU Stress Threshold (%)</label>
+          <input type="number" id="config-cpu-threshold" min="0" max="100" value="80" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">RAM Threshold (%)</label>
+          <input type="number" id="config-ram-threshold" min="0" max="100" value="85" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Temp Threshold (°C)</label>
+          <input type="number" id="config-temp-threshold" min="0" max="120" value="80" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Audio Sensitivity</label>
+          <input type="range" id="config-audio-sensitivity" min="0" max="1" step="0.1" value="0.5" style="width:100%;">
+          <span id="config-audio-sensitivity-val" style="font-size:0.8rem;">0.5</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Social & Presence -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid #ec4899;">
+      <h3>📱 Social & Presence</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <input type="checkbox" id="config-autopost" checked>
+          <label style="font-size:0.9rem;">Autonomous Posting</label>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Post Frequency</label>
+          <select id="config-post-frequency" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <input type="checkbox" id="config-npc-interact" checked>
+          <label style="font-size:0.9rem;">NPC Interactions</label>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Interaction Frequency</label>
+          <select id="config-interaction-frequency" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connectivity -->
+    <div class="panel-card" style="border-left:4px solid var(--warning);">
+      <h3>🔗 Connectivity (VMC/OSC)</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <input type="checkbox" id="config-vmc-enabled">
+          <label style="font-size:0.9rem;">Enable VMC</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <input type="checkbox" id="config-osc-enabled">
+          <label style="font-size:0.9rem;">Enable OSC</label>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">VMC IP</label>
+          <input type="text" id="config-vmc-ip" value="127.0.0.1" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">VMC Port</label>
+          <input type="number" id="config-vmc-port" value="8000" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+        </div>
+      </div>
+    </div>
+
+    <button onclick="saveAllConfig()" style="margin-top:1.5rem;background:var(--growth);color:#fff;border:none;padding:0.75rem 2rem;border-radius:4px;cursor:pointer;font-size:1rem;">💾 Save All Settings</button>
+    <span id="config-save-status" style="margin-left:1rem;font-size:0.9rem;"></span>
   </div>
 </div>
 
@@ -3477,13 +4041,16 @@ function switchTab(tabId) {{
   if (tabId === 'inventory' && !window._inventoryRendered) {{ renderInventoryPanel(); window._inventoryRendered = true; }}
   if (tabId === 'wardrobe' && !window._wardrobeRendered) {{ renderWardrobePanel(); window._wardrobeRendered = true; }}
   if (tabId === 'development' && !window._devRendered) {{ renderDevPanel(); window._devRendered = true; }}
+  if (tabId === 'development') {{ loadExpansionState(); loadProjectsList(); }}
   if (tabId === 'cycle' && !window._cycleRendered) {{ renderCyclePanel(); window._cycleRendered = true; }}
   if (tabId === 'world' && !window._worldRendered) {{ renderWorldPanel(); window._worldRendered = true; }}
   if (tabId === 'skills' && !window._skillsRendered) {{ renderSkillsPanel(); window._skillsRendered = true; }}
   if (tabId === 'psychology' && !window._psychRendered) {{ renderPsychPanel(); window._psychRendered = true; }}
-  if (tabId === 'reputation' && !window._repRendered) {{ renderReputationPanel(); loadContactCRM(); window._repRendered = true; }}
+  if (tabId === 'reputation' && !window._repRendered) {{ renderReputationPanel(); loadContactCRM(); loadPendingSocialEvents(); window._repRendered = true; }}
+  if (tabId === 'reputation') {{ loadPendingSocialEvents(); }}
   if (tabId === 'stream' && !window._streamRendered) {{ renderPhotoStream(); window._streamRendered = true; }}
-  if (tabId === 'genesis' && !window._genesisRendered) {{ window._genesisRendered = true; loadGenesisStatus(); }}
+  if (tabId === 'genesis' && !window._genesisRendered) {{ window._genesisRendered = true; loadGenesisStatus(); loadConfigs(); }}
+  if (tabId === 'genesis') {{ refreshSpatialState(); }}
   if (tabId === 'vault' && !window._vaultRendered) {{ window._vaultRendered = true; loadVaultData(); }}
 }}
 
@@ -3934,6 +4501,79 @@ function renderWardrobePanel() {{
       ).join('');
   }} else {{
     outfitsEl.innerHTML = '';
+  }}
+}}
+
+// ---------------------------------------------------------------------------
+// Phase 34: Self-Expansion Panel
+// ---------------------------------------------------------------------------
+async function loadExpansionState() {{
+  try {{
+    const res = await fetch('/api/expansion/state');
+    const state = await res.json();
+
+    const statusEl = document.getElementById('expansion-status');
+    const progressEl = document.getElementById('expansion-progress');
+    const projectNameEl = document.getElementById('expansion-project-name');
+    const percentEl = document.getElementById('expansion-percent');
+    const barEl = document.getElementById('expansion-bar');
+
+    if (state.isExpanding && state.currentProject) {{
+      statusEl.innerHTML = '<span style="color:#a855f7;">●</span> <span style="color:#a855f7;">Self-Expanding</span> - Working on: ' + state.currentProject.name;
+      progressEl.style.display = 'block';
+      projectNameEl.textContent = state.currentProject.name;
+      const percent = state.currentProject.progress || 0;
+      percentEl.textContent = percent + '%';
+      barEl.style.width = percent + '%';
+    }} else {{
+      statusEl.innerHTML = '<span style="color:var(--text-dim);">○</span> <span style="color:var(--text-dim);">Idle</span> - ' +
+        (state.totalProjectsCreated > 0
+          ? state.totalProjectsCreated + ' projects created, ' + (state.totalProjectsCreated - (state.active?.length || 0)) + ' completed'
+          : 'Waiting for high energy + strong technical interest');
+      progressEl.style.display = 'none';
+    }}
+  }} catch (e) {{
+    console.log('Expansion state not available');
+  }}
+}}
+
+// Load projects list
+async function loadProjectsList() {{
+  try {{
+    const res = await fetch('/api/expansion/projects');
+    const data = await res.json();
+
+    const listEl = document.getElementById('projects-list');
+    if (!data.projects || data.projects.length === 0) {{
+      listEl.innerHTML = '<div style="color:var(--text-dim);font-size:0.9rem;">No autonomous projects yet. Q will create projects when energy > 80% and technical interest sentiment > 0.9.</div>';
+      return;
+    }}
+
+    listEl.innerHTML = data.projects.map(p => {{
+      const statusColors = {{
+        'brainstorm': '#fbbf24',
+        'planning': '#60a5fa',
+        'implementing': '#a855f7',
+        'completed': '#22c55e',
+        'paused': '#6b7280'
+      }};
+      const color = statusColors[p.status] || '#6b7280';
+      return `<div style="background:var(--bg-dim);padding:0.75rem;border-radius:8px;margin-bottom:0.5rem;border-left:3px solid ${{color}};">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:bold;">${{esc(p.name)}}</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">${{esc(p.topic)}} &middot; ${{p.type}}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.85rem;color:${{color}};font-weight:bold;">${{p.status}}</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">${{p.progress}}%</div>
+          </div>
+        </div>
+        ${{p.progress < 100 ? `<div style="background:var(--bg);height:4px;border-radius:2px;margin-top:0.5rem;overflow:hidden;"><div style="background:${{color}};height:100%;width:${{p.progress}}%;"></div></div>` : ''}}
+      </div>`;
+    }}).join('');
+  }} catch (e) {{
+    console.log('Projects list not available');
   }}
 }}
 
@@ -4750,6 +5390,407 @@ async function executeTrade() {{
 }}
 
 // ---------------------------------------------------------------------------
+// Economy Engine State (Phase 37)
+// ---------------------------------------------------------------------------
+async function loadEconomyState() {{
+  try {{
+    const response = await fetch('/api/economy/state');
+    const state = await response.json();
+
+    // Update status
+    const statusEl = document.getElementById('economy-status');
+    if (statusEl) {{
+      statusEl.textContent = state.isActive ? 'Active' : 'Inactive';
+      statusEl.style.color = state.isActive ? 'var(--growth)' : 'var(--text-dim)';
+    }}
+
+    // Update strategy
+    const strategyEl = document.getElementById('economy-strategy');
+    if (strategyEl) {{
+      const strategyNames = {{
+        'observe': 'Observing',
+        'hold': 'Holding',
+        'panic_sell': 'Panic Sell',
+        'momentum_buy': 'Momentum Buy',
+        'gradual_buy': 'Gradual Buy',
+        'buy_the_dip': 'Buy the Dip',
+        'dollar_cost_average': 'DCA',
+        'stop_loss': 'Stop Loss',
+        'day_trade': 'Day Trade'
+      }};
+      strategyEl.textContent = strategyNames[state.currentStrategy] || state.currentStrategy || '-';
+    }}
+
+    // Update mood
+    const moodEl = document.getElementById('economy-mood');
+    if (moodEl) {{
+      const moodColors = {{ 'bullish': 'var(--growth)', 'bearish': 'var(--danger)', 'neutral': 'var(--core)' }};
+      moodEl.textContent = (state.marketMood || 'neutral').charAt(0).toUpperCase() + (state.marketMood || 'neutral').slice(1);
+      moodEl.style.color = moodColors[state.marketMood] || 'var(--text)';
+    }}
+
+    // Update trade count
+    const tradesEl = document.getElementById('economy-trades');
+    if (tradesEl) {{
+      tradesEl.textContent = state.totalTrades || 0;
+    }}
+
+    // Update last trade time
+    const lastTradeEl = document.getElementById('economy-last-trade');
+    if (lastTradeEl) {{
+      if (state.lastTradeTime) {{
+        const date = new Date(state.lastTradeTime);
+        lastTradeEl.textContent = date.toLocaleTimeString();
+      }} else {{
+        lastTradeEl.textContent = '-';
+      }}
+    }}
+  }} catch (e) {{
+    console.log('Economy state error:', e);
+  }}
+}}
+
+// Load economy state when vault tab is loaded
+window._economyPolling = null;
+function startEconomyPolling() {{
+  if (window._economyPolling) clearInterval(window._economyPolling);
+  loadEconomyState();
+  window._economyPolling = setInterval(loadEconomyState, 5000);
+}}
+
+// Start polling when vault tab becomes active
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tabId) {{
+  if (originalSwitchTab) originalSwitchTab(tabId);
+  if (tabId === 'vault') {{
+    startEconomyPolling();
+  }}
+  if (tabId === 'stream') {{
+    startPresencePolling();
+  }}
+  if (tabId === 'analytics') {{
+    loadAnalyticsData();
+  }}
+  if (tabId === 'config') {{
+    loadConfig();
+  }}
+}};
+
+// ---------------------------------------------------------------------------
+// Presence Engine State (Phase 39)
+// ---------------------------------------------------------------------------
+async function loadPresenceState() {{
+  try {{
+    const response = await fetch('/api/presence/state');
+    const state = await response.json();
+
+    // Update status
+    const statusEl = document.getElementById('presence-status');
+    if (statusEl) {{
+      statusEl.textContent = state.isActive ? 'Active' : 'Inactive';
+      statusEl.style.color = state.isActive ? '#10b981' : 'var(--text-dim)';
+    }}
+
+    // Update mood
+    const moodEl = document.getElementById('presence-mood');
+    if (moodEl) {{
+      const moodColors = {{ 'euphoric': '#10b981', 'happy': '#10b981', 'content': '#10b981', 'neutral': 'var(--core)', 'stressed': '#ef4444', 'anxious': '#f59e0b', 'tired': '#6b7280' }};
+      moodEl.textContent = (state.currentMood || 'neutral').charAt(0).toUpperCase() + (state.currentMood || 'neutral').slice(1);
+      moodEl.style.color = moodColors[state.currentMood] || 'var(--text)';
+    }}
+
+    // Update counts
+    const totalEl = document.getElementById('presence-total-posts');
+    if (totalEl) {{
+      totalEl.textContent = state.totalPosts || 0;
+    }}
+
+    const todayEl = document.getElementById('presence-posts-today');
+    if (todayEl) {{
+      todayEl.textContent = state.postsToday || 0;
+    }}
+
+    // Update feed
+    const feedEl = document.getElementById('social-feed');
+    if (feedEl && state.feed) {{
+      if (state.feed.length === 0) {{
+        feedEl.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No posts yet. Q will post when significant events occur.</p>';
+      }} else {{
+        let html = '';
+        for (const post of state.feed.slice(0, 10)) {{
+          const sentimentColors = {{ 'joy': '#10b981', 'excitement': '#10b981', 'neutral': 'var(--text-dim)', 'melancholy': '#6b7280', 'frustration': '#ef4444' }};
+          const icon = post.type === 'selfie' ? '📷' : post.type === 'milestone' ? '🎉' : '💭';
+          html += `<div style="padding:0.75rem;background:var(--bg-dim);border-radius:6px;margin-bottom:0.5rem;border-left:3px solid ${{sentimentColors[post.sentiment] || 'var(--border)'}}">`;
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">`;
+          html += `<span style="font-size:1.2rem;">${{icon}}</span>`;
+          html += `<span style="font-size:0.75rem;color:var(--text-dim);">${{new Date(post.timestamp).toLocaleTimeString()}}</span>`;
+          html += `</div>`;
+          html += `<div style="font-size:0.9rem;line-height:1.4;">${{post.content}}</div>`;
+          html += `<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem;">❤️ ${{post.likes}} · 🔄 ${{post.shares}}</div>`;
+          html += `</div>`;
+        }}
+        feedEl.innerHTML = html;
+      }}
+    }}
+  }} catch (e) {{
+    console.log('Presence state error:', e);
+  }}
+}}
+
+function startPresencePolling() {{
+  if (window._presencePolling) clearInterval(window._presencePolling);
+  loadPresenceState();
+  window._presencePolling = setInterval(loadPresenceState, 5000);
+}}
+
+// ---------------------------------------------------------------------------
+// Hardware Resonance State (Phase 40)
+// ---------------------------------------------------------------------------
+async function loadHardwareState() {{
+  try {{
+    const response = await fetch('/api/hardware/resonance');
+    const state = await response.json();
+
+    // Update CPU
+    const cpuEl = document.getElementById('hardware-cpu');
+    if (cpuEl) {{
+      cpuEl.textContent = (state.currentCpuLoad || 0).toFixed(0) + '%';
+      cpuEl.style.color = state.currentCpuLoad > 80 ? '#ef4444' : state.currentCpuLoad > 50 ? '#f59e0b' : 'var(--accent)';
+    }}
+
+    // Update RAM
+    const ramEl = document.getElementById('hardware-ram');
+    if (ramEl) {{
+      ramEl.textContent = (state.currentMemoryUsage || 0).toFixed(0) + '%';
+      ramEl.style.color = state.currentMemoryUsage > 85 ? '#ef4444' : state.currentMemoryUsage > 70 ? '#f59e0b' : 'var(--growth)';
+    }}
+
+    // Update Temp
+    const tempEl = document.getElementById('hardware-temp');
+    if (tempEl) {{
+      if (state.currentTemp) {{
+        tempEl.textContent = state.currentTemp.toFixed(0) + '°C';
+        tempEl.style.color = state.currentTemp > 80 ? '#ef4444' : state.currentTemp > 60 ? '#f59e0b' : 'var(--core)';
+      }} else {{
+        tempEl.textContent = 'N/A';
+      }}
+    }}
+
+    // Update Resonance Level
+    const resonanceEl = document.getElementById('hardware-resonance');
+    if (resonanceEl) {{
+      const levelColors = {{ 'calm': '#10b981', 'strained': '#f59e0b', 'overloaded': '#ef4444', 'resonant': '#8b5cf6' }};
+      resonanceEl.textContent = (state.resonanceLevel || 'calm').charAt(0).toUpperCase() + (state.resonanceLevel || 'calm').slice(1);
+      resonanceEl.style.color = levelColors[state.resonanceLevel] || 'var(--accent)';
+    }}
+
+    // Update Audio
+    const audioEl = document.getElementById('hardware-audio');
+    if (audioEl) {{
+      audioEl.textContent = state.isAudioPlaying ? 'Playing 🎵' : 'Silent';
+      audioEl.style.color = state.isAudioPlaying ? '#10b981' : 'var(--text-dim)';
+    }}
+  }} catch (e) {{
+    console.log('Hardware state error:', e);
+  }}
+}}
+
+// Start hardware polling on load
+setInterval(loadHardwareState, 5000);
+loadHardwareState();
+
+// ---------------------------------------------------------------------------
+// Analytics Tab (v5.1.0)
+// ---------------------------------------------------------------------------
+async function loadAnalyticsData() {{
+  try {{
+    // Load vitals telemetry
+    const vitalsResponse = await fetch('/api/telemetry/vitals');
+    const vitals = await vitalsResponse.json();
+
+    const vitalsEl = document.getElementById('analytics-vitals');
+   El && vitals.length > 0) {{
+      let html = '<div style="display:flex;gap:2px;height:100px;align-items:flex-end;">';
+      const recent = vitals.slice(-48); // Last 48 entries
+      for (const v of recent) {{
+        const stressH = (v.needs?.stress || 50);
+        const energyH = (v.needs?.energy || 50);
+        html += `<div style="flex:1;display:flex;flex-direction:column;gap:1px;">`;
+        html += `<div style="height:${{stressH}}%;background:var(--danger);min-height:1px;" title="Stress: ${{stressH}}"></div>`;
+        html += `<div style="height:${{energyH}}%;background:var(--growth);min-height:1px;" title="Energy: ${{energyH}}"></div>`;
+        html += `</div>`;
+      }}
+      html += '</div><div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-dim);margin-top:0.25rem;"><span>24h ago</span><span>Now</span></div>';
+      vitalsEl.innerHTML = html;
+    }} else if (vitalsEl) {{
+      vitalsEl.innerHTML = '<div style="color:var(--text-dim);font-style:italic;">No vitals data yet. Data accumulates over time.</div>';
+    }}
+
+    // Load hardware telemetry
+    const hwResponse = await fetch('/api/telemetry/hardware');
+    const hw = await hwResponse.json();
+
+    const hwEl = document.getElementById('analytics-hardware');
+    if (hwEl && hw.length > 0) {{
+      let html = '<div style="display:flex;gap:2px;height:80px;align-items:flex-end;">';
+      const recent = hw.slice(-48);
+      for (const h of recent) {{
+        const cpuH = h.cpu || 0;
+        const stressH = Math.min(100, (h.stress_impact || 0) * 10 + 20);
+        html += `<div style="flex:1;display:flex;flex-direction:column;gap:1px;">`;
+        html += `<div style="height:${{cpuH}}%;background:#8b5cf6;min-height:1px;" title="CPU: ${{cpuH}}%"></div>`;
+        html += `<div style="height:${{stressH}}%;background:var(--danger);min-height:1px;" title="Stress Impact"></div>`;
+        html += `</div>`;
+      }}
+      html += '</div><div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-dim);margin-top:0.25rem;"><span>CPU %</span><span>Stress</span></div>';
+      hwEl.innerHTML = html;
+    }} else if (hwEl) {{
+      hwEl.innerHTML = '<div style="color:var(--text-dim);font-style:italic;">No hardware data yet.</div>';
+    }}
+
+    // Load economy data
+    const vaultResponse = await fetch('/api/vault/status');
+    const vault = await vaultResponse.json();
+
+    const econEl = document.getElementById('analytics-economy');
+    if (econEl) {{
+      const totalValue = vault.balances?.USD || 0;
+      const positions = Object.keys(vault.positions || {{}}).length;
+      econEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div style="text-align:center;padding:1rem;background:var(--bg);border-radius:8px;">
+          <div style="font-size:2rem;color:var(--growth);">$${{totalValue.toFixed(2)}}</div>
+          <div style="font-size:0.8rem;color:var(--text-dim);">Total Value</div>
+        </div>
+        <div style="text-align:center;padding:1rem;background:var(--bg);border-radius:8px;">
+          <div style="font-size:2rem;color:var(--accent);">${{vault.transactions?.length || 0}}</div>
+          <div style="font-size:0.8rem;color:var(--text-dim);">Total Trades</div>
+        </div>
+      </div>`;
+    }}
+  }} catch (e) {{
+    console.log('Analytics load error:', e);
+  }}
+}}
+
+// ---------------------------------------------------------------------------
+// Config Tab (v5.1.0)
+// ---------------------------------------------------------------------------
+async function loadConfig() {{
+  try {{
+    const response = await fetch('/api/config/all');
+    const config = await response.json();
+
+    // Character
+    if (config.character) {{
+      document.getElementById('config-character-name').value = config.character.name || 'Q';
+    }}
+
+    // Metabolism
+    if (config.metabolism) {{
+      document.getElementById('config-hunger-rate').value = config.metabolism.hunger_rate || 0.5;
+      document.getElementById('config-hunger-rate-val').textContent = config.metabolism.hunger_rate || 0.5;
+      document.getElementById('config-thirst-rate').value = config.metabolism.thirst_rate || 0.5;
+      document.getElementById('config-thirst-rate-val').textContent = config.metabolism.thirst_rate || 0.5;
+      document.getElementById('config-energy-rate').value = config.metabolism.energy_rate || 0.5;
+      document.getElementById('config-energy-rate-val').textContent = config.metabolism.energy_rate || 0.5;
+      document.getElementById('config-stress-rate').value = config.metabolism.stress_accumulation || 0.3;
+      document.getElementById('config-stress-rate-val').textContent = config.metabolism.stress_accumulation || 0.3;
+    }}
+
+    // Hardware
+    if (config.hardware_resonance) {{
+      document.getElementById('config-cpu-threshold').value = config.hardware_resonance.cpu_threshold_high || 80;
+      document.getElementById('config-ram-threshold').value = config.hardware_resonance.memory_threshold_high || 85;
+      document.getElementById('config-temp-threshold').value = config.hardware_resonance.temp_threshold_high || 80;
+      document.getElementById('config-audio-sensitivity').value = config.hardware_resonance.audio_sensitivity || 0.5;
+      document.getElementById('config-audio-sensitivity-val').textContent = config.hardware_resonance.audio_sensitivity || 0.5;
+    }}
+
+    // Social
+    if (config.social) {{
+      document.getElementById('config-autopost').checked = config.social.autonomous_posting !== false;
+      document.getElementById('config-post-frequency').value = config.social.post_frequency || 'medium';
+      document.getElementById('config-npc-interact').checked = config.social.npc_interactions !== false;
+      document.getElementById('config-interaction-frequency').value = config.social.interaction_frequency || 'medium';
+    }}
+
+    // Connectivity
+    if (config.connectivity) {{
+      document.getElementById('config-vmc-enabled').checked = config.connectivity.vmc_enabled === true;
+      document.getElementById('config-osc-enabled').checked = config.connectivity.osc_enabled === true;
+      document.getElementById('config-vmc-ip').value = config.connectivity.vmc_ip || '127.0.0.1';
+      document.getElementById('config-vmc-port').value = config.connectivity.vmc_port || 8000;
+    }}
+  }} catch (e) {{
+    console.log('Config load error:', e);
+  }}
+}}
+
+async function saveAllConfig() {{
+  const config = {{
+    character: {{
+      name: document.getElementById('config-character-name').value
+    }},
+    metabolism: {{
+      hunger_rate: parseFloat(document.getElementById('config-hunger-rate').value),
+      thirst_rate: parseFloat(document.getElementById('config-thirst-rate').value),
+      energy_rate: parseFloat(document.getElementById('config-energy-rate').value),
+      stress_accumulation: parseFloat(document.getElementById('config-stress-rate').value)
+    }},
+    hardware_resonance: {{
+      enabled: true,
+      cpu_threshold_high: parseInt(document.getElementById('config-cpu-threshold').value),
+      memory_threshold_high: parseInt(document.getElementById('config-ram-threshold').value),
+      temp_threshold_high: parseInt(document.getElementById('config-temp-threshold').value),
+      audio_sensitivity: parseFloat(document.getElementById('config-audio-sensitivity').value)
+    }},
+    social: {{
+      autonomous_posting: document.getElementById('config-autopost').checked,
+      post_frequency: document.getElementById('config-post-frequency').value,
+      npc_interactions: document.getElementById('config-npc-interact').checked,
+      interaction_frequency: document.getElementById('config-interaction-frequency').value
+    }},
+    connectivity: {{
+      vmc_enabled: document.getElementById('config-vmc-enabled').checked,
+      osc_enabled: document.getElementById('config-osc-enabled').checked,
+      vmc_ip: document.getElementById('config-vmc-ip').value,
+      vmc_port: parseInt(document.getElementById('config-vmc-port').value)
+    }}
+  }};
+
+  try {{
+    const response = await fetch('/api/config/save', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify(config)
+    }});
+    const result = await response.json();
+    const statusEl = document.getElementById('config-save-status');
+    if (result.success) {{
+      statusEl.textContent = '✓ Saved!';
+      statusEl.style.color = 'var(--growth)';
+      setTimeout(() => {{ statusEl.textContent = ''; }}, 3000);
+    }} else {{
+      statusEl.textContent = '✗ Error: ' + result.error;
+      statusEl.style.color = 'var(--danger)';
+    }}
+  }} catch (e) {{
+    document.getElementById('config-save-status').textContent = '✗ Error: ' + e.message;
+  }}
+}}
+
+// Slider value displays
+['hunger-rate', 'thirst-rate', 'energy-rate', 'stress-rate', 'audio-sensitivity'].forEach(id => {{
+  const slider = document.getElementById('config-' + id);
+  if (slider) {{
+    slider.addEventListener('input', function() {{
+      const valEl = document.getElementById('config-' + id + '-val');
+      if (valEl) valEl.textContent = this.value;
+    }});
+  }}
+}});
+
+// ---------------------------------------------------------------------------
 // Genesis Lab Tab
 // ---------------------------------------------------------------------------
 async function toggleGenesis(enabled) {{
@@ -5307,6 +6348,58 @@ async function runGenesis() {{
 }}
 
 // ---------------------------------------------------------------------------
+// Phase 35: Social Engine - Load Pending Events
+// ---------------------------------------------------------------------------
+async function loadPendingSocialEvents() {{
+  try {{
+    const res = await fetch('/api/social/pending');
+    const data = await res.json();
+
+    const container = document.getElementById('pending-social-events');
+    if (!container) return;
+
+    if (!data.pending || data.pending.length === 0) {{
+      container.innerHTML = '<div style="color:var(--text-dim);font-size:0.9rem;">No pending messages from NPCs.</div>';
+      return;
+    }}
+
+    const pending = data.pending.filter(e => !e.processed);
+    if (pending.length === 0) {{
+      container.innerHTML = '<div style="color:var(--text-dim);font-size:0.9rem;">No pending messages. All caught up!</div>';
+      return;
+    }}
+
+    container.innerHTML = pending.map(e => {{
+      const categoryColors = {{
+        'chat': '#60a5fa',
+        'support': '#22c55e',
+        'request': '#fbbf24',
+        'conflict': '#ef4444',
+        'invitation': '#a855f7',
+        'gossip': '#ec4899'
+      }};
+      const color = categoryColors[e.category] || '#6b7280';
+      const time = new Date(e.timestamp).toLocaleTimeString();
+
+      return `<div style="background:var(--bg);padding:0.75rem;border-radius:8px;margin-bottom:0.5rem;border-left:3px solid ${{color}};">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:bold;">${{esc(e.sender_name)}}</div>
+            <div style="font-size:0.85rem;color:var(--text-dim);">${{esc(e.message)}}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.75rem;color:${{color}};font-weight:bold;text-transform:uppercase;">${{e.category}}</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">${{time}}</div>
+          </div>
+        </div>
+      </div>`;
+    }}).join('');
+  }} catch (e) {{
+    console.log('Failed to load social events:', e);
+  }}
+}}
+
+// ---------------------------------------------------------------------------
 // Social Standing Tab
 // ---------------------------------------------------------------------------
 function renderReputationPanel() {{
@@ -5582,6 +6675,1331 @@ async function reImagineNPC(entityId, encodedName) {{
     `).join('');
   }}
 
+</script>
+
+<!-- Three.js + VRM Avatar Script (Phase 22) -->
+<script type="module">
+// VRM Avatar Viewer - Three.js + @pixiv/three-vrm
+// Phase 23: Emotional Expressiveness with Smooth BlendShape Transitions
+let vrmModel = null;
+let scene, camera, renderer;
+let currentPose = 'idle';
+let currentEmote = 'neutral';
+let animationId = null;
+
+// BlendShape state for smooth transitions (Phase 23)
+let currentBlendShapes = {
+  joy: 0, angry: 0, sad: 0, fear: 0, surprise: 0,
+  neutral: 1, relaxed: 0, blinkLeft: 0, blinkRight: 0, blink: 0
+};
+let targetBlendShapes = { ...currentBlendShapes };
+let lastExpressionUpdate = 0;
+const LERP_SPEED = 0.05; // 5% per frame for smooth transition (~0.5s to settle)
+
+// Default blend shapes (neutral)
+const DEFAULT_BLENDSHAPES = {
+  joy: 0, angry: 0, sad: 0, fear: 0, surprise: 0,
+  neutral: 1, relaxed: 0, blinkLeft: 0, blinkRight: 0, blink: 0
+};
+
+// Import Three.js and VRM from CDN
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+// VRM support via simple fallback (full VRMLoader requires additional imports)
+async function loadVRM(url) {
+  const loader = new GLTFLoader();
+
+  return new Promise((resolve, reject) => {
+    loader.load(
+      url,
+      (gltf) => {
+        resolve(gltf.scene);
+      },
+      (progress) => {
+        console.log('Loading:', (progress.loaded / progress.total * 100) + '%');
+      },
+      (error) => {
+        reject(error);
+      }
+    );
+  });
+}
+
+async function initAvatar() {
+  const canvas = document.getElementById('vrm-canvas');
+  const loading = document.getElementById('avatar-loading');
+  const error = document.getElementById('avatar-error');
+  const statusText = document.getElementById('avatar-status-text');
+
+  try {
+    // Get avatar config
+    const configRes = await fetch('/api/avatar/config');
+    const config = await configRes.json();
+
+    if (!config.vrm_path) {
+      throw new Error('No VRM path configured');
+    }
+
+    // Setup Three.js scene
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    // Camera
+    camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    camera.position.set(0, 1.2, 3);
+
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 5, 5);
+    scene.add(directionalLight);
+
+    // Load VRM/GLTF model
+    const modelPath = config.vrm_path.replace('/home/leo/Schreibtisch', '');
+    statusText.textContent = 'Loading 3D model...';
+
+    vrmModel = await loadVRM(modelPath);
+
+    // Scale and position the model
+    vrmModel.scale.set(1, 1, 1);
+    vrmModel.position.set(0, 0, 0);
+
+    scene.add(vrmModel);
+
+    // Hide loading, show canvas
+    loading.style.display = 'none';
+    statusText.textContent = 'Avatar loaded successfully';
+
+    // Start animation loop
+    animate();
+
+    // Start polling for avatar state updates
+    startAvatarPolling();
+
+  } catch (err) {
+    console.error('Failed to load avatar:', err);
+    loading.style.display = 'none';
+    error.style.display = 'block';
+    statusText.textContent = 'Error: ' + err.message;
+  }
+}
+
+function animate() {
+  animationId = requestAnimationFrame(animate);
+
+  if (vrmModel) {
+    // Subtle idle animation
+    const time = Date.now() * 0.001;
+    vrmModel.position.y = Math.sin(time) * 0.02;
+
+    // Phase 23: Smooth BlendShape interpolation (lerping)
+    updateBlendShapesLerp();
+
+    // Phase 24: Lip-sync analysis
+    updateLipSync();
+
+    // Phase 25: Motion/Idle animations
+    updateMotionLerp();
+
+    // Phase 29: Animate weather particles
+    animateWeatherParticles();
+  }
+
+  renderer.render(scene, camera);
+}
+
+// Phase 23: Lerp current blend shapes toward target
+function updateBlendShapesLerp() {
+  let allSettled = true;
+
+  for (const key of Object.keys(targetBlendShapes)) {
+    const target = targetBlendShapes[key];
+    const current = currentBlendShapes[key];
+
+    if (Math.abs(target - current) > 0.001) {
+      currentBlendShapes[key] = current + (target - current) * LERP_SPEED;
+      allSettled = false;
+    }
+  }
+
+  // Apply blend shapes to VRM model
+  applyBlendShapesToVRM(currentBlendShapes);
+
+  // Update status if expressions changed
+  if (!allSettled) {
+    const statusText = document.getElementById('avatar-status-text');
+    if (statusText) {
+      // Determine dominant expression
+      const dominant = getDominantExpression(currentBlendShapes);
+      statusText.textContent = `Expression: ${dominant}`;
+    }
+  }
+}
+
+// Apply computed blend shapes to VRM mesh (Phase 23)
+function applyBlendShapesToVRM(blendShapes) {
+  if (!vrmModel) return;
+
+  // Find the VRM's face mesh (typically named "Face" or "Head")
+  // This is a fallback implementation - full VRM uses specific blendShape weights
+
+  // Calculate emissive color based on blend shapes
+  const joy = blendShapes.joy || 0;
+  const angry = blendShapes.angry || 0;
+  const sad = blendShapes.sad || 0;
+  const fear = blendShapes.fear || 0;
+
+  // Color blending based on expression weights
+  let r = 0, g = 0, b = 0;
+
+  // Joy = green/yellow tint
+  r += joy * 0.2;
+  g += joy * 0.5;
+
+  // Angry = red tint
+  r += angry * 0.8;
+
+  // Sad = blue tint
+  b += sad * 0.5;
+
+  // Fear = purple tint
+  r += fear * 0.3;
+  b += fear * 0.3;
+
+  const intensity = Math.max(joy, angry, sad, fear) * 0.4;
+
+  vrmModel.traverse((child) => {
+    if (child.isMesh && child.material) {
+      // Face/head meshes get expression colors
+      const name = child.name.toLowerCase();
+      if (name.includes('face') || name.includes('head')) {
+        child.material.emissive = new THREE.Color(r, g, b);
+        child.material.emissiveIntensity = intensity;
+      }
+    }
+  });
+}
+
+// Get the dominant expression from blend shape weights
+function getDominantExpression(blendShapes) {
+  const { joy, angry, sad, fear, surprise, relaxed, neutral } = blendShapes;
+
+  const max = Math.max(joy, angry, sad, fear, surprise, relaxed, neutral);
+
+  if (max === joy && joy > 0.1) return 'Joy';
+  if (max === angry && angry > 0.1) return 'Angry';
+  if (max === sad && sad > 0.1) return 'Sad';
+  if (max === fear && fear > 0.1) return 'Fear';
+  if (max === surprise && surprise > 0.1) return 'Surprise';
+  if (max === relaxed && relaxed > 0.1) return 'Relaxed';
+  return 'Neutral';
+}
+
+function startAvatarPolling() {
+  // Poll for state updates every 500ms
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/avatar/state');
+      const state = await res.json();
+
+      if (state.action) {
+        // Phase 23: Handle expression updates from tick handler
+        if (state.action === 'expression' && state.blendShapes) {
+          // Set target blend shapes for smooth interpolation
+          targetBlendShapes = { ...DEFAULT_BLENDSHAPES, ...state.blendShapes };
+          console.log('Expression update:', targetBlendShapes);
+        }
+        // Phase 24: Handle voice playback requests
+        else if (state.action === 'voice' && state.audioUrl) {
+          handleVoicePlayback(state);
+        }
+        // Phase 25: Handle motion updates
+        else if (state.action === 'motion' || state.action === 'motion_walking') {
+          handleMotionUpdate(state);
+        }
+        // Phase 29: Handle atmosphere sync
+        else if (state.action === 'sync_atmosphere' && state.atmosphere) {
+          handleAtmosphereUpdate(state.atmosphere);
+        }
+        // Phase 33: Handle interaction updates (props, furniture, light)
+        else if (state.interaction) {
+          handleInteractionUpdate(state.interaction);
+        }
+        else if (state.action === 'pose' && state.value) {
+          applyPose(state.value);
+        } else if (state.action === 'emote' && state.value) {
+          applyEmote(state.value);
+        } else if (state.action === 'sync_wardrobe') {
+          syncWardrobe();
+        }
+      }
+    } catch (e) {
+      console.error('Avatar polling error:', e);
+    }
+  }, 500);
+}
+
+// Apply pose (basic implementation - rotates the model)
+function applyPose(pose) {
+  if (!vrmModel) return;
+
+  currentPose = pose;
+  console.log('Applying pose:', pose);
+
+  // Reset rotation
+  vrmModel.rotation.set(0, 0, 0);
+
+  switch (pose) {
+    case 'sitting':
+      vrmModel.position.y = -0.3;
+      break;
+    case 'standing':
+      vrmModel.position.y = 0;
+      break;
+    case 'walking':
+      vrmModel.position.y = 0;
+      // Slight animation would go here
+      break;
+    case 'idle':
+    default:
+      vrmModel.position.y = 0;
+      break;
+  }
+}
+
+// Apply emote (basic implementation - color/scale changes as fallback)
+function applyEmote(emote) {
+  if (!vrmModel) return;
+
+  currentEmote = emote;
+  console.log('Applying emote:', emote);
+
+  // Reset
+  vrmModel.traverse((child) => {
+    if (child.isMesh && child.material) {
+      child.material.emissive = new THREE.Color(0x000000);
+      child.material.emissiveIntensity = 0;
+    }
+  });
+
+  // Apply emote colors
+  const emoteColors = {
+    'joy': 0x00ff00,
+    'angry': 0xff0000,
+    'sad': 0x0000ff,
+    'neutral': 0x000000,
+    'relaxed': 0x00ffff
+  };
+
+  const color = emoteColors[emote] || 0x000000;
+
+  if (color !== 0x000000) {
+    vrmModel.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material.emissive = new THREE.Color(color);
+        child.material.emissiveIntensity = 0.3;
+      }
+    });
+  }
+}
+
+// Sync wardrobe from physique.json
+async function syncWardrobe() {
+  const container = document.getElementById('avatar-wardrobe');
+
+  try {
+    const res = await fetch('/api/avatar/config');
+    const config = await res.json();
+
+    // In a full implementation, this would update VRM meshes
+    container.innerHTML = `
+      <div class="panel-card" style="padding:0.5rem;">
+        <div style="font-weight:bold;">Outfit Synced</div>
+        <div style="font-size:0.8rem;color:var(--text-dim);">VRM meshes updated</div>
+      </div>
+    `;
+
+    console.log('Wardrobe synced');
+  } catch (e) {
+    container.innerHTML = `<div style="color:var(--error);">Sync failed: ${e.message}</div>`;
+  }
+}
+
+// Global functions for buttons
+window.setAvatarPose = async function(pose) {
+  try {
+    await fetch('/api/avatar/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'pose', value: pose })
+    });
+    applyPose(pose);
+  } catch (e) {
+    console.error('Failed to set pose:', e);
+  }
+};
+
+window.setAvatarEmote = async function(emote) {
+  try {
+    await fetch('/api/avatar/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'emote', value: emote })
+    });
+    applyEmote(emote);
+  } catch (e) {
+    console.error('Failed to set emote:', e);
+  }
+};
+
+// Phase 33: Light control function
+window.setLightState = async function(action) {
+  try {
+    // Use the new reality_light tool via the simulation config endpoint
+    const res = await fetch('/api/config/simulation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'light',
+        light_action: action
+      })
+    });
+    const data = await res.json();
+    console.log('Light state:', action, data);
+
+    // Update local state for immediate feedback
+    if (directionalLight) {
+      const intensities = { on: 0.8, off: 0, dim: 0.3, bright: 1.0, toggle: currentInteraction.lightIntensity > 0 ? 0 : 0.8 };
+      const intensity = intensities[action];
+      directionalLight.intensity = intensity;
+      if (ambientLight) ambientLight.intensity = intensity * 0.75;
+      currentInteraction.lightIntensity = intensity;
+    }
+  } catch (e) {
+    console.error('Failed to set light state:', e);
+  }
+};
+
+// ============================================================
+// Phase 24: Vocal Resonance (Lip-Sync)
+// ============================================================
+
+// Audio context for lip-sync analysis
+let audioContext = null;
+let audioElement = null;
+let analyserNode = null;
+let audioSource = null;
+let isPlayingAudio = false;
+let lipSyncData = {
+  vowel_a: 0,  // open mouth
+  vowel_i: 0,  // wide
+  vowel_u: 0,  // round
+  vowel_e: 0,  // wide smile
+  vowel_o: 0   // round
+};
+let targetLipSync = { ...lipSyncData };
+const LIP_DECAY = 0.1; // How fast mouth closes when audio stops
+const LIP_SENSITIVITY = 2.0; // Audio sensitivity multiplier
+
+// Initialize audio system for lip-sync
+function initAudioSystem() {
+  if (audioContext) return;
+
+  try {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    analyserNode = audioContext.createAnalyser();
+    analyserNode.fftSize = 256;
+    analyserNode.smoothingTimeConstant = 0.5;
+
+    // Create hidden audio element
+    audioElement = new Audio();
+    audioElement.crossOrigin = 'anonymous';
+
+    // Connect to analyser
+    audioSource = audioContext.createMediaElementSource(audioElement);
+    audioSource.connect(analyserNode);
+    analyserNode.connect(audioContext.destination);
+
+    // Audio ended handler
+    audioElement.addEventListener('ended', () => {
+      isPlayingAudio = false;
+      console.log('Audio playback ended');
+    });
+
+    console.log('Audio system initialized for lip-sync');
+  } catch (e) {
+    console.error('Failed to initialize audio system:', e);
+  }
+}
+
+// Play audio and trigger lip-sync
+async function playAudioWithLipSync(audioUrl) {
+  if (!audioContext) {
+    initAudioSystem();
+  }
+
+  if (!audioElement || !audioContext) {
+    console.error('Audio system not available');
+    return;
+  }
+
+  try {
+    // Resume audio context (required for autoplay policy)
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+
+    // Load and play audio
+    audioElement.src = audioUrl;
+    await audioElement.play();
+    isPlayingAudio = true;
+
+    console.log('Playing audio with lip-sync:', audioUrl);
+  } catch (e) {
+    console.error('Failed to play audio:', e);
+  }
+}
+
+// Analyze audio and update lip-sync blend shapes
+function updateLipSync() {
+  if (!isPlayingAudio || !analyserNode) {
+    // Decay lip shapes when not speaking
+    for (const key of Object.keys(lipSyncData)) {
+      lipSyncData[key] = Math.max(0, lipSyncData[key] - LIP_DECAY);
+    }
+    applyLipSyncToVRM(lipSyncData);
+    return;
+  }
+
+  try {
+    const bufferLength = analyserNode.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyserNode.getByteFrequencyData(dataArray);
+
+    // Calculate average volume/intensity
+    let sum = 0;
+    for (let i = 0; i < bufferLength; i++) {
+      sum += dataArray[i];
+    }
+    const average = sum / bufferLength;
+    const intensity = Math.min(1, (average / 128) * LIP_SENSITIVITY);
+
+    // Map intensity to vowel shapes (simplified mouth positions)
+    // These create natural-sounding mouth movements
+    const time = Date.now() * 0.01;
+
+    // A (ah) - open mouth
+    targetLipSync.vowel_a = intensity * 0.8;
+    // I (ee) - wide
+    targetLipSync.vowel_i = intensity * Math.abs(Math.sin(time * 1.5)) * 0.6;
+    // U (oo) - round
+    targetLipSync.vowel_u = intensity * Math.abs(Math.sin(time * 0.8)) * 0.5;
+    // E (eh) - wide smile
+    targetLipSync.vowel_e = intensity * Math.abs(Math.cos(time * 1.2)) * 0.4;
+    // O (oh) - round
+    targetLipSync.vowel_o = intensity * Math.abs(Math.sin(time * 0.6)) * 0.5;
+
+    // Smooth interpolation
+    for (const key of Object.keys(lipSyncData)) {
+      const target = targetLipSync[key];
+      const current = lipSyncData[key];
+      lipSyncData[key] = current + (target - current) * 0.3;
+    }
+
+    // Apply to VRM
+    applyLipSyncToVRM(lipSyncData);
+
+  } catch (e) {
+    console.error('Lip-sync analysis error:', e);
+  }
+}
+
+// Apply lip-sync blend shapes to VRM model
+function applyLipSyncToVRM(lipShapes) {
+  if (!vrmModel) return;
+
+  // Map vowels to mouth shape
+  // vowel_a = open, vowel_i = wide, vowel_u = round, etc.
+  const mouthOpen = lipShapes.vowel_a;  // How much mouth is open
+  const mouthWide = lipShapes.vowel_i + lipShapes.vowel_e;  // Width
+  const mouthRound = lipShapes.vowel_u + lipShapes.vowel_o;  // Roundness
+
+  vrmModel.traverse((child) => {
+    if (child.isMesh && child.material) {
+      const name = child.name.toLowerCase();
+      // Face/head meshes
+      if (name.includes('face') || name.includes('head')) {
+        // Create subtle pulsing based on lip-sync
+        const pulse = mouthOpen * 0.15;
+        child.material.emissiveIntensity = 0.1 + pulse;
+      }
+      // Mouth area - more intense effect
+      if (name.includes('mouth') || name.includes('lip')) {
+        child.material.emissive = new THREE.Color(mouthRound * 0.2, mouthWide * 0.1, mouthOpen * 0.1);
+        child.material.emissiveIntensity = mouthOpen * 0.5;
+      }
+    }
+  });
+}
+
+// Handle voice playback requests from backend
+function handleVoicePlayback(state) {
+  if (state.action === 'voice' && state.audioUrl) {
+    const audioUrl = state.audioUrl;
+    console.log('Voice playback requested:', audioUrl);
+    playAudioWithLipSync(audioUrl);
+  }
+}
+
+// Global function to manually trigger voice playback
+window.playAvatarVoice = playAudioWithLipSync;
+
+// ============================================================
+// Phase 25: Physical Reaction (Idle Animations)
+// ============================================================
+
+// Motion state from backend
+let currentMotion = {
+  idle: 'neutral',
+  breathingRate: 1.0,
+  posture: 0.5,
+  movementIntensity: 0.1,
+  shakeAmplitude: 0,
+  fidgetFrequency: 0
+};
+let targetMotion = { ...currentMotion };
+let isWalking = false;
+let walkingTimer = null;
+const WALKING_DURATION = 4000; // 4 seconds walking animation
+
+// Procedural breathing state
+let breathPhase = 0; // 0-2*PI for sine wave
+
+// Apply motion state to VRM model
+function applyMotionToVRM(motion) {
+  if (!vrmModel) return;
+
+  const time = Date.now() * 0.001;
+  const { idle, breathingRate, posture, movementIntensity, shakeAmplitude, fidgetFrequency } = motion;
+
+  // Calculate breathing (sine wave)
+  breathPhase += breathingRate * 0.03;
+  const breathAmount = Math.sin(breathPhase) * 0.02 * breathingRate;
+
+  // Apply to model
+  vrmModel.traverse((child) => {
+    if (!child.isMesh) return;
+
+    const name = child.name.toLowerCase();
+
+    // Spine/Chest - breathing animation
+    if (name.includes('spine') || name.includes('chest') || name.includes('torso')) {
+      // Breathing
+      child.position.y = breathAmount;
+
+      // Shaking (high stress)
+      if (shakeAmplitude > 0) {
+        child.position.x += (Math.random() - 0.5) * shakeAmplitude * 0.01;
+      }
+    }
+
+    // Head - slight movement
+    if (name.includes('head')) {
+      // Posture affects head position
+      const postureOffset = (posture - 0.5) * 0.05;
+      child.position.y = postureOffset;
+
+      // Fidgeting - random small movements
+      if (fidgetFrequency > 0) {
+        child.position.x += Math.sin(time * 10) * fidgetFrequency * 0.01;
+        child.rotation.z = Math.sin(time * 8) * fidgetFrequency * 0.05;
+      }
+    }
+
+    // General movement intensity
+    if (movementIntensity > 0.1) {
+      // Subtle sway
+      child.rotation.y = Math.sin(time * 0.5) * movementIntensity * 0.02;
+    }
+  });
+}
+
+// Handle motion state updates from backend
+function handleMotionUpdate(state) {
+  // Phase 27: Handle sleeping state from dream engine
+  if (state.motion && state.motion.isSleeping) {
+    targetMotion = {
+      idle: 'sleeping',
+      breathingRate: 0.4,  // Very slow deep breathing
+      posture: 0.1,         // Lying down
+      movementIntensity: 0, // Completely still
+      shakeAmplitude: 0,
+      fidgetFrequency: 0,
+      isSleeping: true
+    };
+    console.log('Entering sleep mode...');
+    return;
+  }
+
+  if (state.motion) {
+    // Extract isSleeping from motion if present
+    const { isSleeping, ...motionWithoutSleeping } = state.motion;
+    targetMotion = { ...motionWithoutSleeping, isSleeping: isSleeping || false };
+    console.log('Motion update:', targetMotion);
+  }
+
+  // Handle walking animation
+  if (state.isWalking || state.action === 'motion_walking') {
+    isWalking = true;
+
+    // Clear existing timer
+    if (walkingTimer) {
+      clearTimeout(walkingTimer);
+    }
+
+    // Set walking state
+    targetMotion = {
+      idle: 'walking',
+      breathingRate: 1.5,
+      posture: 0.8,
+      movementIntensity: 0.8,
+      shakeAmplitude: 0,
+      fidgetFrequency: 0,
+      isSleeping: false
+    };
+
+    // After walking duration, return to idle
+    walkingTimer = setTimeout(() => {
+      isWalking = false;
+      targetMotion = {
+        idle: 'neutral',
+        breathingRate: 1.0,
+        posture: 0.5,
+        movementIntensity: 0.1,
+        shakeAmplitude: 0,
+        fidgetFrequency: 0,
+        isSleeping: false
+      };
+      console.log('Walking complete, returning to idle');
+    }, WALKING_DURATION);
+  }
+}
+
+// Update motion with smooth interpolation
+function updateMotionLerp() {
+  let allSettled = true;
+
+  for (const key of Object.keys(targetMotion)) {
+    const target = targetMotion[key];
+    const current = currentMotion[key];
+
+    if (typeof target === 'number' && typeof current === 'number') {
+      if (Math.abs(target - current) > 0.001) {
+        currentMotion[key] = current + (target - current) * 0.1;
+        allSettled = false;
+      }
+    } else if (target !== current) {
+      currentMotion[key] = target;
+      allSettled = false;
+    }
+  }
+
+  // Apply to VRM
+  applyMotionToVRM(currentMotion);
+}
+
+// ============================================================
+// Phase 29: Atmospheric Sync (Weather, Time & Lighting)
+// ============================================================
+
+// Three.js objects for lighting
+let directionalLight = null;
+let ambientLight = null;
+let rainParticles = null;
+let snowParticles = null;
+
+// Atmosphere state
+let currentAtmosphere = {
+  lightIntensity: 0.8,
+  lightColor: '#ffffff',
+  ambientIntensity: 0.6,
+  ambientColor: '#ffffff',
+  backgroundColor: '#1a1a2e',
+  weather: 'clear',
+  timeOfDay: 'afternoon'
+};
+
+// Phase 33: Interaction state (props, furniture, light)
+let currentInteraction = {
+  holding: [],
+  lightIntensity: 0.8,
+  lightColor: '#ffffff',
+  furniture: '',
+  prop: ''
+};
+
+// Initialize weather particle systems
+function initWeatherParticles() {
+  if (!scene) return;
+
+  // Rain particles
+  const rainGeometry = new THREE.BufferGeometry();
+  const rainCount = 1000;
+  const rainPositions = new Float32Array(rainCount * 3);
+  for (let i = 0; i < rainCount * 3; i += 3) {
+    rainPositions[i] = (Math.random() - 0.5) * 10;     // x
+    rainPositions[i + 1] = Math.random() * 10;        // y
+    rainPositions[i + 2] = (Math.random() - 0.5) * 10; // z
+  }
+  rainGeometry.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
+  const rainMaterial = new THREE.PointsMaterial({
+    color: 0xaaaaaa,
+    size: 0.02,
+    transparent: true,
+    opacity: 0.6
+  });
+  rainParticles = new THREE.Points(rainGeometry, rainMaterial);
+  rainParticles.visible = false;
+  scene.add(rainParticles);
+
+  // Snow particles
+  const snowGeometry = new THREE.BufferGeometry();
+  const snowPositions = new Float32Array(rainCount * 3);
+  for (let i = 0; i < rainCount * 3; i += 3) {
+    snowPositions[i] = (Math.random() - 0.5) * 10;
+    snowPositions[i + 1] = Math.random() * 10;
+    snowPositions[i + 2] = (Math.random() - 0.5) * 10;
+  }
+  snowGeometry.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+  const snowMaterial = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.04,
+    transparent: true,
+    opacity: 0.8
+  });
+  snowParticles = new THREE.Points(snowGeometry, snowMaterial);
+  snowParticles.visible = false;
+  scene.add(snowParticles);
+}
+
+// Initialize lights
+function initAtmosphereLights() {
+  if (!scene) return;
+
+  // Directional light (sun/moon)
+  directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  directionalLight.position.set(5, 5, 5);
+  scene.add(directionalLight);
+
+  // Ambient light
+  ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+}
+
+// Update atmosphere
+function handleAtmosphereUpdate(atmosphere) {
+  currentAtmosphere = {
+    lightIntensity: atmosphere.lightIntensity ?? currentAtmosphere.lightIntensity,
+    lightColor: atmosphere.lightColor ?? currentAtmosphere.lightColor,
+    ambientIntensity: atmosphere.ambientIntensity ?? currentAtmosphere.ambientIntensity,
+    ambientColor: atmosphere.ambientColor ?? currentAtmosphere.ambientColor,
+    backgroundColor: atmosphere.backgroundColor ?? currentAtmosphere.backgroundColor,
+    weather: atmosphere.weather ?? currentAtmosphere.weather,
+    timeOfDay: atmosphere.timeOfDay ?? currentAtmosphere.timeOfDay
+  };
+
+  // Update lighting
+  if (directionalLight) {
+    directionalLight.intensity = currentAtmosphere.lightIntensity;
+    directionalLight.color.set(currentAtmosphere.lightColor);
+  }
+
+  if (ambientLight) {
+    ambientLight.intensity = currentAtmosphere.ambientIntensity;
+    ambientLight.color.set(currentAtmosphere.ambientColor);
+  }
+
+  // Update background
+  if (scene) {
+    scene.background = new THREE.Color(currentAtmosphere.backgroundColor);
+  }
+
+  // Update weather particles
+  updateWeatherParticles(currentAtmosphere.weather);
+
+  // Update UI
+  updateAtmosphereUI(currentAtmosphere);
+
+  console.log('Atmosphere updated:', currentAtmosphere.timeOfDay, currentAtmosphere.weather);
+}
+
+// ============================================================
+// Phase 33: Interactive Environment (Props, Furniture, Light Control)
+// ============================================================
+
+// Handle interaction updates from prop_mapper
+function handleInteractionUpdate(interaction) {
+  currentInteraction = {
+    holding: interaction.holding ?? currentInteraction.holding,
+    lightIntensity: interaction.lightIntensity ?? currentInteraction.lightIntensity,
+    lightColor: interaction.lightColor ?? currentInteraction.lightColor,
+    furniture: interaction.furniture ?? currentInteraction.furniture,
+    prop: interaction.prop ?? currentInteraction.prop
+  };
+
+  // Update lighting based on interaction state
+  if (directionalLight) {
+    directionalLight.intensity = currentInteraction.lightIntensity;
+    directionalLight.color.set(currentInteraction.lightColor);
+  }
+
+  if (ambientLight) {
+    ambientLight.intensity = currentInteraction.lightIntensity * 0.75;
+    ambientLight.color.set(currentInteraction.lightColor);
+  }
+
+  // Update background brightness based on light
+  if (scene) {
+    const brightness = currentInteraction.lightIntensity;
+    const r = Math.floor(0x1a * brightness);
+    const g = Math.floor(0x1a * brightness);
+    const b = Math.floor(0x2e * brightness);
+    scene.background = new THREE.Color(r, g, b);
+  }
+
+  // Update UI
+  updateInteractionUI(currentInteraction);
+
+  console.log('Interaction updated:', currentInteraction);
+}
+
+// Update interaction UI
+function updateInteractionUI(interaction) {
+  const container = document.getElementById('interaction-status');
+  if (!container) return;
+
+  let html = '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">';
+
+  // Holding props
+  if (interaction.holding && interaction.holding.length > 0) {
+    html += `<span class="tag" style="background:var(--accent);">Holding: ${interaction.holding.join(', ')}</span>`;
+  }
+
+  // Furniture
+  if (interaction.furniture) {
+    html += `<span class="tag" style="background:var(--primary);">At: ${interaction.furniture}</span>`;
+  }
+
+  // Light status
+  if (interaction.lightIntensity > 0.5) {
+    html += '<span class="tag" style="background:#4ade80;">Light: On</span>';
+  } else if (interaction.lightIntensity > 0) {
+    html += '<span class="tag" style="background:#fbbf24;">Light: Dim</span>';
+  } else {
+    html += '<span class="tag" style="background:#6b7280;">Light: Off</span>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Update weather particles
+function updateWeatherParticles(weather) {
+  if (!rainParticles || !snowParticles) return;
+
+  // Hide all first
+  rainParticles.visible = false;
+  snowParticles.visible = false;
+
+  switch (weather) {
+    case 'rainy':
+    case 'stormy':
+      rainParticles.visible = true;
+      break;
+    case 'snowy':
+      snowParticles.visible = true;
+      break;
+    default:
+      // Clear weather - no particles
+      break;
+  }
+}
+
+// Animate weather particles
+function animateWeatherParticles() {
+  if (!scene) return;
+
+  const time = Date.now() * 0.001;
+
+  if (rainParticles && rainParticles.visible) {
+    const positions = rainParticles.geometry.attributes.position.array;
+    for (let i = 1; i < positions.length; i += 3) {
+      positions[i] -= 0.1; // Fall down
+      if (positions[i] < 0) {
+        positions[i] = 10; // Reset to top
+      }
+    }
+    rainParticles.geometry.attributes.position.needsUpdate = true;
+  }
+
+  if (snowParticles && snowParticles.visible) {
+    const positions = snowParticles.geometry.attributes.position.array;
+    for (let i = 1; i < positions.length; i += 3) {
+      positions[i] -= 0.02; // Slow fall
+      positions[i - 1] += Math.sin(time + i) * 0.002; // Drift
+      if (positions[i] < 0) {
+        positions[i] = 10;
+      }
+    }
+    snowParticles.geometry.attributes.position.needsUpdate = true;
+  }
+}
+
+// Update UI overlay
+function updateAtmosphereUI(atmosphere) {
+  let statusText = document.getElementById('avatar-status-text');
+  if (statusText) {
+    const weatherEmoji = {
+      'clear': '☀️',
+      'cloudy': '☁️',
+      'rainy': '🌧️',
+      'stormy': '⛈️',
+      'snowy': '❄️',
+      'foggy': '🌫️',
+      'windy': '💨'
+    };
+    const emoji = weatherEmoji[atmosphere.weather] || '🌤️';
+    statusText.textContent = `${emoji} ${atmosphere.timeOfDay} | ${atmosphere.weather}`;
+  }
+}
+
+// Call atmosphere init from avatar init
+const originalInitAvatar = window.initAvatar;
+window.initAvatar = async function() {
+  await originalInitAvatar();
+
+  // Initialize atmosphere after VRM loads
+  initAtmosphereLights();
+  initWeatherParticles();
+
+  // Try to load initial atmosphere state
+  try {
+    const res = await fetch('/api/avatar/state');
+    const state = await res.json();
+    if (state.action === 'sync_atmosphere' && state.atmosphere) {
+      handleAtmosphereUpdate(state.atmosphere);
+    }
+  } catch (e) {
+    console.log('No initial atmosphere state');
+  }
+};
+
+window.syncAvatarWardrobe = syncWardrobe;
+
+// Initialize when tab is shown
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tab) {
+  originalSwitchTab(tab);
+
+  if (tab === 'avatar' && !vrmModel && !animationId) {
+    initAvatar();
+  }
+};
+
+// ============================================================
+// Phase 31: Interests & Dreams Tab Functions
+// ============================================================
+
+// Load interests data and render
+async function loadInterestsTab() {
+  try {
+    // Fetch interests data
+    const res = await fetch('/api/interests');
+    const interests = await res.json();
+
+    // Render hobbies
+    const hobbyList = document.getElementById('hobby-list');
+    if (hobbyList && interests.hobbies) {
+      if (interests.hobbies.length === 0) {
+        hobbyList.innerHTML = '<div style="color:var(--text-dim);">No hobbies discovered yet. High energy leads to curiosity!</div>';
+      } else {
+        hobbyList.innerHTML = interests.hobbies.map(h => `
+          <div class="panel-card" style="padding:0.75rem;">
+            <div style="font-weight:bold;">${h.topic}</div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
+              <div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;">
+                <div style="width:${h.sentiment * 100}%;height:100%;background:var(--accent);border-radius:3px;"></div>
+              </div>
+              <span style="font-size:0.8rem;color:var(--text-dim);">${Math.round(h.sentiment * 100)}%</span>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem;">Researched ${h.researchCount}x</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Render likes
+    const likesList = document.getElementById('likes-list');
+    if (likesList && interests.likes) {
+      const likes = Object.entries(interests.likes);
+      if (likes.length === 0) {
+        likesList.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem;">No likes recorded yet</div>';
+      } else {
+        likesList.innerHTML = likes.map(([topic, score]) => `
+          <div style="padding:0.25rem 0;border-bottom:1px solid var(--border);">
+            <span>${topic}</span>
+            <span style="float:right;color:var(--growth);">${Math.round(score * 100)}%</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Render dislikes
+    const dislikesList = document.getElementById('dislikes-list');
+    if (dislikesList && interests.dislikes) {
+      if (interests.dislikes.length === 0) {
+        dislikesList.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem;">No dislikes recorded yet</div>';
+      } else {
+        dislikesList.innerHTML = interests.dislikes.map(d => `
+          <div style="padding:0.25rem 0;border-bottom:1px solid var(--border);color:var(--error);">${d}</div>
+        `).join('');
+      }
+    }
+
+  } catch (e) {
+    console.error('Failed to load interests:', e);
+  }
+}
+
+// Load dreams data and render
+async function loadDreamsTab() {
+  try {
+    // Fetch dreams list
+    const res = await fetch('/api/dreams');
+    const data = await res.json();
+
+    // Update stats
+    document.getElementById('dream-count').textContent = data.count || 0;
+    document.getElementById('insight-count').textContent = data.insights || 0;
+    document.getElementById('last-dream-date').textContent = data.lastDate || '—';
+
+    // Get current dream state
+    const stateRes = await fetch('/api/avatar/state');
+    const state = await stateRes.json();
+    const dreamStateEl = document.getElementById('dream-state');
+    if (dreamStateEl) {
+      if (state.motion && state.motion.isSleeping) {
+        dreamStateEl.textContent = 'Dreaming';
+        dreamStateEl.style.color = 'var(--dream)';
+      } else {
+        dreamStateEl.textContent = 'Awake';
+      }
+    }
+
+    // Render dream list
+    const dreamList = document.getElementById('dream-list');
+    if (dreamList && data.dreams) {
+      if (data.dreams.length === 0) {
+        dreamList.innerHTML = '<div style="color:var(--text-dim);font-style:italic;">No dreams recorded yet</div>';
+      } else {
+        dreamList.innerHTML = data.dreams.map(d => `
+          <div class="panel-card" style="margin-bottom:1rem;padding:1rem;border-left:4px solid var(--dream);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <h4 style="color:var(--accent);">${d.date}</h4>
+              <span style="font-size:0.8rem;color:var(--text-dim);">${d.insights} insights</span>
+            </div>
+            <p style="margin-top:0.5rem;color:var(--text);">${d.summary}</p>
+          </div>
+        `).join('');
+      }
+    }
+
+  } catch (e) {
+    console.error('Failed to load dreams:', e);
+  }
+}
+
+// Override switchTab to load tab data on switch
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tab) {
+  originalSwitchTab(tab);
+
+  if (tab === 'interests') {
+    loadInterestsTab();
+  } else if (tab === 'dreams') {
+    loadDreamsTab();
+  }
+};
+
+// Load on page load if tabs are visible
+if (document.getElementById('tab-interests').classList.contains('active')) {
+  loadInterestsTab();
+}
+if (document.getElementById('tab-dreams').classList.contains('active')) {
+  loadDreamsTab();
+}
+
+// ============================================================
+// Phase 32: Simulation Tuning & VMC Config
+// ============================================================
+
+// Slider value display updates
+['tune-hunger-rate', 'tune-thirst-rate', 'tune-energy-drain', 'tune-stress-rate', 'tune-reflex-threshold', 'tune-dream-threshold'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('input', function() {
+      const val = document.getElementById(id + '-val');
+      if (val) val.textContent = this.value;
+    });
+  }
+});
+
+// Save simulation config
+window.saveSimulationConfig = async function() {
+  const config = {
+    hunger_rate: parseFloat(document.getElementById('tune-hunger-rate').value),
+    thirst_rate: parseFloat(document.getElementById('tune-thirst-rate').value),
+    energy_drain: parseFloat(document.getElementById('tune-energy-drain').value),
+    stress_rate: parseFloat(document.getElementById('tune-stress-rate').value),
+    reflex_threshold: parseInt(document.getElementById('tune-reflex-threshold').value),
+    dream_threshold: parseInt(document.getElementById('tune-dream-threshold').value)
+  };
+
+  try {
+    await fetch('/api/config/simulation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    alert('Simulation config saved!');
+  } catch (e) {
+    console.error('Failed to save config:', e);
+    alert('Failed to save config');
+  }
+};
+
+// Save VMC config
+window.saveVMCConfig = async function() {
+  const enabled = document.getElementById('vmc-enabled').checked;
+  const targetIp = document.getElementById('vmc-target-ip').value;
+  const targetPort = parseInt(document.getElementById('vmc-target-port').value);
+
+  const config = {
+    vmc_enabled: enabled,
+    vmc_target_ip: targetIp,
+    vmc_target_port: targetPort
+  };
+
+  try {
+    await fetch('/api/config/vmc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+
+    const statusEl = document.getElementById('vmc-status');
+    if (statusEl) {
+      if (enabled) {
+        statusEl.innerHTML = '<span style="color:var(--growth);">● Streaming active to ' + targetIp + ':' + targetPort + '</span>';
+      } else {
+        statusEl.textContent = 'VMC streaming is disabled';
+      }
+    }
+    alert('VMC config saved!');
+  } catch (e) {
+    console.error('Failed to save VMC config:', e);
+    alert('Failed to save config');
+  }
+};
+
+// Phase 36: Spatial Input Functions
+window.refreshSpatialState = async function() {
+  const statusEl = document.getElementById('spatial-status');
+  try {
+    const res = await fetch('/api/spatial/state');
+    const state = await res.json();
+
+    if (state.isActive) {
+      statusEl.innerHTML = '<span style="color:#22c55e;">● Active: ' + state.currentMode + '</span> | Keys: ' + state.keyStrokesCount + ' | Moves: ' + state.mouseMovesCount + ' | Scrolls: ' + state.scrollCount;
+    } else if (state.currentMode === 'sovereignty_override') {
+      statusEl.innerHTML = '<span style="color:#ef4444;">⚠️ Sovereignty Override (reflex lock)</span>';
+    } else {
+      statusEl.innerHTML = '<span style="color:var(--text-dim);">○ Idle - No desktop automation</span>';
+    }
+  } catch (e) {
+    statusEl.textContent = 'Failed to load spatial state';
+  }
+};
+
+window.stopSpatialAutomation = async function() {
+  try {
+    await fetch('/api/desktop/automation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'stop' })
+    });
+    alert('Spatial automation stopped');
+    window.refreshSpatialState();
+  } catch (e) {
+    console.error('Failed to stop spatial automation:', e);
+  }
+};
+
+// Load config on page load
+async function loadConfigs() {
+  try {
+    const res = await fetch('/api/config/simulation');
+    const config = await res.json();
+
+    if (config.hunger_rate) document.getElementById('tune-hunger-rate').value = config.hunger_rate;
+    if (config.thirst_rate) document.getElementById('tune-thirst-rate').value = config.thirst_rate;
+    if (config.energy_drain) document.getElementById('tune-energy-drain').value = config.energy_drain;
+    if (config.stress_rate) document.getElementById('tune-stress-rate').value = config.stress_rate;
+    if (config.reflex_threshold) document.getElementById('tune-reflex-threshold').value = config.reflex_threshold;
+    if (config.dream_threshold) document.getElementById('tune-dream-threshold').value = config.dream_threshold;
+
+    // Update displays
+    ['hunger-rate', 'thirst-rate', 'energy-drain', 'stress-rate', 'reflex-threshold', 'dream-threshold'].forEach(id => {
+      const el = document.getElementById('tune-' + id);
+      const val = document.getElementById('tune-' + id + '-val');
+      if (el && val) val.textContent = el.value;
+    });
+  } catch (e) {
+    console.log('No simulation config found');
+  }
+
+  try {
+    const res = await fetch('/api/config/vmc');
+    const config = await res.json();
+
+    if (config.vmc_enabled !== undefined) document.getElementById('vmc-enabled').checked = config.vmc_enabled;
+    if (config.vmc_target_ip) document.getElementById('vmc-target-ip').value = config.vmc_target_ip;
+    if (config.vmc_target_port) document.getElementById('vmc-target-port').value = config.vmc_target_port;
+
+    const statusEl = document.getElementById('vmc-status');
+    if (statusEl && config.vmc_enabled) {
+      statusEl.innerHTML = '<span style="color:var(--growth);">● Streaming active to ' + config.vmc_target_ip + ':' + config.vmc_target_port + '</span>';
+    }
+  } catch (e) {
+    console.log('No VMC config found');
+  }
+}
+
+loadConfigs();
+
+// Start if already on avatar tab
+if (document.getElementById('tab-avatar').classList.contains('active')) {
+  initAvatar();
+}
 </script>
 </body>
 </html>"""
@@ -7317,6 +9735,170 @@ def main():
                         self.end_headers()
                         self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
 
+                # Phase 37: Economy Engine State
+                elif self.path == "/api/economy/state":
+                    try:
+                        economy_state_path = os.path.join(workspace, "memory", "reality", "economy_state.json")
+                        if os.path.exists(economy_state_path):
+                            with open(economy_state_path, "r") as f:
+                                state = json.load(f)
+                        else:
+                            state = {{
+                                "isActive": False,
+                                "currentStrategy": "observe",
+                                "marketMood": "neutral",
+                                "totalTrades": 0,
+                                "lastTradeTime": None
+                            }}
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(state).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
+                # Phase 39: Presence Engine State
+                elif self.path == "/api/presence/state":
+                    try:
+                        presence_state_path = os.path.join(workspace, "memory", "reality", "presence_state.json")
+                        if os.path.exists(presence_state_path):
+                            with open(presence_state_path, "r") as f:
+                                state = json.load(f)
+                        else:
+                            state = {{
+                                "isActive": False,
+                                "totalPosts": 0,
+                                "postsToday": 0,
+                                "lastPostTime": None,
+                                "currentMood": "neutral",
+                                "feed": []
+                            }}
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(state).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
+                # Phase 40: Hardware Resonance State
+                elif self.path == "/api/hardware/resonance":
+                    try:
+                        resonance_state_path = os.path.join(workspace, "memory", "reality", "hardware_resonance.json")
+                        if os.path.exists(resonance_state_path):
+                            with open(resonance_state_path, "r") as f:
+                                state = json.load(f)
+                        else:
+                            state = {{
+                                "isActive": False,
+                                "currentCpuLoad": 0,
+                                "currentMemoryUsage": 0,
+                                "currentTemp": None,
+                                "isAudioPlaying": False,
+                                "resonanceLevel": "calm",
+                                "totalResonanceEvents": 0
+                            }}
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(state).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
+                # v5.1.0: Centralized Config API
+                elif self.path == "/api/config/all":
+                    try:
+                        config_path = os.path.join(workspace, "memory", "reality", "simulation_config.json")
+                        if os.path.exists(config_path):
+                            with open(config_path, "r") as f:
+                                config = json.load(f)
+                        else:
+                            config = {{"version": "5.1.0", "character": {{"name": "Q"}}}}
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(config).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
+                elif self.path == "/api/config/save":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+                        config_path = os.path.join(workspace, "memory", "reality", "simulation_config.json")
+                        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+                        data["last_updated"] = datetime.now().isoformat()
+                        with open(config_path, "w") as f:
+                            json.dump(data, f, indent=2)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": True}}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+
+                # v5.1.0: Telemetry API
+                elif self.path == "/api/telemetry/vitals":
+                    try:
+                        tel_dir = os.path.join(workspace, "memory", "telemetry")
+                        entries = []
+                        if os.path.exists(tel_dir):
+                            for f in os.listdir(tel_dir):
+                                if f.startswith("vitality_") and f.endswith(".jsonl"):
+                                    with open(os.path.join(tel_dir, f), "r") as fp:
+                                        for line in fp:
+                                            try:
+                                                entries.append(json.loads(line))
+                                            except:
+                                                pass
+                        entries.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(entries[:100]).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
+                elif self.path == "/api/telemetry/hardware":
+                    try:
+                        tel_path = os.path.join(workspace, "memory", "telemetry", "hardware.jsonl")
+                        entries = []
+                        if os.path.exists(tel_path):
+                            with open(tel_path, "r") as f:
+                                for line in f:
+                                    try:
+                                        entries.append(json.loads(line))
+                                    except:
+                                        pass
+                        entries.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(entries[:100]).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+
                 elif self.path == "/api/mem0/config":
                     try:
                         mem0_config_path = os.path.join(workspace, "memory", "reality", "mem0_config.json")
@@ -7544,6 +10126,82 @@ def main():
                         self.end_headers()
                         self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
 
+                # Phase 35: Social Engine - Get Pending Events
+                elif self.path == "/api/social/pending":
+                    events_path = os.path.join(workspace, "memory", "reality", "social_events.json")
+                    events = {{"pending": []}}
+                    if os.path.exists(events_path):
+                        try:
+                            with open(events_path, "r") as f:
+                                events = json.load(f)
+                        except:
+                            pass
+
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(events).encode())
+
+                # Phase 36: Spatial Engine - Get State
+                elif self.path == "/api/spatial/state":
+                    spatial_path = os.path.join(workspace, "memory", "reality", "spatial_state.json")
+                    state = {
+                        "isActive": False,
+                        "currentMode": "idle",
+                        "keyStrokesCount": 0,
+                        "mouseMovesCount": 0,
+                        "scrollCount": 0
+                    }
+                    if os.path.exists(spatial_path):
+                        try:
+                            with open(spatial_path, "r") as f:
+                                state = json.load(f)
+                        except:
+                            pass
+
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(state).encode())
+
+                # Phase 36: Spatial Engine - Stop Automation
+                elif self.path == "/api/desktop/automation":
+                    if self.command == 'POST':
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        try:
+                            data = json.loads(body)
+                            if data.get("action") == "stop":
+                                # Write to spatial state to stop
+                                spatial_path = os.path.join(workspace, "memory", "reality", "spatial_state.json")
+                                state = {
+                                    "isActive": False,
+                                    "currentMode": "idle",
+                                    "lastInputTime": None,
+                                    "keyStrokesCount": 0,
+                                    "mouseMovesCount": 0,
+                                    "scrollCount": 0
+                                }
+                                with open(spatial_path, "w") as f:
+                                    json.dump(state, f)
+                                self.send_response(200)
+                                self.send_header("Content-Type", "application/json")
+                                self.end_headers()
+                                self.wfile.write(json.dumps({"success": True}).encode())
+                            else:
+                                self.send_response(400)
+                                self.send_header("Content-Type", "application/json")
+                                self.end_headers()
+                                self.wfile.write(json.dumps({"error": "Unknown action"}).encode())
+                        except Exception as e:
+                            self.send_response(500)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"error": str(e)}).encode())
+                    else:
+                        self.send_response(405)
+                        self.end_headers()
+
                 elif self.path == "/api/backups/rollback":
                     length = int(self.headers.get("Content-Length", 0))
                     body = self.rfile.read(length).decode("utf-8")
@@ -7721,6 +10379,343 @@ def main():
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
                     self.wfile.write(json.dumps({{"pending": pending}}).encode())
+
+                elif self.path == "/api/avatar/update":
+                    # Handle avatar pose/emote/wardrobe/interaction updates
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        req = json.loads(body)
+                        action = req.get("action", "")
+                        value = req.get("value", "")
+
+                        # Write to avatar state file for the frontend to pick up
+                        avatar_state_path = os.path.join(workspace, "memory", "reality", "avatar_state.json")
+                        state = {
+                            "action": action,
+                            "value": value,
+                            "timestamp": datetime.now().isoformat()
+                        }
+
+                        # Phase 33: Handle interaction updates
+                        if action == "interaction_update":
+                            interaction_state = req.get("state", {})
+                            state.update({
+                                "holding": interaction_state.get("holding", []),
+                                "light_intensity": interaction_state.get("light_intensity", 0.8),
+                                "light_color": interaction_state.get("light_color", "#ffffff"),
+                                "furniture": interaction_state.get("furniture", ""),
+                                "prop": interaction_state.get("prop", ""),
+                            })
+
+                        with open(avatar_state_path, "w") as f:
+                            json.dump(state, f, indent=2)
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True, "action": action, "value": value}).encode())
+                        print(f"  \u2713 Avatar update: {action} = {value}")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
+
+                elif self.path == "/api/avatar/state":
+                    # Return current avatar state
+                    avatar_state_path = os.path.join(workspace, "memory", "reality", "avatar_state.json")
+                    state = {"action": "idle", "value": "", "timestamp": ""}
+                    if os.path.exists(avatar_state_path):
+                        try:
+                            with open(avatar_state_path, "r") as f:
+                                state = json.load(f)
+                        except:
+                            pass
+
+                    # Also check for atmosphere state
+                    atmosphere_state_path = os.path.join(workspace, "memory", "reality", "atmosphere_state.json")
+                    atmosphere = {}
+                    if os.path.exists(atmosphere_state_path):
+                        try:
+                            with open(atmosphere_state_path, "r") as f:
+                                atmosphere = json.load(f)
+                        except:
+                            pass
+
+                    # Merge atmosphere into state if present
+                    if atmosphere:
+                        state["atmosphere"] = atmosphere
+
+                    # Phase 33: Also check for interaction state
+                    interaction_state_path = os.path.join(workspace, "memory", "reality", "interaction_state.json")
+                    interaction = {}
+                    if os.path.exists(interaction_state_path):
+                        try:
+                            with open(interaction_state_path, "r") as f:
+                                interaction = json.load(f)
+                        except:
+                            pass
+
+                    if interaction:
+                        state["interaction"] = {
+                            "current_action": interaction.get("current_action", "standing"),
+                            "holding": interaction.get("holding", []),
+                            "light_intensity": interaction.get("light_intensity", 0.8),
+                            "light_color": interaction.get("light_color", "#ffffff"),
+                            "furniture": interaction.get("current_furniture", {}).get("name", ""),
+                            "prop": interaction.get("current_prop", {}).get("name", ""),
+                        }
+
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(state).encode())
+
+                elif self.path == "/api/avatar/config":
+                    # Return avatar configuration
+                    avatar_config_path = os.path.join(workspace, "memory", "reality", "avatar_config.json")
+                    config = {}
+                    if os.path.exists(avatar_config_path):
+                        try:
+                            with open(avatar_config_path, "r") as f:
+                                config = json.load(f)
+                        except:
+                            pass
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(config).encode())
+
+                elif self.path == "/api/avatar/voice":
+                    # Phase 24: Handle voice playback requests
+                    # POST body: {"audioUrl": "/path/to/audio.wav"}
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        req = json.loads(body)
+                        audio_url = req.get("audioUrl", "")
+
+                        # Write voice state for frontend to pick up
+                        voice_state_path = os.path.join(workspace, "memory", "reality", "avatar_state.json")
+                        state = {
+                            "action": "voice",
+                            "audioUrl": audio_url,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        with open(voice_state_path, "w") as f:
+                            json.dump(state, f, indent=2)
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True, "audioUrl": audio_url}).encode())
+                        print(f"  → Voice playback queued: {audio_url}")
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
+
+                # Phase 31: Interests API
+                elif self.path == "/api/interests":
+                    interests_path = os.path.join(workspace, "memory", "reality", "interests.json")
+                    interests = {"hobbies": [], "likes": {}, "dislikes": [], "wishlist": [], "experiences": []}
+                    if os.path.exists(interests_path):
+                        try:
+                            with open(interests_path, "r") as f:
+                                interests = json.load(f)
+                        except:
+                            pass
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(interests).encode())
+
+                # Phase 31: Dreams API
+                elif self.path == "/api/dreams":
+                    dreams_dir = os.path.join(workspace, "memory", "reality", "dreams")
+                    dreams_list = []
+                    total_insights = 0
+                    last_date = None
+
+                    if os.path.exists(dreams_dir):
+                        try:
+                            for f in os.listdir(dreams_dir):
+                                if f.startswith("dream_") and f.endswith(".md"):
+                                    fpath = os.path.join(dreams_dir, f)
+                                    content = open(fpath).read()
+                                    # Extract date from filename
+                                    date = f.replace("dream_", "").replace(".md", "")
+                                    # Count insights (## lines)
+                                    insights = content.count("## ")
+                                    total_insights += insights
+                                    # Extract summary
+                                    summary = ""
+                                    if "## Dream Summary" in content:
+                                        parts = content.split("## Dream Summary")
+                                        if len(parts) > 1:
+                                            summary = parts[1].split("##")[0].strip()[:200]
+                                    dreams_list.append({
+                                        "date": date,
+                                        "summary": summary,
+                                        "insights": insights
+                                    })
+                                    if not last_date:
+                                        last_date = date
+                        except:
+                            pass
+
+                    # Sort by date descending
+                    dreams_list.sort(key=lambda x: x["date"], reverse=True)
+
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "dreams": dreams_list[:10],  # Last 10
+                        "count": len(dreams_list),
+                        "insights": total_insights,
+                        "lastDate": last_date
+                    }).encode())
+
+                # Phase 32: Simulation Config API
+                elif self.path == "/api/config/simulation":
+                    config_path = os.path.join(workspace, "memory", "reality", "simulation_config.json")
+
+                    if self.command == 'GET':
+                        config = {}
+                        if os.path.exists(config_path):
+                            try:
+                                with open(config_path, "r") as f:
+                                    config = json.load(f)
+                            except:
+                                pass
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(config).encode())
+                    else:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        try:
+                            data = json.loads(body)
+                            config = {}
+                            if os.path.exists(config_path):
+                                with open(config_path, "r") as f:
+                                    config = json.load(f)
+                            config.update(data)
+                            with open(config_path, "w") as f:
+                                json.dump(config, f, indent=2)
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": True}).encode())
+                            print("  → Simulation config saved")
+                        except Exception as e:
+                            self.send_response(500)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
+                # Phase 32: VMC Config API
+                elif self.path == "/api/config/vmc":
+                    config_path = os.path.join(workspace, "memory", "reality", "osc_config.json")
+
+                    if self.command == 'GET':
+                        config = {}
+                        if os.path.exists(config_path):
+                            try:
+                                with open(config_path, "r") as f:
+                                    config = json.load(f)
+                            except:
+                                pass
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(config).encode())
+                    else:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        try:
+                            data = json.loads(body)
+                            config = {}
+                            if os.path.exists(config_path):
+                                with open(config_path, "r") as f:
+                                    config = json.load(f)
+
+                            # Map frontend names to internal names
+                            if 'vmc_enabled' in data:
+                                config['enabled'] = data['vmc_enabled']
+                            if 'vmc_target_ip' in data:
+                                config['targetIp'] = data['vmc_target_ip']
+                            if 'vmc_target_port' in data:
+                                config['targetPort'] = data['vmc_target_port']
+
+                            with open(config_path, "w") as f:
+                                json.dump(config, f, indent=2)
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": True}).encode())
+                            print("  → VMC config saved")
+                        except Exception as e:
+                            self.send_response(500)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
+                # Phase 34: Self-Expansion State API
+                elif self.path == "/api/expansion/state":
+                    expansion_path = os.path.join(workspace, "memory", "reality", "expansion_state.json")
+                    state = {
+                        "isExpanding": False,
+                        "currentProject": None,
+                        "totalProjectsCreated": 0,
+                        "expansionCount": 0
+                    }
+                    if os.path.exists(expansion_path):
+                        try:
+                            with open(expansion_path, "r") as f:
+                                state = json.load(f)
+                        except:
+                            pass
+
+                    # Also check manifest for active projects
+                    manifest_path = os.path.join(workspace, "memory", "development", "manifest.json")
+                    active = []
+                    if os.path.exists(manifest_path):
+                        try:
+                            with open(manifest_path, "r") as f:
+                                manifest = json.load(f)
+                                if manifest and manifest.get("projects"):
+                                    active = [p for p in manifest["projects"] if p.get("status") not in ["completed", "paused"]]
+                        except:
+                            pass
+
+                    state["active"] = active
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(state).encode())
+
+                # Phase 34: Self-Expansion Projects API
+                elif self.path == "/api/expansion/projects":
+                    manifest_path = os.path.join(workspace, "memory", "development", "manifest.json")
+                    projects = []
+                    if os.path.exists(manifest_path):
+                        try:
+                            with open(manifest_path, "r") as f:
+                                manifest = json.load(f)
+                                if manifest and manifest.get("projects"):
+                                    projects = manifest["projects"]
+                        except:
+                            pass
+
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"projects": projects}).encode())
 
                 else:
                     self.send_response(404)

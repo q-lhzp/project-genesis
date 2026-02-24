@@ -6,12 +6,9 @@ import { Type } from "@sinclair/typebox";
 import { readJson, writeJson, generateId } from "../utils/persistence.js";
 import type { SocialState, SocialEntity, ReputationState } from "../types/index.js";
 import type { SimulationPaths, ToolModules } from "../types/paths.js";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 
-interface ToolApi {
-  registerTool: (tool: unknown) => void;
-}
-
-export function registerSocialTools(api: ToolApi, paths: SimulationPaths, modules: ToolModules): void {
+export function registerSocialTools(api: OpenClawPluginApi, paths: SimulationPaths, modules: ToolModules): void {
   // Tool: reality_socialize
   api.registerTool({
     name: "reality_socialize",

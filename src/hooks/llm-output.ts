@@ -11,8 +11,9 @@ import type {
   ExperienceEntry,
   LlmOutputEvent
 } from "../types/index.js";
+import type { SimulationPaths, ToolModules } from "../types/paths.js";
 
-export function registerLlmOutputHook(api: OpenClawPluginApi, paths: any, modules: any) {
+export function registerLlmOutputHook(api: OpenClawPluginApi, paths: SimulationPaths, modules: ToolModules) {
   api.on("llm_output", async (event: unknown, _ctx: unknown) => {
     const text: string = (event as LlmOutputEvent).lastAssistant ?? "";
     if (!text || text.length < 20) return;

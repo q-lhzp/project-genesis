@@ -11,6 +11,18 @@ import { fileURLToPath } from "node:url";
 // v4.0.0 Modular imports
 import { readJson, writeJson, withFileLock, resolvePath, generateId, todayStr, generateExpId, appendJsonl } from "./src/utils/index.js";
 import * as Simulation from "./src/simulation/index.js";
+import { syncAvatarExpressions } from "./src/simulation/expression_mapper.js";
+import { syncAvatarMotion } from "./src/simulation/motion_mapper.js";
+import { syncDesktop } from "./src/simulation/desktop_mapper.js";
+import { processDreamState, isSleepLocked, getMorningReport } from "./src/simulation/dream_engine.js";
+import { processHobbyActivity, getResearchContext } from "./src/simulation/hobby_engine.js";
+import { syncAtmosphere } from "./src/simulation/atmosphere_engine.js";
+import { processSelfExpansion, getCurrentProject, isSelfExpanding } from "./src/simulation/self_expansion_engine.js";
+import { processSocialDynamics, getPendingEvents } from "./src/simulation/social_engine.js";
+import { processSpatialInteraction, getSpatialState } from "./src/simulation/spatial_engine.js";
+import { processEconomy, getEconomyState } from "./src/simulation/economy_engine.js";
+import { processPresence, getPresenceState } from "./src/simulation/presence_engine.js";
+import { processHardwareResonance } from "./src/simulation/hardware_engine.js";
 import * as Prompts from "./src/prompts/index.js";
 import { registerBeforePromptHook, registerLlmOutputHook } from "./src/hooks/index.js";
 
@@ -57,6 +69,18 @@ export default {
     if (!cfg?.workspacePath && !api.config?.agents?.list?.[0]?.workspace) {
       api.logger.warn("[genesis] workspacePath not configured — using '.' (cwd).");
     }
+
+    // Load centralized simulation config (v5.1.0)
+    const simConfigPath = resolvePath(ws, "memory", "reality", "simulation_config.json");
+    let simConfig: any = {};
+    try {
+      simConfig = await readJson(simConfigPath) || {};
+    } catch (e) {
+      api.logger.warn("[genesis] No simulation_config.json found, using defaults");
+    }
+
+    // Get character name from config
+    const agentName = simConfig?.character?.name || "Q";
 
     const lang = cfg?.language ?? "en";
     const modules: ToolModules = {
@@ -128,17 +152,23 @@ export default {
       socialEvents: resolvePath(ws, "memory", "reality", "social_events.json"),
       genesisLog: resolvePath(ws, "memory", "genesis_log.jsonl"),
       vaultState: resolvePath(ws, "memory", "vault", "state.json"),
+      // v5.1.0 Centralized config
+      simulationConfig: resolvePath(ws, "memory", "reality", "simulation_config.json"),
+      identityState: resolvePath(ws, "memory", "reality", "identity-state.json"),
+      hardwareState: resolvePath(ws, "memory", "reality", "hardware_resonance.json"),
+      presenceState: resolvePath(ws, "memory", "reality", "presence_state.json"),
+      economyState: resolvePath(ws, "memory", "reality", "economy_state.json"),
     };
 
     // ---------------------------------------------------------------------------
     // Register Hooks & Tools (v4.0.0 Modular)
     // ---------------------------------------------------------------------------
-    registerBeforePromptHook(api, paths, cfg, modules, rates, 95, ws, lang);
+    registerBeforePromptHook(api, paths, cfg, modules, rates, cfg?.reflexThreshold ?? 95, ws, lang);
     registerLlmOutputHook(api, paths, modules);
     
-    registerNeedsTools(api, paths, modules, lang);
+    registerNeedsTools(api, paths, modules, lang, ws);
     registerSocialTools(api, paths, modules);
-    registerEconomyTools(api, paths, paths, modules, ws);
+    registerEconomyTools(api, paths, paths, modules, ws); 
     registerIdentityTools(api, paths, ws);
     registerSystemTools(api, ws);
 
@@ -157,6 +187,87 @@ export default {
         if (updated) {
           await writeJson(paths.physique, ph);
         }
+
+        // Phase 23: Sync avatar expressions based on biological state
+        await syncAvatarExpressions(ws, ph);
+
+        // Phase 25: Sync avatar motion based on biological state
+        await syncAvatarMotion(ws, ph);
+
+        // Phase 26: Sync desktop (wallpaper/theme) based on location and mood
+        await syncDesktop(ws, ph);
+
+        // Phase 27: Process Dream State (sleep/dream cycle)
+        const dreamResult = await processDreamState(ws, ph);
+
+        // If dreaming or just woke up, update physique
+        if (dreamResult.isDreaming || dreamResult.vitalsRecovered) {
+          await writeJson(paths.physique, ph);
+        }
+
+        // Phase 28: Process Hobby Activity (only if not sleeping)
+        let isResearching = false;
+        if (!dreamResult.isDreaming) {
+          const hobbyResult = await processHobbyActivity(ws, ph);
+          isResearching = hobbyResult.isResearching;
+        }
+
+        // Phase 34: Process Self-Expansion (only if not sleeping and not already researching)
+        let isExpanding = false;
+        if (!dreamResult.isDreaming && !isResearching) {
+          const expansionResult = await processSelfExpansion(ws, ph);
+          isExpanding = expansionResult.isExpanding;
+        }
+
+        // Phase 35: Process Social Dynamics (autonomous NPC interactions)
+        let hasSocialEvent = false;
+        if (!dreamResult.isDreaming) {
+          const socialResult = await processSocialDynamics(ws, ph, undefined, lang === "de");
+          if (socialResult.hasNewEvent && socialResult.emotionalImpact) {
+            // Apply emotional impact to physique
+            ph.needs.stress = Math.max(0, Math.min(100, ph.needs.stress + socialResult.emotionalImpact.stressChange));
+            ph.needs.joy = Math.max(0, Math.min(100, (ph.needs as any).joy ?? 50 + socialResult.emotionalImpact.joyChange));
+            hasSocialEvent = true;
+          }
+        }
+
+        // Phase 36: Process Spatial Interaction (VRM-to-Desktop input)
+        let isInteractingWithDesktop = false;
+        if (!dreamResult.isDreaming) {
+          const spatialResult = await processSpatialInteraction(ws, ph, isResearching, isExpanding);
+          isInteractingWithDesktop = spatialResult.isActive;
+        }
+
+        // Phase 37: Process Economy (Autonomous Trading) - BEFORE avatar sync
+        let isTrading = false;
+        if (modules.economy && !dreamResult.isDreaming) {
+          const economyResult = await processEconomy(ws, ph, isResearching);
+          isTrading = economyResult.isActive;
+        }
+
+        // Sync avatar with sleep, research, expansion, social, and trading states
+        await syncAvatarMotion(ws, ph, dreamResult.isDreaming, isResearching, isExpanding, hasSocialEvent, isTrading, isStrained, isDancing);
+        await syncAvatarExpressions(ws, ph, dreamResult.isDreaming, isResearching, isExpanding, hasSocialEvent, isTrading, isStrained, isDancing);
+
+        // Phase 39: Process Presence (Digital Extroversion)
+        if (modules.social && !dreamResult.isDreaming) {
+          await processPresence(ws, ph, isExpanding, hasSocialEvent, {
+            isDreaming: dreamResult.isDreaming,
+            dream_summary: dreamResult.dreamSummary ?? undefined
+          });
+        }
+
+        // Phase 40: Process Hardware Resonance (Neural Feedback)
+        let isStrained = false;
+        let isDancing = false;
+        let hardwareMessage = "";
+        const hardwareResult = await processHardwareResonance(ws, ph);
+        isStrained = hardwareResult.resonanceLevel === "strained" || hardwareResult.resonanceLevel === "overloaded";
+        isDancing = hardwareResult.isDancing;
+        hardwareMessage = hardwareResult.hardwareMessage;
+
+        // Phase 29: Sync atmosphere (time-based lighting)
+        await syncAtmosphere(ws, ph.current_location || "home_bedroom");
       } catch (e) {
         api.logger.error(`[genesis] tick error: ${e}`);
       }

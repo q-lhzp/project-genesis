@@ -67,6 +67,13 @@ export interface SimulationPaths {
 
   // Vault
   vaultState: string;
+
+  // v5.1.0 Centralized Config & State
+  simulationConfig: string;
+  identityState: string;
+  hardwareState: string;
+  presenceState: string;
+  economyState: string;
 }
 
 export interface ToolModules {

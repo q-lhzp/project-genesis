@@ -1,6 +1,14 @@
 export * from "./metabolism.js";
 export * from "./lifecycle.js";
 export * from "./world.js";
+export * from "./prop_mapper.js";
+export * from "./self_expansion_engine.js";
+export * from "./social_engine.js";
+export * from "./spatial_engine.js";
+export * from "./economy_engine.js";
+export * from "./genesis_engine.js";
+export * from "./presence_engine.js";
+export * from "./hardware_engine.js";
 
 // Re-export helper functions from types
 export { getSkillMultiplier, SENSATIONS, getSensation } from "../types/simulation.js";

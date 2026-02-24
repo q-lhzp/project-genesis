@@ -5,14 +5,13 @@
 import { Type } from "@sinclair/typebox";
 import { readJson, writeJson } from "../utils/persistence.js";
 import { getSkillMultiplier } from "../simulation/index.js";
+import { triggerPropForAction, interactWithFurniture, toggleLight, clearInteraction, loadFurniture } from "../simulation/prop_mapper.js";
+import { triggerWalkingAnimation } from "../simulation/motion_mapper.js";
 import type { Physique, SkillState, Needs, WorldLocation, WardrobeItem } from "../types/index.js";
 import type { SimulationPaths, ToolModules } from "../types/paths.js";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 
-interface ToolApi {
-  registerTool: (tool: unknown) => void;
-}
-
-export function registerNeedsTools(api: ToolApi, paths: SimulationPaths, modules: ToolModules, lang: "de" | "en" = "en") {
+export function registerNeedsTools(api: OpenClawPluginApi, paths: SimulationPaths, modules: ToolModules, lang: "de" | "en" = "en", workspacePath: string = "") {
   // Tool: reality_needs
   api.registerTool({
     name: "reality_needs",
@@ -64,6 +63,12 @@ export function registerNeedsTools(api: ToolApi, paths: SimulationPaths, modules
         msg += ` (+${bonus}% ${lang === "de" ? "Kochen-Skill Bonus" : "Cooking skill bonus"})`;
       }
 
+      // Phase 33: Trigger prop when action is performed
+      const propResult = await triggerPropForAction(workspacePath, params.action);
+      if (propResult.prop_triggered && propResult.description) {
+        msg += " " + propResult.description;
+      }
+
       return { content: [{ type: "text", text: msg }] };
     },
   });
@@ -71,11 +76,12 @@ export function registerNeedsTools(api: ToolApi, paths: SimulationPaths, modules
   // Tool: reality_move
   api.registerTool({
     name: "reality_move",
-    description: "Move to a different location in the world",
+    description: "Move to a different location in the world. Optional: target object (e.g., bed, chair, desk)",
     parameters: Type.Object({
       location: Type.String({ description: "Target location ID or name" }),
+      object: Type.Optional(Type.String({ description: "Optional target object (e.g., bed, chair, desk)" })),
     }),
-    async execute(_id: string, params: { location: string }) {
+    async execute(_id: string, params: { location: string; object?: string }) {
       const ph = await readJson<Physique>(paths.physique);
       if (!ph) return { content: [{ type: "text", text: "physique.json not found." }] };
 
@@ -88,17 +94,102 @@ export function registerNeedsTools(api: ToolApi, paths: SimulationPaths, modules
           const available = world.locations.map((l) => l.name).join(", ");
           return { content: [{ type: "text", text: lang === "de" ? `Unbekannter Ort. Verfuegbar: ${available}` : `Unknown location. Available: ${available}` }] };
         }
+
+        // Capture previous location for walking animation trigger
+        const previousLocation = ph.current_location || "unknown";
+
         ph.current_location = valid.name;
       } else {
+        // Capture previous location for walking animation trigger
+        const previousLocation = ph.current_location || "unknown";
+
         ph.current_location = params.location;
+
+        // Phase 25: Trigger walking animation when location changes
+        await triggerWalkingAnimation(workspacePath, previousLocation, params.location);
       }
 
       ph.last_tick = new Date().toISOString();
       await writeJson(paths.physique, ph);
 
-      const msg = lang === "de"
+      let msg = lang === "de"
         ? `Du bist jetzt in: ${ph.current_location}`
         : `You are now at: ${ph.current_location}`;
+
+      // Phase 33: If object is specified, interact with furniture at location
+      if (params.object) {
+        const furniture = await loadFurniture(workspacePath);
+        const locationKey = params.location.toLowerCase().replace(/\s+/g, "_");
+        const targetFurniture = furniture.find(
+          f => f.location === locationKey ||
+               f.name.toLowerCase().includes(params.object.toLowerCase())
+        );
+
+        if (targetFurniture) {
+          const actionMap: Record<string, "sit" | "lie" | "use"> = {
+            bed: "lie",
+            chair: "sit",
+            sofa: "sit",
+            couch: "sit",
+            desk: "sit",
+            table: "sit",
+            toilet: "sit",
+            bathtub: "lie",
+            shower: "use",
+          };
+          const action = actionMap[params.object.toLowerCase()] || "sit";
+          const interaction = await interactWithFurniture(workspacePath, targetFurniture.location, action);
+
+          if (interaction.success) {
+            msg += " " + interaction.description;
+          }
+        }
+      }
+
+      return { content: [{ type: "text", text: msg }] };
+    },
+  });
+
+  // Tool: reality_light (Phase 33)
+  api.registerTool({
+    name: "reality_light",
+    description: "Control ambient lighting. action: toggle | on | off | dim | bright",
+    parameters: Type.Object({
+      action: Type.String({ description: "Light action: toggle | on | off | dim | bright" }),
+    }),
+    async execute(_id: string, params: { action: string }) {
+      let newIntensity = 0.8;
+
+      switch (params.action) {
+        case "toggle":
+        case "on":
+          newIntensity = 0.8;
+          break;
+        case "off":
+          newIntensity = 0;
+          break;
+        case "dim":
+          newIntensity = 0.3;
+          break;
+        case "bright":
+          newIntensity = 1.0;
+          break;
+        default:
+          return { content: [{ type: "text", text: lang === "de" ? `Unbekannte Aktion. Valid: toggle, on, off, dim, bright` : `Unknown action. Valid: toggle, on, off, dim, bright` }] };
+      }
+
+      const result = await toggleLight(workspacePath);
+      const isOn = result.intensity > 0;
+
+      const msgs: Record<string, Record<string, string>> = {
+        toggle: { de: isOn ? "Licht angeschaltet." : "Licht ausgeschaltet.", en: isOn ? "Light turned on." : "Light turned off." },
+        on: { de: "Licht angeschaltet.", en: "Light turned on." },
+        off: { de: "Licht ausgeschaltet.", en: "Light turned off." },
+        dim: { de: "Licht gedimmt.", en: "Light dimmed." },
+        bright: { de: "Licht voll an.", en: "Light at full brightness." },
+      };
+
+      const msg = msgs[params.action]?.[lang] ?? "Done.";
       return { content: [{ type: "text", text: msg }] };
     },
   });

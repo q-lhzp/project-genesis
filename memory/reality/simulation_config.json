@@ -1,0 +1,57 @@
+{
+  "version": "5.1.0",
+  "last_updated": "2026-02-24",
+  "character": {
+    "name": "Q",
+    "identity_file": "memory/reality/identity-state.json"
+  },
+  "metabolism": {
+    "hunger_rate": 0.5,
+    "thirst_rate": 0.5,
+    "energy_rate": 0.5,
+    "stress_accumulation": 0.3,
+    "hygiene_decay": 0.2
+  },
+  "hardware_resonance": {
+    "enabled": true,
+    "cpu_threshold_high": 80,
+    "cpu_threshold_low": 30,
+    "memory_threshold_high": 85,
+    "temp_threshold_high": 80,
+    "stress_accumulation_rate": 2,
+    "audio_sensitivity": 0.5
+  },
+  "social": {
+    "autonomous_posting": true,
+    "post_frequency": "medium",
+    "npc_interactions": true,
+    "interaction_frequency": "medium"
+  },
+  "connectivity": {
+    "vmc_enabled": false,
+    "osc_enabled": false,
+    "vmc_ip": "127.0.0.1",
+    "vmc_port": 8000,
+    "osc_port": 9000
+  },
+  "economy": {
+    "paper_trading": true,
+    "risk_tolerance": "moderate",
+    "max_position_size": 0.2
+  },
+  "modules": {
+    "eros": false,
+    "cycle": false,
+    "dreams": false,
+    "hobbies": false,
+    "utility": true,
+    "economy": true,
+    "social": true,
+    "psychology": true,
+    "skills": true,
+    "world": true,
+    "reputation": true,
+    "desktop": false,
+    "genesis": false
+  }
+}

@@ -5,6 +5,8 @@
 import { Type } from "@sinclair/typebox";
 import { execFilePromise } from "../utils/bridge-executor.js";
 import { join } from "node:path";
+import { setDesktopState } from "../simulation/desktop_mapper.js";
+import { forceStopSpatial, getSpatialState } from "../simulation/spatial_engine.js";
 
 interface ToolApi {
   registerTool: (tool: unknown) => void;
@@ -36,15 +38,42 @@ export function registerSystemTools(api: ToolApi, workspacePath: string): void {
   // Tool: reality_desktop
   api.registerTool({
     name: "reality_desktop",
-    description: "Control the desktop: key presses, mouse, screenshots.",
+    description: "Control the desktop: key presses, mouse, screenshots, wallpaper, theme, automation.",
     parameters: Type.Object({
-      action: Type.String({ description: "Action: key | mouse | screenshot | apps" }),
+      action: Type.String({ description: "Action: key | mouse | screenshot | apps | wallpaper | theme | automation | stop" }),
       combo: Type.Optional(Type.String({ description: "Key combination (e.g., ctrl+c)" })),
       x: Type.Optional(Type.Number({ description: "X coordinate" })),
       y: Type.Optional(Type.Number({ description: "Y coordinate" })),
       button: Type.Optional(Type.String({ description: "Mouse button" })),
+      value: Type.Optional(Type.String({ description: "Value for wallpaper (location key) or theme (light/dark)" })),
     }),
-    async execute(_id: string, params: { action: string; combo?: string; x?: number; y?: number; button?: string }) {
+    async execute(_id: string, params: { action: string; combo?: string; x?: number; y?: number; button?: string; value?: string }) {
+      // Phase 26: Handle wallpaper and theme actions directly
+      if (params.action === "wallpaper" || params.action === "theme") {
+        const result = await setDesktopState(workspacePath, params.action, params.value || "");
+        return {
+          content: [{ type: "text", text: result.message }]
+        };
+      }
+
+      // Phase 36: Handle automation control
+      if (params.action === "automation" || params.action === "stop") {
+        if (params.action === "stop") {
+          await forceStopSpatial(workspacePath);
+          return { content: [{ type: "text", text: "Desktop automation stopped." }] };
+        }
+
+        // Get automation status
+        const state = await getSpatialState(workspacePath);
+        return {
+          content: [{
+            type: "text",
+            text: `Automation: ${state.isActive ? "Active" : "Inactive"} | Mode: ${state.currentMode} | Keys: ${state.keyStrokesCount} | Moves: ${state.mouseMovesCount}`
+          }]
+        };
+      }
+
+      // Original desktop bridge actions
       const desktopBridge = join(workspacePath, "skills", "soul-evolution", "tools", "desktop_bridge.py");
 
       try {

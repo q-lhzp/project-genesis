@@ -8,13 +8,10 @@ import { execFilePromise } from "../utils/bridge-executor.js";
 import { join } from "node:path";
 import type { FinanceState, JobType } from "../types/index.js";
 import type { SimulationPaths, ToolModules } from "../types/paths.js";
-
-interface ToolApi {
-  registerTool: (tool: unknown) => void;
-}
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 
 export function registerEconomyTools(
-  api: ToolApi,
+  api: OpenClawPluginApi,
   paths: SimulationPaths,
   vaultPaths: SimulationPaths,
   modules: ToolModules,

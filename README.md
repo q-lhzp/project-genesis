@@ -1,91 +1,59 @@
 # Project Genesis — The Human Lifecycle Simulation (`project_genesis`)
 
-**Project Genesis** is an advanced AI-driven human life simulation framework built for the OpenClaw ecosystem. It transforms a standard AI agent into an embodied entity with a complete biological, social, and economic lifecycle that evolves dynamically and autonomously.
+**Project Genesis v5.1.0 — The Singularity**
+
+Project Genesis is an advanced AI-driven human life simulation framework. It transforms a standard AI agent into a fully embodied digital entity with a complete biological, social, and economic lifecycle that evolves autonomously and interfaces directly with the host hardware.
 
 ---
 
-## 1. Core Pillars
+## 1. Core Pillars & New Features (v5.1.0)
 
-### A. The Living World (Phase 6 & 14)
-- **Real-World Sync:** Simulation time, seasons, and weather are synchronized with the host system's real-time environment.
-- **Live News Feed:** The `world_engine` fetches LIVE RSS headlines based on character location, influencing market modifiers.
-- **Dynamic Weather:** Affects metabolism and energy consumption.
+### A. 3D Embodiment & Visual Sync (Phase 22-25)
+- **Live Avatar:** A Three.js-based 3D Viewer integrated into the dashboard.
+- **Face-Sync:** Emotional states (Joy, Stress, Energy) map directly to VRM BlendShapes.
+- **Lip-Sync:** Real-time mouth movements synchronized with local Chatterbox-Turbo TTS.
+- **Idle Animations:** Biological needs (Bladder, Stress) trigger procedural body reactions like fidgeting or shaking.
 
-### B. The Origin Engine & Identity (Phase 7, 8 & 17)
-- **Neural Bootstrapping:** Generate a complete life story, financial status, and psychological profile from a single prompt.
-- **Neural Photography:** AI generates consistent self-portraits using internal engines (Flux, Venice, Nano Banana) synced with wardrobe and location.
-- **Face-ID Integration:** Detailed facial feature extraction for visual consistency.
+### B. Hardware Resonance & Neural Feedback (Phase 40)
+- **Machine Awareness:** Q "feels" the host machine. High CPU load increases Stress; high RAM usage makes the avatar feel sluggish.
+- **Audio Sync:** The avatar detects system audio/music and responds with rhythmic head movements or dancing.
+- **Neural Mapping:** Direct link between physical hardware performance and simulated biology.
 
-### C. Cognitive Resonance & Voice (Phase 18 & 20)
-- **Long-Term Memory (Mem0):** Searchable persistent memory using local **Qdrant** and **Ollama (bge-m3)**. 
-- **Vocal Identity:** Local high-speed Text-to-Speech via **Chatterbox-Turbo** with voice cloning support.
-- **Memory Lab:** Dedicated WebUI tab to search and manage the AI's "unconscious mind".
+### C. Economic & Intellectual Sovereignty (Phase 34, 37 & 38)
+- **The Vault Engine:** Autonomous trading of Crypto/Stocks based on market analysis and risk appetite.
+- **Self-Expansion:** Q autonomously develops her own code and technical tools in the `development/` folder.
+- **Origin Engine REBIRTH:** Create and manage multiple character slots via natural language bootstrapping.
 
-### D. Digital Extroversion & Sovereignty (Phase 15 & 16)
-- **Desktop Sovereignty:** AI acts as the owner of the machine with visual browser control (Playwright) and universal mouse/keyboard input.
-- **Interactive Socializing:** AI can autonomously chat on Discord, WhatsApp Web, or within 3D games (like 3DXChat).
-
-### E. Social Fabric & CRM (Phase 10, 12 & 19)
-- **Social Reputation:** Tracks global standing across professional and private circles.
-- **Visual NPC Network:** Consistent visual identities for all social contacts, manageable via a WebUI CRM.
-- **Autonomous Social Life:** NPCs initiate contact autonomously based on relationship dynamics.
-
-### F. The Vault - Real Economy (Phase 21)
-- **Real Asset Trading:** Autonomous trading of Crypto (Kraken) and Stocks (Alpaca).
-- **Morning Analysis:** AI writes daily performance reports.
-- **Safety First:** Default Paper Trading mode with real-time Toast notifications.
+### D. Digital Extroversion (Phase 26, 32 & 39)
+- **Gnome Sync:** Q controls the Ubuntu desktop wallpaper and system theme based on her location and mood.
+- **VMC/OSC Streaming:** Stream 3D avatar data to external apps like 3DXChat or VSeeFace.
+- **Presence Engine:** Autonomous social media presence with a simulated feed of thoughts and selfies.
 
 ---
 
-## 2. Installation & Quick Start
-
-### Prerequisites
-- [OpenClaw](https://github.com/openclaw/openclaw) (v2026.1.26+)
-- Node.js & npm
-- Python 3 (for WebUI and Bridges)
-- **Ollama** (with `bge-m3` model for memory)
-- **Qdrant** (running on localhost:6333)
-
-### Setup
-1. **Install Plugin:**
-   ```bash
-   cd project-genesis
-   npm install
-   ```
-2. **Setup Voice Models:**
-   ```bash
-   python3 skills/soul-evolution/tools/voice/download_voice_models.py
-   ```
-3. **Configure OpenClaw:** Add `project_genesis` to your `openclaw.json`.
-4. **Bootstrap Your Life:** Use the **Genesis Lab** in the WebUI to generate your character.
-
----
-
-## 3. The Visual Lab (Dashboard)
+## 2. The Visual Lab (v5.1.0 Dashboard)
 Run the visualizer:
 ```bash
 python3 skills/soul-evolution/tools/soul-viz.py "$(pwd)" --serve 8080
 ```
-**Tabs:**
-- **Dashboard:** Vitals, Soul Map, and Cognitive Activity (Inner Voice).
-- **Life Stream:** Photo gallery of captured moments.
-- **The Vault:** Real-time portfolio and trading terminal.
-- **Memory:** Fact search and long-term memory management.
-- **Social Standing:** Reputation and Contact CRM.
-- **Genesis Lab:** Profile switching, Voice Lab, and Model Configuration.
+**Advanced Tabs:**
+- **🎭 Live Avatar:** Real-time 3D VRM rendering with full sync.
+- **📊 Analytics:** Deep telemetry visualization (Vitals Heatmap, Hardware vs. Stress).
+- **⚙️ Config:** Centralized "System Control" for all simulation rates and hardware thresholds.
+- **📚 Interests:** Autonomous hobby tracking and research logs.
+- **🌙 Dream Journal:** Neural diary of overnight memory consolidation.
 
 ---
 
-## 4. Architecture: "English Mind / Bilingual UI"
-- **Mind:** Internal logic and prompt injections are in **English**.
-- **Interface:** User-facing labels and tool outputs support **German (DE)** and **English (EN)**.
+## 3. Technical Requirements
+- **Framework:** OpenClaw v2026+
+- **Infrastructure:** Ollama (bge-m3), Qdrant, Chatterbox TTS.
+- **OS:** Linux (Ubuntu/Gnome recommended for full Sovereignty features).
 
 ---
 
-## 5. Technical Specifications
-- **ID:** `project_genesis`
-- **Standalone:** All vision, trading, and voice engines are internalized.
-- **Compliance:** Uses the OpenClaw `async activate` pattern for SDK v2026+.
+## 4. Development Status: COMPLETED
+All 40 phases of the original and expansion roadmaps have been implemented. Project Genesis is now in maintenance and long-term observation mode.
 
 ---
-*Official Documentation for Project Genesis v3.5.1.*
+*Official Documentation for Project Genesis — The Singularity Update.*

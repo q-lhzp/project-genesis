@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { join } from "node:path";
+import { promises as fs } from "node:fs";
 import { 
   readJson, 
   writeJson, 
@@ -16,13 +17,13 @@ import {
   detectAgentRole,
   cleanupExpiredMemos,
   logVitalityTelemetry,
-  logAgentActivity
 } from "../simulation/index.js";
-import { 
-  buildSensoryContext, 
+import {
+  buildSensoryContext,
   queryMem0,
-  getVaultMorningReportDirective
 } from "../prompts/context-engine.js";
+import { getInteractionContext } from "../simulation/prop_mapper.js";
+import { getCurrentProject } from "../simulation/self_expansion_engine.js";
 import type { 
   OpenClawPluginApi, 
   Physique, 
@@ -35,13 +36,23 @@ import type {
   SocialEvent,
   InternalComm,
   SkillState,
-  WorldState,
   PsychState,
-  DevManifest,
+  DreamState,
   PromptBuildCtx
 } from "../types/index.js";
+import type { SimulationPaths, ToolModules } from "../types/paths.js";
+import type { PluginConfig } from "../types/config.js";
 
-export function registerBeforePromptHook(api: OpenClawPluginApi, paths: any, cfg: any, modules: any, rates: any, reflexThreshold: number, ws: string, lang: "de" | "en") {
+export function registerBeforePromptHook(
+  api: OpenClawPluginApi, 
+  paths: SimulationPaths, 
+  cfg: Partial<PluginConfig> | undefined, 
+  modules: ToolModules, 
+  rates: any, 
+  reflexThreshold: number, 
+  ws: string, 
+  lang: "de" | "en"
+) {
   api.on("before_prompt_build", async (_event: unknown, ctx: unknown) => {
     const isDe = lang === "de";
     const promptCtx = ctx as PromptBuildCtx;
@@ -231,11 +242,15 @@ export function registerBeforePromptHook(api: OpenClawPluginApi, paths: any, cfg
     const hobbySuggestion = await fs.readFile(paths.hobbies, "utf-8").catch(() => "");
     const skillState = await readJson<SkillState>(paths.skills);
     const psychState = await readJson<PsychState>(paths.psychology);
+    const dreamEnergyThreshold = cfg?.dreamEnergyThreshold ?? 20;
 
-    const dreamTriggerHint = (modules.dreams && ph.needs.energy < dreamEnergyThreshold) 
+    const dreamTriggerHint = (modules.dreams && ph.needs.energy < dreamEnergyThreshold)
       ? `
-[TRAUM-IMPULS] Deine Energie ist niedrig (${ph.needs.energy}%). Du koenntest schlafen gehen und im Traum deine Erlebnisse verarbeiten.` 
+[TRAUM-IMPULS] Deine Energie ist niedrig (${ph.needs.energy}%). Du koenntest schlafen gehen und im Traum deine Erlebnisse verarbeiten.`
       : "";
+
+    // Phase 33: Load interaction context (props, furniture, light)
+    const interactionContext = await getInteractionContext(ws);
 
     // Build default sensory context
     const defaultContext = buildSensoryContext(
@@ -246,19 +261,30 @@ export function registerBeforePromptHook(api: OpenClawPluginApi, paths: any, cfg
       activeSocialEvent
     ) + dreamTriggerHint + marketReportDirective;
 
+    // Phase 33: Add interaction context if available
+    const enrichedContext = interactionContext
+      ? `\n[UMGEBUNG] ${interactionContext}`
+      : "";
+
+    // Phase 34: Add self-expansion context
+    const currentProject = getCurrentProject();
+    const selfDevContext = currentProject
+      ? `\n[SELF-ENTWICKLUNG] Du arbeitest gerade an deinem Projekt: "${currentProject.name}" (${currentProject.progress}% abgeschlossen).`
+      : "";
+
     // Role-specific context
     const roleContext = ""; // Simplified for now, can be expanded per role
-    const memoContext = ""; 
+    const memoContext = "";
 
     let finalContext: string;
     if (modules.multi_model_optimization) {
-      if (agentRole === "persona") finalContext = roleContext;
-      else if (agentRole === "limbic") finalContext = roleContext + memoContext;
+      if (agentRole === "persona") finalContext = roleContext + enrichedContext + selfDevContext;
+      else if (agentRole === "limbic") finalContext = roleContext + memoContext + enrichedContext + selfDevContext;
       else if (agentRole === "world_engine") finalContext = roleContext;
-      else if (agentRole === "analyst") finalContext = roleContext + defaultContext + memoContext;
-      else finalContext = roleContext + defaultContext + memoContext;
+      else if (agentRole === "analyst") finalContext = roleContext + defaultContext + memoContext + enrichedContext;
+      else finalContext = roleContext + defaultContext + memoContext + enrichedContext;
     } else {
-      finalContext = roleContext + defaultContext + memoContext;
+      finalContext = roleContext + defaultContext + memoContext + enrichedContext;
     }
 
     // Phase 18: Mem0 Long-Term Memory Integration
