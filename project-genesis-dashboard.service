@@ -1,0 +1,14 @@
+[Unit]
+Description=Project Genesis Dashboard (Soul Viz)
+After=network.target
+
+[Service]
+Type=simple
+User=leo
+WorkingDirectory=/home/leo/Schreibtisch/project-genesis
+ExecStart=/usr/bin/python3 skills/soul-evolution/tools/soul-viz.py --serve 8080
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
