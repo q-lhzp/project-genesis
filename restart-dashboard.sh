@@ -1,22 +1,24 @@
 #!/bin/bash
-# Project Genesis Dashboard Restarter (Systemd & God-Mode Edition)
+# Project Genesis Dashboard Restarter (Screen Edition)
 
-echo "Restarting project-genesis-dashboard service..."
-sudo systemctl restart project-genesis-dashboard
+echo "Stopping existing Screen sessions..."
+screen -S genesis -X quit 2>/dev/null || true
+pkill -f soul-viz.py 2>/dev/null || true
+pkill -f godmode_bridge.py 2>/dev/null || true
+sleep 2
 
-echo "Restarting God-Mode Bridge..."
-pkill -f godmode_bridge.py || true
-sleep 1
+echo "Starting Dashboard in Screen session 'genesis'..."
 cd "/home/leo/Schreibtisch/project-genesis"
+screen -dmS genesis bash -c "python3 skills/soul-evolution/tools/soul-viz.py /home/leo/Schreibtisch/project-genesis --serve 8080"
+
+echo "Starting God-Mode Bridge..."
 nohup python3 skills/soul-evolution/tools/godmode_bridge.py --serve 18795 > godmode.log 2>&1 &
 
-echo "Waiting for services to stabilize..."
 sleep 3
-
-if systemctl is-active --quiet project-genesis-dashboard; then
-    echo "SUCCESS: Dashboard service is running."
-    echo "Main Dashboard: http://localhost:8080/soul-evolution.html"
-    echo "God-Mode Control: http://localhost:8080/godmode.html"
+if ss -tulpn | grep -q ":8080"; then
+    echo "SUCCESS: Dashboard is running."
+    echo "Main UI: http://localhost:8080/soul-evolution.html"
+    echo "Use 'screen -r genesis' to see the console."
 else
-    echo "ERROR: Service failed to start. Check journalctl -u project-genesis-dashboard"
+    echo "ERROR: Dashboard failed to start. Check 'screen -r genesis' for errors."
 fi
