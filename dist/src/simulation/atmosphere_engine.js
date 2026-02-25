@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 import { readJson, writeJson } from "../utils/persistence.js";
 import { join } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 /**
  * Get time of day from hour
  */
@@ -245,7 +245,7 @@ export function getAtmosphereContext() {
     try {
         const statePath = "/home/leo/Schreibtisch/memory/reality/atmosphere_state.json";
         if (existsSync(statePath)) {
-            const data = require(statePath);
+            const data = JSON.parse(readFileSync(statePath, "utf8"));
             return data.sensoryDescription;
         }
     }

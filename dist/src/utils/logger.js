@@ -4,7 +4,8 @@
 // ---------------------------------------------------------------------------
 import { appendJsonl } from "./persistence.js";
 import { join } from "node:path";
-import { existsSync, statSync, renameSync } from "node:fs";
+import { existsSync, statSync, renameSync, readdirSync, unlinkSync, mkdirSync, createReadStream } from "node:fs";
+import * as readline from "node:readline";
 const DEFAULT_CONFIG = {
     logDir: "memory",
     logFile: "genesis_debug.jsonl",
@@ -58,7 +59,6 @@ class GenesisLogger {
      */
     cleanOldLogs() {
         try {
-            const { readdirSync, unlinkSync } = require("node:fs");
             const files = readdirSync(this.config.logDir)
                 .filter(f => f.startsWith("genesis_debug_") && f.endsWith(".jsonl"))
                 .sort()
@@ -81,7 +81,6 @@ class GenesisLogger {
         this.checkRotation();
         try {
             // Ensure directory exists
-            const { mkdirSync } = require("node:fs");
             mkdirSync(this.config.logDir, { recursive: true });
             // Write JSONL entry
             appendJsonl(this.logPath, entry);
@@ -146,8 +145,6 @@ class GenesisLogger {
         try {
             if (!existsSync(this.logPath))
                 return entries;
-            const { createReadStream } = require("node:fs");
-            const readline = require("node:readline");
             const fileStream = createReadStream(this.logPath, { encoding: "utf8" });
             const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
             for await (const line of rl) {

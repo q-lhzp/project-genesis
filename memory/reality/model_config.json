@@ -1,0 +1,8 @@
+{
+  "mac_assignments": {
+    "persona": "xai/grok-4",
+    "analyst": "minimax/MiniMax-M2.5",
+    "developer": "google/gemini-3-flash-preview",
+    "limbic": "google/gemini-3-flash-preview"
+  }
+}

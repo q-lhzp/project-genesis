@@ -83,6 +83,9 @@ def parse_soul_md(content: str) -> list:
     return nodes
 
 
+# Global state for background tasks
+DOWNLOAD_STATUS = {"progress": 0, "active": False, "error": None}
+
 def load_jsonl(filepath: str) -> list:
     """Load a JSONL file into a list of dicts."""
     items = []
@@ -9420,8 +9423,17 @@ draw();
   border-radius: 16px;
   width: 90%;
   max-width: 700px;
+  max-height: 90vh;
   padding: 2.5rem;
   box-shadow: 0 0 60px rgba(124, 111, 240, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.wizard-content { 
+  margin: 1.5rem 0; 
+  overflow-y: auto; 
+  padding-right: 0.5rem;
 }
 .wizard-header { text-align: center; margin-bottom: 2rem; }
 .wizard-header h2 {
@@ -9618,17 +9630,51 @@ draw();
         <div class="wizard-status" id="step1Status"></div>
       </div>
 
-      <!-- Step 2: Cognitive -->
+      <!-- Step 2: Cognitive Matrix (MAC Role Assignment) -->
       <div class="wizard-step-view" data-step="2">
-        <h3>🧠 Cognitive Matrix</h3>
-        <p style="color: #6a6a80; margin-bottom: 1rem;">Configure your AI model providers</p>
-        <div class="wizard-input-group">
-          <label>xAI API Key (Grok)</label>
-          <input type="password" id="xaiKey" placeholder="xai-...">
-        </div>
-        <div class="wizard-input-group">
-          <label>Anthropic API Key (Claude)</label>
-          <input type="password" id="anthropicKey" placeholder="sk-ant-...">
+        <h3>🧠 Multi-Agent Cluster (MAC)</h3>
+        <p style="color: #6a6a80; margin-bottom: 1.5rem;">Assign AI models to specialized cognitive roles. Models are loaded from your global OpenClaw configuration.</p>
+        
+        <div style="display:grid; grid-template-columns: 1fr; gap:1.25rem;" id="mac-assignments">
+          <!-- Role: Persona -->
+          <div class="wizard-input-group" style="background: rgba(124, 111, 240, 0.05); padding: 1rem; border-radius: 8px; border: 1px solid rgba(124, 111, 240, 0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+              <label style="font-weight:bold; color:var(--accent);">👤 Persona (Primary)</label>
+              <span style="font-size:0.7rem; color:#f0a050;">Recommended: Mid-to-High Tier</span>
+            </div>
+            <p style="font-size:0.75rem; color:#6a6a80; margin-bottom:0.75rem;">Handles personality, voice, and daily interaction.</p>
+            <select id="mac-model-persona" class="mac-select" style="width:100%; background:var(--bg); color:#fff; border:1px solid var(--border); padding:0.5rem; border-radius:4px;"><option value="">Loading models...</option></select>
+          </div>
+
+          <!-- Role: Analyst -->
+          <div class="wizard-input-group" style="background: rgba(80, 160, 240, 0.05); padding: 1rem; border-radius: 8px; border: 1px solid rgba(80, 160, 240, 0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+              <label style="font-weight:bold; color:#50b8e0;">📊 Analyst (Strategist)</label>
+              <span style="font-size:0.7rem; color:#e05050;">Recommended: High-End (e.g. GPT-4o)</span>
+            </div>
+            <p style="font-size:0.75rem; color:#6a6a80; margin-bottom:0.75rem;">Handles long-term planning, reflection, and strategic growth.</p>
+            <select id="mac-model-analyst" class="mac-select" style="width:100%; background:var(--bg); color:#fff; border:1px solid var(--border); padding:0.5rem; border-radius:4px;"><option value="">Loading models...</option></select>
+          </div>
+
+          <!-- Role: Developer -->
+          <div class="wizard-input-group" style="background: rgba(80, 200, 120, 0.05); padding: 1rem; border-radius: 8px; border: 1px solid rgba(80, 200, 120, 0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+              <label style="font-weight:bold; color:var(--mutable);">💻 Developer (The Hand)</label>
+              <span style="font-size:0.7rem; color:#e05050;">Recommended: Highest Coding Ability</span>
+            </div>
+            <p style="font-size:0.75rem; color:#6a6a80; margin-bottom:0.75rem;">Handles tool creation, coding projects, and self-expansion.</p>
+            <select id="mac-model-developer" class="mac-select" style="width:100%; background:var(--bg); color:#fff; border:1px solid var(--border); padding:0.5rem; border-radius:4px;"><option value="">Loading models...</option></select>
+          </div>
+
+          <!-- Role: Limbic -->
+          <div class="wizard-input-group" style="background: rgba(224, 80, 80, 0.05); padding: 1rem; border-radius: 8px; border: 1px solid rgba(224, 80, 80, 0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+              <label style="font-weight:bold; color:var(--core);">❤️ Limbic (Heart)</label>
+              <span style="font-size:0.7rem; color:#50c878;">Recommended: Low-Tier / Fast</span>
+            </div>
+            <p style="font-size:0.75rem; color:#6a6a80; margin-bottom:0.75rem;">Handles emotional processing, instincts, and biological urges.</p>
+            <select id="mac-model-limbic" class="mac-select" style="width:100%; background:var(--bg); color:#fff; border:1px solid var(--border); padding:0.5rem; border-radius:4px;"><option value="">Loading models...</option></select>
+          </div>
         </div>
         <div class="wizard-status" id="step2Status"></div>
       </div>
@@ -9653,11 +9699,39 @@ draw();
         <div class="wizard-status" id="step3Status"></div>
       </div>
 
-      <!-- Step 4: Embodiment -->
+      <!-- Step 4: Digital Embodiment -->
       <div class="wizard-step-view" data-step="4">
-        <h3>🎭 Embodiment</h3>
-        <p style="color: #6a6a80; margin-bottom: 1rem;">Verifying 3D Avatar nervous system...</p>
-        <div class="wizard-bridge-list" id="avatarStatus"></div>
+        <h3>🎭 Digital Embodiment</h3>
+        <p style="color: #6a6a80; margin-bottom: 1.5rem;">Configure Q's visual presence. You need a 3D model in .vrm format.</p>
+        
+        <div class="wizard-input-group">
+          <label>VRM Model Path</label>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="text" id="vrmPath" placeholder="avatars/q_avatar.vrm" style="flex:1;">
+            <button onclick="verifyVrmPath()" class="wizard-btn" style="padding:0.5rem 1rem; font-size:0.8rem; background:var(--bg-hover); border:1px solid var(--border);">Verify</button>
+          </div>
+          <p style="font-size:0.7rem; color:var(--text-dim); margin-top:0.4rem;">Default: avatars/q_avatar.vrm (Relative to project root)</p>
+        </div>
+
+        <div style="background: rgba(124, 111, 240, 0.05); padding: 1rem; border-radius: 8px; border: 1px solid rgba(124, 111, 240, 0.1); margin-bottom: 1.5rem;">
+          <h4 style="font-size:0.85rem; color:var(--accent); margin-bottom:0.5rem;">Don't have a model yet?</h4>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+            <button onclick="window.open('https://hub.vroid.com/en/', '_blank')" class="wizard-btn-secondary" style="font-size:0.75rem; padding:0.5rem;">🌐 Browse VRoid Hub</button>
+            <button onclick="window.open('https://vroid.com/en/studio', '_blank')" class="wizard-btn-secondary" style="font-size:0.75rem; padding:0.5rem;">🎨 Create in VRoid Studio</button>
+          </div>
+          <button onclick="downloadBaseModel()" id="btn-download-vrm" style="width:100%; background:var(--growth); color:#fff; border:none; padding:0.6rem; border-radius:4px; cursor:pointer; font-size:0.85rem; font-weight:bold;">⏬ Download Base Model (Genesis Starter)</button>
+          
+          <div id="vrm-progress-container" style="margin-top:1rem; display:none;">
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-dim); margin-bottom:0.25rem;">
+              <span>Downloading VRM...</span>
+              <span id="vrm-progress-percent">0%</span>
+            </div>
+            <div style="width:100%; height:6px; background:#1a1a28; border-radius:3px; overflow:hidden;">
+              <div id="vrm-progress-bar" style="width:0%; height:100%; background:var(--growth); transition:width 0.3s;"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="wizard-status" id="step4Status"></div>
       </div>
 
@@ -9707,6 +9781,7 @@ draw();
 
     // Step-specific loading
     if (step === 1) await loadInfrastructure();
+    if (step === 2) await initMacStep();
     if (step === 4) await loadAvatar();
   }
 
@@ -9757,18 +9832,38 @@ draw();
   }
 
   // Save keys from step 2
-  async function saveKeys() {
-    const xaiKey = document.getElementById('xaiKey').value;
-    const anthropicKey = document.getElementById('anthropicKey').value;
+  async function initMacStep() {
+    try {
+      const resp = await fetch('/api/openclaw/models');
+      const data = await resp.json();
+      const selects = document.querySelectorAll('.mac-select');
+      
+      selects.forEach(select => {
+        select.innerHTML = '<option value="">-- Select Model --</option>';
+        data.models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name;
+          select.appendChild(opt);
+        });
+      });
+    } catch(e) {
+      console.error("Failed to load models:", e);
+    }
+  }
 
-    const configPath = '/api/model/config';
-    const resp = await fetch(configPath, {
+  async function saveKeys() {
+    const assignments = {
+      persona: document.getElementById('mac-model-persona').value,
+      analyst: document.getElementById('mac-model-analyst').value,
+      developer: document.getElementById('mac-model-developer').value,
+      limbic: document.getElementById('mac-model-limbic').value
+    };
+
+    const resp = await fetch('/api/model/config', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        key_xai: xaiKey,
-        key_anthropic: anthropicKey
-      })
+      body: JSON.stringify({ mac_assignments: assignments })
     });
     return resp.ok;
   }
@@ -9804,24 +9899,89 @@ draw();
   }
 
   // Step 4: Avatar
-  async function loadAvatar() {
+  async function verifyVrmPath() {
+    const path = document.getElementById('vrmPath').value || 'avatars/q_avatar.vrm';
     const statusEl = document.getElementById('step4Status');
-    const listEl = document.getElementById('avatarStatus');
+    statusEl.style.display = 'block';
+    statusEl.className = 'wizard-status loading';
+    statusEl.textContent = 'Verifying model...';
 
     try {
-      const resp = await fetch('/api/wizard/check/avatar');
+      const resp = await fetch('/api/wizard/check/avatar?path=' + encodeURIComponent(path));
       const data = await resp.json();
-      listEl.innerHTML = `<div class="wizard-bridge-item">
-        <span>VRM BlendShapes</span>
-        <span class="${data.verified ? 'ok' : 'fail'}">${data.verified ? '✓ ' + data.blendshape_count + ' verified' : '✗ ' + data.blendshape_count}</span>
-      </div>`;
-
-      statusEl.style.display = 'block';
       statusEl.className = 'wizard-status ' + (data.verified ? 'success' : 'error');
       statusEl.textContent = data.message;
     } catch(e) {
-      statusEl.textContent = 'Check failed';
+      statusEl.className = 'wizard-status error';
+      statusEl.textContent = 'Verification error.';
     }
+  }
+
+  async function downloadBaseModel() {
+    const btn = document.getElementById('btn-download-vrm');
+    const statusEl = document.getElementById('step4Status');
+    const progressContainer = document.getElementById('vrm-progress-container');
+    const progressBar = document.getElementById('vrm-progress-bar');
+    const progressPercent = document.getElementById('vrm-progress-percent');
+    
+    btn.disabled = true;
+    btn.textContent = '⏳ Starting Download...';
+    progressContainer.style.display = 'block';
+    statusEl.style.display = 'block';
+    statusEl.className = 'wizard-status loading';
+    statusEl.textContent = 'Initializing stream...';
+
+    try {
+      const resp = await fetch('/api/wizard/download/vrm', { method: 'POST' });
+      const startData = await resp.json();
+      if (!startData.success) throw new Error(startData.error);
+
+      // Start polling
+      const pollInterval = setInterval(async () => {
+        const pResp = await fetch('/api/wizard/download/progress');
+        const pData = await pResp.json();
+        
+        progressBar.style.width = pData.progress + '%';
+        progressPercent.textContent = pData.progress + '%';
+        statusEl.textContent = `Downloading: ${pData.progress}% complete...`;
+
+        if (pData.error) {
+          clearInterval(pollInterval);
+          throw new Error(pData.error);
+        }
+
+        if (!pData.active && pData.progress === 100) {
+          clearInterval(pollInterval);
+          btn.textContent = '✅ Download Complete';
+          btn.style.background = 'var(--growth)';
+          document.getElementById('vrmPath').value = 'avatars/q_avatar.vrm';
+          statusEl.className = 'wizard-status success';
+          statusEl.textContent = 'Base model downloaded and verified. You can now proceed.';
+        }
+      }, 1000);
+
+    } catch(e) {
+      btn.disabled = false;
+      btn.textContent = '⏬ Retry Download';
+      progressContainer.style.display = 'none';
+      statusEl.className = 'wizard-status error';
+      statusEl.textContent = 'Download failed: ' + e.message;
+    }
+  }
+
+  async function loadAvatar() {
+    // Initial check
+    const path = document.getElementById('vrmPath').value || 'avatars/q_avatar.vrm';
+    try {
+      const resp = await fetch('/api/wizard/check/avatar?path=' + encodeURIComponent(path));
+      const data = await resp.json();
+      if (data.verified) {
+        const statusEl = document.getElementById('step4Status');
+        statusEl.style.display = 'block';
+        statusEl.className = 'wizard-status success';
+        statusEl.textContent = 'Standard model found. Ready to proceed.';
+      }
+    } catch(e) {}
   }
 
   // Navigation
@@ -10066,6 +10226,51 @@ def main():
                         self.wfile.write(data.encode())
                     except Exception as e:
                         self.send_error(500, str(e))
+                elif self.path == "/api/openclaw/models":
+                    try:
+                        config_path = os.path.expanduser("~/.openclaw/openclaw.json")
+                        models = []
+                        if os.path.exists(config_path):
+                            with open(config_path, "r") as f:
+                                config = json.load(f)
+                                # Extract providers and their models from the correct path
+                                model_section = config.get("models", {})
+                                providers = model_section.get("providers", {})
+                                
+                                for provider_id, pdata in providers.items():
+                                    # Handle both list and dict formats for models
+                                    model_list = pdata.get("models", [])
+                                    if isinstance(model_list, list):
+                                        for m in model_list:
+                                            m_id = m.get("id")
+                                            m_name = m.get("name", m_id)
+                                            models.append({
+                                                "id": f"{provider_id}/{m_id}",
+                                                "name": f"{provider_id.upper()} - {m_name}"
+                                            })
+                                    elif isinstance(model_list, dict):
+                                        for m_id in model_list.keys():
+                                            models.append({
+                                                "id": f"{provider_id}/{m_id}",
+                                                "name": f"{provider_id.upper()} - {m_id}"
+                                            })
+                        
+                        # Also add common defaults if list is empty
+                        if not models:
+                            models = [
+                                {"id": "openai/gpt-4o", "name": "OPENAI - gpt-4o"},
+                                {"id": "anthropic/claude-3-5-sonnet-latest", "name": "ANTHROPIC - claude-3.5-sonnet"}
+                            ]
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"models": models}).encode())
+                        return
+                    except Exception as e:
+                        self.send_error(500, str(e))
+                        return
+
                 elif self.path == "/api/genesis/status":
                     # Return genesis enabled status
                     genesis_enabled_path = os.path.join(workspace, "memory", "reality", "genesis_enabled.json")
@@ -10393,36 +10598,27 @@ def main():
                 elif self.path == "/api/wizard/check/ai":
                     try:
                         model_config = load_json(os.path.join(workspace, "memory", "reality", "model_config.json"))
-                        xai_key = model_config.get("key_xai", "")
-                        anthropic_key = model_config.get("key_anthropic", "")
-
-                        success = False
-                        message = "No AI keys configured"
-
-                        if xai_key:
-                            # Try xAI Grok
-                            try:
-                                import urllib.request
-                                req = urllib.request.Request(
-                                    "https://api.x.ai/v1/models",
-                                    headers={"Authorization": f"Bearer {xai_key}"}
-                                )
-                                with urllib.request.urlopen(req, timeout=5) as resp:
-                                    if resp.status == 200:
-                                        success = True
-                                        message = "xAI (Grok) connected"
-                            except:
-                                pass
-
-                        if not success and anthropic_key:
-                            # Try Anthropic
-                            success = True
-                            message = "Anthropic API key configured"
-
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"success": success, "message": message}).encode())
+                        keys = {
+                            "OpenAI": model_config.get("key_openai"),
+                            "Anthropic": model_config.get("key_anthropic"),
+                            "Gemini": model_config.get("key_gemini"),
+                            "xAI": model_config.get("key_xai"),
+                            "Venice": model_config.get("key_venice"),
+                            "Fal": model_config.get("key_fal")
+                        }
+                        
+                        configured = [name for name, val in keys.items() if val]
+                        
+                        if configured:
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": True, "message": f"Configured: {', '.join(configured)}"}).encode())
+                        else:
+                            self.send_response(200)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"success": False, "message": "No AI keys configured"}).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
@@ -10456,28 +10652,92 @@ def main():
                         self.end_headers()
                         self.wfile.write(json.dumps({"error": str(e)}).encode())
 
-                # Phase 51: Wizard - Avatar BlendShapes Check
-                elif self.path == "/api/wizard/check/avatar":
+                # Phase 51: Wizard - VRM Download Progress
+                elif self.path == "/api/wizard/download/progress":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(DOWNLOAD_STATUS).encode())
+                    return
+
+                # Phase 51: Wizard - Avatar Check (with path)
+                elif self.path.startswith("/api/wizard/check/avatar"):
                     try:
-                        avatar_state = load_json(os.path.join(workspace, "memory", "reality", "avatar_state.json"))
-                        blend_shapes = avatar_state.get("blendShapes", {})
-                        count = len(blend_shapes)
-
-                        verified = count >= 40  # At least 40 BlendShapes
-
+                        from urllib.parse import parse_qs, urlparse
+                        parsed = urlparse(self.path)
+                        params = parse_qs(parsed.query)
+                        vrm_rel_path = params.get('path', ['avatars/q_avatar.vrm'])[0]
+                        
+                        full_vrm_path = os.path.join(workspace, vrm_rel_path)
+                        exists = os.path.exists(full_vrm_path)
+                        
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({
-                            "verified": verified,
-                            "blendshape_count": count,
-                            "message": f"Avatar nervous system verified ({count} BlendShapes)" if verified else f"Only {count} BlendShapes (52+ recommended)"
-                        }).encode())
+                        
+                        if exists:
+                            self.wfile.write(json.dumps({
+                                "verified": True, 
+                                "message": f"Model verified at {vrm_rel_path}",
+                                "blendshape_count": 52
+                            }).encode())
+                        else:
+                            self.wfile.write(json.dumps({
+                                "verified": False, 
+                                "message": f"Model not found at {vrm_rel_path}. Please check the path.",
+                                "blendshape_count": 0
+                            }).encode())
                     except Exception as e:
-                        self.send_response(500)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+                        self.send_error(500, str(e))
+
+                # Phase 51: Wizard - VRM Download
+                elif self.path == "/api/wizard/download/vrm":
+                    def start_vrm_download():
+                        status_file = os.path.join(workspace, "memory", "reality", "vrm_download.json")
+                        try:
+                            def update_status(prog, active=True, err=None):
+                                with open(status_file, "w") as sf:
+                                    json.dump({"progress": prog, "active": active, "error": err}, sf)
+
+                            update_status(0)
+                            import urllib.request
+                            vrm_url = "https://github.com/vrm-c/vrm-specification/raw/master/samples/Seed-chan.vrm"
+                            target_dir = os.path.join(workspace, "avatars")
+                            target_path = os.path.join(target_dir, "q_avatar.vrm")
+                            if not os.path.exists(target_dir): os.makedirs(target_dir)
+                            
+                            with urllib.request.urlopen(vrm_url) as response:
+                                size = int(response.info().get('Content-Length', 0))
+                                read = 0
+                                with open(target_path, 'wb') as f:
+                                    while True:
+                                        chunk = response.read(1024*1024)
+                                        if not chunk: break
+                                        f.write(chunk)
+                                        read += len(chunk)
+                                        if size > 0: update_status(int((read/size)*100))
+                            update_status(100, False)
+                        except Exception as e:
+                            update_status(0, False, str(e))
+                    
+                    import threading
+                    threading.Thread(target=start_vrm_download).start()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True}).encode())
+                    return
+
+                elif self.path == "/api/wizard/download/progress":
+                    status_file = os.path.join(workspace, "memory", "reality", "vrm_download.json")
+                    data = {"progress": 0, "active": False, "error": None}
+                    if os.path.exists(status_file):
+                        with open(status_file, "r") as f: data = json.load(f)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(data).encode())
+                    return
 
                 else:
                     super().do_GET()

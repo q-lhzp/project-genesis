@@ -17,10 +17,10 @@
     "energy": 80,
     "hunger": 20,
     "thirst": 30,
-    "hygiene": 90,
+    "hygiene": 95,
     "bladder": 98,
     "bowel": 0,
-    "stress": 15,
+    "stress": 98,
     "arousal": 5,
     "libido": 10
   }
