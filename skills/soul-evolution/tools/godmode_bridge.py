@@ -25,6 +25,10 @@ class GodModeHandler(BaseHTTPRequestHandler):
             self.send_reflex_status()
         elif path == "/api/events":
             self.send_events()
+        elif path == "/api/system/full-state":
+            self.send_full_state()
+        elif path == "/api/system/health":
+            self.send_health()
         else:
             self.send_response(404)
             self.end_headers()
@@ -112,6 +116,128 @@ class GodModeHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(events[-10:]).encode())  # Last 10
+        except Exception as e:
+            self.send_error(500, str(e))
+
+    def send_full_state(self):
+        """Returns consolidated state of all engines"""
+        try:
+            state = {
+                "timestamp": __import__("datetime").datetime.now().isoformat(),
+                "engines": {}
+            }
+
+            # Metabolism / Physique
+            try:
+                path = os.path.join(self.workspace, "memory", "reality", "physique.json")
+                if os.path.exists(path):
+                    with open(path) as f:
+                        state["engines"]["metabolism"] = json.load(f)
+                else:
+                    state["engines"]["metabolism"] = None
+            except Exception as e:
+                state["engines"]["metabolism"] = {"error": str(e)}
+
+            # Economy
+            try:
+                path = os.path.join(self.workspace, "memory", "reality", "economy_state.json")
+                if os.path.exists(path):
+                    with open(path) as f:
+                        state["engines"]["economy"] = json.load(f)
+                else:
+                    state["engines"]["economy"] = None
+            except Exception as e:
+                state["engines"]["economy"] = {"error": str(e)}
+
+            # Social
+            try:
+                path = os.path.join(self.workspace, "memory", "reality", "social.json")
+                if os.path.exists(path):
+                    with open(path) as f:
+                        state["engines"]["social"] = json.load(f)
+                else:
+                    state["engines"]["social"] = None
+            except Exception as e:
+                state["engines"]["social"] = {"error": str(e)}
+
+            # Hardware
+            try:
+                path = os.path.join(self.workspace, "memory", "reality", "hardware_resonance.json")
+                if os.path.exists(path):
+                    with open(path) as f:
+                        state["engines"]["hardware"] = json.load(f)
+                else:
+                    state["engines"]["hardware"] = None
+            except Exception as e:
+                state["engines"]["hardware"] = {"error": str(e)}
+
+            # Avatar
+            try:
+                path = os.path.join(self.workspace, "memory", "reality", "avatar_config.json")
+                if os.path.exists(path):
+                    with open(path) as f:
+                        state["engines"]["avatar"] = json.load(f)
+                else:
+                    state["engines"]["avatar"] = None
+            except Exception as e:
+                state["engines"]["avatar"] = {"error": str(e)}
+
+            # Lifecycle
+            try:
+                path = os.path.join(self.workspace, "memory", "reality", "lifecycle.json")
+                if os.path.exists(path):
+                    with open(path) as f:
+                        state["engines"]["lifecycle"] = json.load(f)
+                else:
+                    state["engines"]["lifecycle"] = None
+            except Exception as e:
+                state["engines"]["lifecycle"] = {"error": str(e)}
+
+            # Presence
+            try:
+                path = os.path.join(self.workspace, "memory", "reality", "presence_state.json")
+                if os.path.exists(path):
+                    with open(path) as f:
+                        state["engines"]["presence"] = json.load(f)
+                else:
+                    state["engines"]["presence"] = None
+            except Exception as e:
+                state["engines"]["presence"] = {"error": str(e)}
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(state, indent=2).encode())
+        except Exception as e:
+            self.send_error(500, str(e))
+
+    def send_health(self):
+        """Returns quick health status"""
+        try:
+            health = {
+                "status": "healthy",
+                "checks": {}
+            }
+
+            # Check critical files
+            critical_files = [
+                "memory/reality/physique.json",
+                "memory/reality/world.json",
+            ]
+
+            for f in critical_files:
+                path = os.path.join(self.workspace, f)
+                name = f.split("/")[-1]
+                if os.path.exists(path):
+                    health["checks"][name] = "ok"
+                else:
+                    health["checks"][name] = "missing"
+                    health["status"] = "degraded"
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(health).encode())
         except Exception as e:
             self.send_error(500, str(e))
 

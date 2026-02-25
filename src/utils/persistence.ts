@@ -63,3 +63,16 @@ export function todayStr(): string {
 export function generateId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
+
+/**
+ * Read a JSONL (JSON Lines) file and return array of objects
+ */
+export async function readJsonl<T>(path: string): Promise<T[]> {
+  try {
+    const content = await fs.readFile(path, "utf-8");
+    const lines = content.split("\n").filter(line => line.trim());
+    return lines.map(line => JSON.parse(line) as T);
+  } catch {
+    return [];
+  }
+}

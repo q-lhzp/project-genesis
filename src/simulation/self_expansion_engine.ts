@@ -122,7 +122,7 @@ async function loadManifest(workspacePath: string): Promise<{ projects: SelfDevP
   const manifestPath = join(workspacePath, "memory", "development", "manifest.json");
   try {
     if (existsSync(manifestPath)) {
-      const data = await readJson(manifestPath);
+      const data = await readJson<{ projects: SelfDevProject[] }>(manifestPath);
       return data || { projects: [] };
     }
   } catch (error) {
@@ -493,8 +493,9 @@ export async function processSelfExpansion(
   // Create new project
   const newProject = createProject(technicalInterest.topic, projectType);
 
-  // If it's a script/tool, create the file
-  if (projectType === "script" || projectType === "tool" || projectType === "utility") {
+  // If it's a script/tool, create the file (using type assertion to fix narrowing)
+  const pt = projectType as string;
+  if (pt === "script" || pt === "tool" || pt === "utility" || pt === "skill_upgrade" || pt === "documentation") {
     const filePath = await createScriptFile(workspacePath, newProject);
     newProject.filePath = filePath;
   }
@@ -551,7 +552,7 @@ export async function loadExpansionState(workspacePath: string): Promise<SelfExp
 
   try {
     if (existsSync(statePath)) {
-      const loaded = await readJson(statePath);
+      const loaded = await readJson<typeof expansionState>(statePath);
       if (loaded) {
         expansionState = { ...DEFAULT_EXPANSION_STATE, ...loaded };
       }

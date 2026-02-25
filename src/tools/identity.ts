@@ -7,7 +7,7 @@ import { readJson, writeJson } from "../utils/persistence.js";
 import { execFilePromise } from "../utils/bridge-executor.js";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promises as fs } from "node:fs";
+import { promises as fs, existsSync } from "node:fs";
 import type { Physique } from "../types/index.js";
 import type { SimulationPaths } from "../types/paths.js";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
@@ -171,8 +171,9 @@ export function registerIdentityTools(api: OpenClawPluginApi, paths: SimulationP
       action: Type.String({ enum: ["bootstrap", "activate", "delete", "list"], description: "Action: bootstrap (create new), activate (switch to), delete, or list slots" }),
       name: Type.Optional(Type.String({ description: "Character name for bootstrap/activate/delete" })),
       prompt: Type.Optional(Type.String({ description: "Description for bootstrapping new character" })),
+      vrm_path: Type.Optional(Type.String({ description: "Path to VRM model file for this persona" })),
     }),
-    async execute(_id: string, params: { action: string; name?: string; prompt?: string }) {
+    async execute(_id: string, params: { action: string; name?: string; prompt?: string; vrm_path?: string }) {
       if (params.action === "bootstrap") {
         if (!params.name || !params.prompt) {
           return { content: [{ type: "text", text: "Bootstrap requires 'name' and 'prompt' parameters. Example: reality_genesis(action: 'bootstrap', name: 'Alex', prompt: 'A creative introvert who loves coding and art')" }] };
@@ -183,9 +184,9 @@ export function registerIdentityTools(api: OpenClawPluginApi, paths: SimulationP
 
       if (params.action === "activate") {
         if (!params.name) {
-          return { content: [{ type: "text", text: "Activate requires 'name' parameter. Example: reality_genesis(action: 'activate', name: 'Alex')" }] };
+          return { content: [{ type: "text", text: "Activate requires 'name' parameter. Example: reality_genesis(action: 'activate', name: 'Alex', vrm_path: '/path/to/avatar.vrm')" }] };
         }
-        const result = await activateSlot(workspacePath, params.name);
+        const result = await activateSlot(workspacePath, params.name, params.vrm_path);
         return { content: [{ type: "text", text: result.message }] };
       }
 
@@ -271,7 +272,7 @@ export function registerIdentityTools(api: OpenClawPluginApi, paths: SimulationP
           });
         });
 
-        if (fs.existsSync(outputFile)) {
+        if (existsSync(outputFile)) {
           return {
             content: [{
               type: "text",

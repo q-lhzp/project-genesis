@@ -1,6 +1,7 @@
 // Reflex-Lock Hook - Blockiert Tools wenn kritische Bedürfnisse erreicht sind
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
-import { readJson, join } from "../utils/index.js";
+import { readJson } from "../utils/index.js";
+import { join } from "node:path";
 import * as fs from "fs";
 import type { SimulationPaths } from "../types/paths.js";
 

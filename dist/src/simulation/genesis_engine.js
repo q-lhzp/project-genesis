@@ -274,8 +274,9 @@ function generateInterests(prompt) {
 /**
  * Activate a character slot
  */
-export async function activateSlot(workspacePath, slotName) {
+export async function activateSlot(workspacePath, slotName, vrmPath) {
     const genesisStatePath = join(workspacePath, "memory", "reality", "genesis_state.json");
+    const avatarConfigPath = join(workspacePath, "memory", "reality", "avatar_config.json");
     try {
         if (!existsSync(genesisStatePath)) {
             return { success: false, message: "No character slots exist. Bootstrap a character first." };
@@ -289,10 +290,27 @@ export async function activateSlot(workspacePath, slotName) {
         state.slots.forEach(s => s.is_active = false);
         slot.is_active = true;
         state.active_slot = slot.id;
+        // Save VRM path to slot if provided
+        if (vrmPath) {
+            slot.vrm_path = vrmPath;
+        }
         await writeJson(genesisStatePath, state);
+        // Update avatar_config.json with slot-specific VRM path
+        if (existsSync(avatarConfigPath)) {
+            const avatarConfig = await readJson(avatarConfigPath);
+            // If slot has a specific VRM path, use it; otherwise use default
+            const newVrmPath = slot.vrm_path || avatarConfig.default_vrm_path || "";
+            // Update slot-specific path map
+            if (!avatarConfig.slot_vrm_paths) {
+                avatarConfig.slot_vrm_paths = {};
+            }
+            avatarConfig.slot_vrm_paths[slot.name] = slot.vrm_path || avatarConfig.default_vrm_path || "";
+            await writeJson(avatarConfigPath, avatarConfig);
+        }
+        const vrmInfo = slot.vrm_path ? ` (VRM: ${slot.vrm_path})` : "";
         return {
             success: true,
-            message: `Switched to character '${slot.name}'. All simulation state will now reflect this character.`
+            message: `Switched to character '${slot.name}'. All simulation state will now reflect this character.${vrmInfo}`
         };
     }
     catch (error) {

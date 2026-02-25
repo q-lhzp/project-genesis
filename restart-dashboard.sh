@@ -12,7 +12,7 @@ cd "/home/leo/Schreibtisch/project-genesis"
 screen -dmS genesis bash -c "python3 skills/soul-evolution/tools/soul-viz.py /home/leo/Schreibtisch/project-genesis --serve 8080"
 
 echo "Starting God-Mode Bridge..."
-nohup python3 skills/soul-evolution/tools/godmode_bridge.py --serve 18795 > godmode.log 2>&1 &
+nohup python3 skills/soul-evolution/tools/godmode_bridge.py "/home/leo/Schreibtisch/project-genesis" 18795 > godmode.log 2>&1 &
 
 sleep 3
 if ss -tulpn | grep -q ":8080"; then

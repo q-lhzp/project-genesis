@@ -45,7 +45,12 @@ export function registerBeforePromptHook(api, paths, cfg, modules, rates, reflex
                         last_advance: new Date().toISOString(),
                         phase: "menstruation",
                         hormones: { estrogen: 10, progesterone: 5, lh: 5, fsh: 10 },
-                        symptom_modifiers: {}
+                        symptom_modifiers: {
+                            cramps: 0, bloating: 0, fatigue: 0, mood_swings: 0,
+                            headache: 0, breast_tenderness: 0, acne: 0, appetite_changes: 0,
+                            back_pain: 0, insomnia: 0
+                        },
+                        simulator: { active: false, simulated_day: 0, custom_modifiers: {} }
                     };
                     await writeJson(paths.cycle, cs);
                 }

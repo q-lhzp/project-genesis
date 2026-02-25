@@ -14,6 +14,7 @@ export interface Needs {
   arousal: number;
   libido: number;
   joy?: number;
+  social?: number;
 }
 
 export interface Appearance {
@@ -39,6 +40,10 @@ export interface LifecycleState {
   life_stage: LifeStage;
   last_aging_check: string;
   age_progression_enabled: boolean;
+  // Sleep-related state
+  is_asleep?: boolean;
+  is_napping?: boolean;
+  sleep_start?: string;
 }
 
 export interface VitalityMetrics {
@@ -178,7 +183,7 @@ export interface SocialEvent {
   sender_name: string;
   sender_id: string;
   message: string;
-  category: "chat" | "request" | "conflict" | "support";
+  category: "chat" | "request" | "conflict" | "support" | "invitation" | "gossip";
   processed: boolean;
 }
 

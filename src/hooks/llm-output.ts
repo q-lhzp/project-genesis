@@ -4,14 +4,19 @@
 
 import { join } from "node:path";
 import { readJson, writeJson, appendJsonl } from "../utils/persistence.js";
-import type { 
-  OpenClawPluginApi, 
-  Physique, 
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
+import type {
+  Physique,
   SocialEvent,
   ExperienceEntry,
-  LlmOutputEvent
-} from "../types/index.js";
+} from "../types/simulation.js";
 import type { SimulationPaths, ToolModules } from "../types/paths.js";
+
+// LlmOutputEvent interface (from OpenClaw SDK)
+interface LlmOutputEvent {
+  lastAssistant?: string;
+  lastUser?: string;
+}
 
 export function registerLlmOutputHook(api: OpenClawPluginApi, paths: SimulationPaths, modules: ToolModules) {
   api.on("llm_output", async (event: unknown, _ctx: unknown) => {

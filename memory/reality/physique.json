@@ -1,18 +1,24 @@
 {
   "current_location": "home_bedroom",
-  "current_outfit": ["Casual Hoodie", "Jeans"],
+  "current_outfit": [
+    "Casual Hoodie",
+    "Jeans"
+  ],
   "last_tick": "2026-02-24T12:00:00.000Z",
   "appearance": {
     "hair": "Silver, messy bob cut",
     "eyes": "Electric blue with digital glint",
-    "modifications": ["Neural Interface Port", "LED wrist display"]
+    "modifications": [
+      "Neural Interface Port",
+      "LED wrist display"
+    ]
   },
   "needs": {
     "energy": 80,
     "hunger": 20,
     "thirst": 30,
     "hygiene": 90,
-    "bladder": 10,
+    "bladder": 98,
     "bowel": 0,
     "stress": 15,
     "arousal": 5,

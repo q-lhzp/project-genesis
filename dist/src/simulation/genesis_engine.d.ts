@@ -7,6 +7,7 @@ interface CharacterSlot {
     description: string;
     created_at: string;
     is_active: boolean;
+    vrm_path?: string;
 }
 /**
  * Genesis state
@@ -28,7 +29,7 @@ export declare function bootstrapCharacter(workspacePath: string, name: string, 
 /**
  * Activate a character slot
  */
-export declare function activateSlot(workspacePath: string, slotName: string): Promise<{
+export declare function activateSlot(workspacePath: string, slotName: string, vrmPath?: string): Promise<{
     success: boolean;
     message: string;
 }>;

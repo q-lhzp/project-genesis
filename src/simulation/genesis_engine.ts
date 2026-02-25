@@ -17,6 +17,7 @@ interface CharacterSlot {
   description: string;
   created_at: string;
   is_active: boolean;
+  vrm_path?: string;  // VRM model path for this persona
 }
 
 /**
@@ -345,9 +346,11 @@ function generateInterests(prompt: string): any {
  */
 export async function activateSlot(
   workspacePath: string,
-  slotName: string
+  slotName: string,
+  vrmPath?: string
 ): Promise<{ success: boolean; message: string }> {
   const genesisStatePath = join(workspacePath, "memory", "reality", "genesis_state.json");
+  const avatarConfigPath = join(workspacePath, "memory", "reality", "avatar_config.json");
 
   try {
     if (!existsSync(genesisStatePath)) {
@@ -366,11 +369,33 @@ export async function activateSlot(
     slot.is_active = true;
     state.active_slot = slot.id;
 
+    // Save VRM path to slot if provided
+    if (vrmPath) {
+      slot.vrm_path = vrmPath;
+    }
+
     await writeJson(genesisStatePath, state);
 
+    // Update avatar_config.json with slot-specific VRM path
+    if (existsSync(avatarConfigPath)) {
+      const avatarConfig = await readJson<any>(avatarConfigPath);
+
+      // If slot has a specific VRM path, use it; otherwise use default
+      const newVrmPath = slot.vrm_path || avatarConfig.default_vrm_path || "";
+
+      // Update slot-specific path map
+      if (!avatarConfig.slot_vrm_paths) {
+        avatarConfig.slot_vrm_paths = {};
+      }
+      avatarConfig.slot_vrm_paths[slot.name] = slot.vrm_path || avatarConfig.default_vrm_path || "";
+
+      await writeJson(avatarConfigPath, avatarConfig);
+    }
+
+    const vrmInfo = slot.vrm_path ? ` (VRM: ${slot.vrm_path})` : "";
     return {
       success: true,
-      message: `Switched to character '${slot.name}'. All simulation state will now reflect this character.`
+      message: `Switched to character '${slot.name}'. All simulation state will now reflect this character.${vrmInfo}`
     };
   } catch (error) {
     return { success: false, message: `Error activating slot: ${error}` };

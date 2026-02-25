@@ -368,8 +368,9 @@ export async function processSelfExpansion(workspacePath, physique, config = DEF
     }
     // Create new project
     const newProject = createProject(technicalInterest.topic, projectType);
-    // If it's a script/tool, create the file
-    if (projectType === "script" || projectType === "tool" || projectType === "utility") {
+    // If it's a script/tool, create the file (using type assertion to fix narrowing)
+    const pt = projectType;
+    if (pt === "script" || pt === "tool" || pt === "utility" || pt === "skill_upgrade" || pt === "documentation") {
         const filePath = await createScriptFile(workspacePath, newProject);
         newProject.filePath = filePath;
     }

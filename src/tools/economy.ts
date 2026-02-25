@@ -6,9 +6,14 @@ import { Type } from "@sinclair/typebox";
 import { readJson, writeJson, generateId } from "../utils/persistence.js";
 import { execFilePromise } from "../utils/bridge-executor.js";
 import { join } from "node:path";
-import type { FinanceState, JobType } from "../types/index.js";
+import type { FinanceState, JobType } from "../types/simulation.js";
 import type { SimulationPaths, ToolModules } from "../types/paths.js";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
+
+// Helper to ensure tool return has details field
+function toolResult(text: string): any {
+  return { content: [{ type: "text", text }], details: {} };
+}
 
 export function registerEconomyTools(
   api: OpenClawPluginApi,
@@ -27,15 +32,15 @@ export function registerEconomyTools(
       employer: Type.Optional(Type.String({ description: "Employer name" })),
       salary: Type.Optional(Type.Number({ description: "Monthly salary" })),
     }),
-    async execute(_id: string, params: { action: string; position?: string; employer?: string; salary?: number }) {
-      if (!modules.economy) return { content: [{ type: "text", text: "Economy module not enabled." }] };
+    async execute(_id: string, params: { action: string; position?: string; employer?: string; salary?: number }): Promise<any> {
+      if (!modules.economy) return { content: [{ type: "text", text: "Economy module not enabled." }], details: {} };
 
       const finance = await readJson<FinanceState>(paths.finances);
-      if (!finance) return { content: [{ type: "text", text: "finances.json not found." }] };
+      if (!finance) return { content: [{ type: "text", text: "finances.json not found." }], details: {} };
 
       if (params.action === "work") {
         const income = finance.income_sources.find(i => !i.ended_at);
-        if (!income) return { content: [{ type: "text", text: "No active job. Apply first." }] };
+        if (!income) return { content: [{ type: "text", text: "No active job. Apply first." }], details: {} };
 
         finance.balance += income.salary_per_month / 30; // Daily rate
         await writeJson(paths.finances, finance);
@@ -72,10 +77,10 @@ export function registerEconomyTools(
       quantity: Type.Optional(Type.Number({ description: "Quantity" })),
     }),
     async execute(_id: string, params: { item: string; quantity?: number }) {
-      if (!modules.economy) return { content: [{ type: "text", text: "Economy module not enabled." }] };
+      if (!modules.economy) return { content: [{ type: "text", text: "Economy module not enabled." }], details: {} };
 
       const finance = await readJson<FinanceState>(paths.finances);
-      if (!finance) return { content: [{ type: "text", text: "finances.json not found." }] };
+      if (!finance) return { content: [{ type: "text", text: "finances.json not found." }], details: {} };
 
       // Simple price estimation
       const price = 10 * (params.quantity ?? 1);

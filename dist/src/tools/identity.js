@@ -6,7 +6,7 @@ import { readJson, writeJson } from "../utils/persistence.js";
 import { execFilePromise } from "../utils/bridge-executor.js";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promises as fs } from "node:fs";
+import { promises as fs, existsSync } from "node:fs";
 import { bootstrapCharacter, activateSlot, deleteSlot, getSlots, getGenesisState } from "../simulation/genesis_engine.js";
 export function registerIdentityTools(api, paths, workspacePath) {
     // Tool: reality_profile
@@ -153,6 +153,7 @@ export function registerIdentityTools(api, paths, workspacePath) {
             action: Type.String({ enum: ["bootstrap", "activate", "delete", "list"], description: "Action: bootstrap (create new), activate (switch to), delete, or list slots" }),
             name: Type.Optional(Type.String({ description: "Character name for bootstrap/activate/delete" })),
             prompt: Type.Optional(Type.String({ description: "Description for bootstrapping new character" })),
+            vrm_path: Type.Optional(Type.String({ description: "Path to VRM model file for this persona" })),
         }),
         async execute(_id, params) {
             if (params.action === "bootstrap") {
@@ -164,9 +165,9 @@ export function registerIdentityTools(api, paths, workspacePath) {
             }
             if (params.action === "activate") {
                 if (!params.name) {
-                    return { content: [{ type: "text", text: "Activate requires 'name' parameter. Example: reality_genesis(action: 'activate', name: 'Alex')" }] };
+                    return { content: [{ type: "text", text: "Activate requires 'name' parameter. Example: reality_genesis(action: 'activate', name: 'Alex', vrm_path: '/path/to/avatar.vrm')" }] };
                 }
-                const result = await activateSlot(workspacePath, params.name);
+                const result = await activateSlot(workspacePath, params.name, params.vrm_path);
                 return { content: [{ type: "text", text: result.message }] };
             }
             if (params.action === "delete") {
@@ -241,7 +242,7 @@ export function registerIdentityTools(api, paths, workspacePath) {
                             resolve({ stdout, stderr });
                     });
                 });
-                if (fs.existsSync(outputFile)) {
+                if (existsSync(outputFile)) {
                     return {
                         content: [{
                                 type: "text",

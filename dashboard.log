@@ -1,0 +1,2 @@
+/home/leo/Schreibtisch/project-genesis/skills/soul-evolution/tools/soul-viz.py:3507: SyntaxWarning: "\*" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\*"? A raw string is also an option.
+  const nameMatch = idText.match(/\*\*Name:\*\*\s*(.+)/i) || idText.match(/Name:\s*(.+)/i);

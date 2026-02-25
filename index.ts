@@ -35,6 +35,7 @@ import { registerIdentityTools } from "./src/tools/identity.js";
 import { registerSystemTools } from "./src/tools/system.js";
 import { registerEvolutionTools } from "./src/tools/evolution.js";
 import { registerResearchTools } from "./src/tools/research.js";
+import { registerTestSuiteTools } from "./src/tools/test_suite.js";
 
 // Types
 import type { PluginConfig } from "./src/types/config.js";
@@ -159,6 +160,11 @@ export default {
       socialEvents: resolvePath(ws, "memory", "reality", "social_events.json"),
       genesisLog: resolvePath(ws, "memory", "genesis_log.jsonl"),
       vaultState: resolvePath(ws, "memory", "vault", "state.json"),
+      // Missing paths for full type compliance
+      backups: resolvePath(ws, "memory", "backups"),
+      internalComm: resolvePath(ws, "memory", "internal_comm"),
+      psychology: resolvePath(ws, "memory", "reality", "psychology.json"),
+      news: resolvePath(ws, "memory", "reality", "news.json"),
       // v5.1.0 Centralized config
       simulationConfig: resolvePath(ws, "memory", "reality", "simulation_config.json"),
       identityState: resolvePath(ws, "memory", "reality", "identity-state.json"),
@@ -181,11 +187,13 @@ export default {
     registerSystemTools(api, ws);
     registerEvolutionTools(api, paths, ws);
     registerResearchTools(api, paths, ws);
+    registerTestSuiteTools(api, paths, ws);
 
     // ---------------------------------------------------------------------------
     // Lifecycle Tick (periodic metabolism updates)
     // ---------------------------------------------------------------------------
-    api.on("tick", async () => {
+    // Using type assertion for tick hook (SDK compatibility)
+    (api as any).on("tick", async () => {
       try {
         const ph = await readJson<Physique>(paths.physique);
         if (!ph) {

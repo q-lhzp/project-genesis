@@ -228,6 +228,30 @@ def generate_fallback_tts(text: str, settings: dict = None) -> dict:
 
 
 def main():
+    # Handle --upload-sample flag
+    if len(sys.argv) >= 3 and sys.argv[1] == "--upload-sample":
+        sample_path = sys.argv[2]
+        if not os.path.exists(sample_path):
+            print(json.dumps({"success": False, "error": "Sample file not found"}))
+            sys.exit(1)
+
+        # Copy to voice_samples directory
+        sample_name = os.path.basename(sample_path)
+        dest_path = os.path.join(VOICE_SAMPLES_DIR, sample_name)
+
+        try:
+            import shutil
+            shutil.copy2(sample_path, dest_path)
+            print(json.dumps({
+                "success": True,
+                "sample_name": sample_name,
+                "sample_path": dest_path,
+                "message": "Voice sample saved for cloning"
+            }))
+        except Exception as e:
+            print(json.dumps({"success": False, "error": str(e)}))
+        sys.exit(0)
+
     if len(sys.argv) < 2:
         print(json.dumps({"error": "Params required"}))
         sys.exit(1)

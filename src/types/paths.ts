@@ -39,6 +39,7 @@ export interface SimulationPaths {
   // World
   world: string;
   worldNews: string;
+  news: string;
   newsEvents: string;
 
   // Dreams & Hobbies

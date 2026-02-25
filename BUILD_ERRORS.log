@@ -1,0 +1,164 @@
+
+> project_genesis@5.2.0 build
+> tsc
+
+index.ts(168,7): error TS1117: An object literal cannot have multiple properties with the same name.
+index.ts(188,25): error TS2345: Argument of type 'OpenClawPluginApi' is not assignable to parameter of type 'ToolApi'.
+  Types of property 'registerTool' are incompatible.
+    Type '(tool: AnyAgentTool | OpenClawPluginToolFactory, opts?: OpenClawPluginToolOptions | undefined) => void' is not assignable to type '(tool: unknown) => void'.
+      Types of parameters 'tool' and 'tool' are incompatible.
+        Type 'unknown' is not assignable to type 'AnyAgentTool | OpenClawPluginToolFactory'.
+index.ts(196,12): error TS2345: Argument of type '"tick"' is not assignable to parameter of type 'PluginHookName'.
+src/hooks/before-prompt.ts(28,3): error TS2305: Module '"../types/index.js"' has no exported member 'OpenClawPluginApi'.
+src/hooks/before-prompt.ts(41,3): error TS2305: Module '"../types/index.js"' has no exported member 'PromptBuildCtx'.
+src/hooks/before-prompt.ts(95,13): error TS2740: Type '{}' is missing the following properties from type '{ cramps: number; bloating: number; fatigue: number; mood_swings: number; headache: number; breast_tenderness: number; acne: number; appetite_changes: number; back_pain: number; insomnia: number; }': cramps, bloating, fatigue, mood_swings, and 6 more.
+src/hooks/before-prompt.ts(99,42): error TS2345: Argument of type 'CycleState | null' is not assignable to parameter of type 'CycleState'.
+  Type 'null' is not assignable to type 'CycleState'.
+src/hooks/llm-output.ts(8,3): error TS2305: Module '"../types/index.js"' has no exported member 'OpenClawPluginApi'.
+src/hooks/llm-output.ts(12,3): error TS2305: Module '"../types/index.js"' has no exported member 'LlmOutputEvent'.
+src/index.ts(7,1): error TS2308: Module "./types/index.js" has already exported a member named 'getAgeSensation'. Consider explicitly re-exporting to resolve the ambiguity.
+src/index.ts(7,1): error TS2308: Module "./types/index.js" has already exported a member named 'getCycleHormones'. Consider explicitly re-exporting to resolve the ambiguity.
+src/prompts/context-engine.ts(437,54): error TS2345: Argument of type 'FinanceState | null | undefined' is not assignable to parameter of type 'FinanceState | null'.
+  Type 'undefined' is not assignable to type 'FinanceState | null'.
+src/prompts/context-engine.ts(438,64): error TS2345: Argument of type 'FinanceState | null | undefined' is not assignable to parameter of type 'FinanceState | null'.
+  Type 'undefined' is not assignable to type 'FinanceState | null'.
+src/simulation/genesis_engine.ts(47,7): error TS2322: Type 'GenesisState | null' is not assignable to type 'GenesisState'.
+  Type 'null' is not assignable to type 'GenesisState'.
+src/simulation/genesis_engine.ts(124,41): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/simulation/genesis_engine.ts(127,40): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/simulation/genesis_engine.ts(130,41): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/simulation/genesis_engine.ts(361,18): error TS18047: 'state' is possibly 'null'.
+src/simulation/genesis_engine.ts(368,5): error TS18047: 'state' is possibly 'null'.
+src/simulation/genesis_engine.ts(370,5): error TS18047: 'state' is possibly 'null'.
+src/simulation/genesis_engine.ts(420,23): error TS18047: 'state' is possibly 'null'.
+src/simulation/genesis_engine.ts(426,18): error TS18047: 'state' is possibly 'null'.
+src/simulation/genesis_engine.ts(432,5): error TS18047: 'state' is possibly 'null'.
+src/simulation/genesis_engine.ts(454,12): error TS18047: 'state' is possibly 'null'.
+src/simulation/genesis_engine.ts(468,7): error TS2322: Type 'GenesisState | null' is not assignable to type 'GenesisState'.
+  Type 'null' is not assignable to type 'GenesisState'.
+src/simulation/index.ts(26,26): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/simulation/metabolism.ts(141,27): error TS2532: Object is possibly 'undefined'.
+src/simulation/presence_engine.ts(128,11): error TS18047: 'state' is possibly 'null'.
+src/simulation/presence_engine.ts(129,35): error TS18047: 'state' is possibly 'null'.
+src/simulation/presence_engine.ts(132,11): error TS18047: 'state' is possibly 'null'.
+src/simulation/presence_engine.ts(135,7): error TS2322: Type 'PresenceState | null' is not assignable to type 'PresenceState'.
+  Type 'null' is not assignable to type 'PresenceState'.
+src/simulation/self_expansion_engine.ts(126,7): error TS2322: Type '{} | { projects: never[]; }' is not assignable to type '{ projects: SelfDevProject[]; }'.
+  Property 'projects' is missing in type '{}' but required in type '{ projects: SelfDevProject[]; }'.
+src/simulation/self_expansion_engine.ts(497,61): error TS2367: This comparison appears to be unintentional because the types '"skill_upgrade" | "documentation"' and '"utility"' have no overlap.
+src/simulation/social_engine.ts(371,5): error TS2322: Type 'SocialCategory' is not assignable to type '"chat" | "request" | "conflict" | "support"'.
+  Type '"invitation"' is not assignable to type '"chat" | "request" | "conflict" | "support"'.
+src/tools/economy.ts(30,11): error TS2322: Type '(_id: string, params: { action: string; position?: string | undefined; employer?: string | undefined; salary?: number | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/economy.ts(74,11): error TS2322: Type '(_id: string, params: { item: string; quantity?: number | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/economy.ts(102,11): error TS2322: Type '(_id: string, params: { action: string; symbol?: string | undefined; amount?: number | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/evolution.ts(25,18): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(type: TMappedResult<TProperties>, enable: boolean): TOptionalFromMappedResult<TMappedResult<TProperties>, boolean>', gave the following error.
+    Argument of type 'TArray<TString>' is not assignable to parameter of type 'TMappedResult<TProperties>'.
+      Property 'properties' is missing in type 'TArray<TString>' but required in type 'TMappedResult<TProperties>'.
+  Overload 2 of 4, '(type: TArray<TString>, enable: boolean): TArray<TString> | TOptional<TArray<TString>>', gave the following error.
+    Argument of type '{ description: string; }' is not assignable to parameter of type 'boolean'.
+src/tools/evolution.ts(27,11): error TS2322: Type '(_id: string, params: { entry: string; mood?: string | undefined; tags?: string[] | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/evolution.ts(93,11): error TS2322: Type '(_id: string, params: { insight: string; category?: string | undefined; impact?: number | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/evolution.ts(130,11): error TS2322: Type '(_id: string, params: { emotion: string; intensity?: number | undefined; trigger?: string | undefined; reflection?: string | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/evolution.ts(168,11): error TS2322: Type '(_id: string, params: { desire: string; category?: string | undefined; priority?: number | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/evolution.ts(207,11): error TS2322: Type '(_id: string, params: { action: string; to?: string | undefined; from?: string | undefined; subject?: string | undefined; message?: string | undefined; role?: string | undefined; }) => Promise<...>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/identity.ts(22,11): error TS2322: Type '(_id: string) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/identity.ts(51,11): error TS2322: Type '(_id: string, params: { action: string; value?: string | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/identity.ts(128,11): error TS2322: Type '(_id: string, params: { prompt?: string | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/identity.ts(150,11): error TS2322: Type '(_id: string, params: { action: string; image_path?: string | undefined; prompt?: string | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/identity.ts(176,11): error TS2322: Type '(_id: string, params: { action: string; name?: string | undefined; prompt?: string | undefined; vrm_path?: string | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/identity.ts(236,11): error TS2322: Type '(_id: string, params: { text: string; emotion?: string | undefined; duration?: number | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/identity.ts(275,16): error TS2339: Property 'existsSync' does not exist on type 'typeof import("node:fs/promises")'.
+src/tools/needs.ts(22,11): error TS2322: Type '(_id: string, params: { action: string; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/needs.ts(84,11): error TS2322: Type '(_id: string, params: { location: string; object?: string | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/needs.ts(125,46): error TS18048: 'params.object' is possibly 'undefined'.
+src/tools/needs.ts(160,11): error TS2322: Type '(_id: string, params: { action: string; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/needs.ts(204,11): error TS2322: Type '(_id: string, params: { outfit: string[]; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/research.ts(28,11): error TS2322: Type '(_id: string, params: { target: string; field?: string | undefined; value?: unknown; reset?: boolean | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/research.ts(94,11): error TS2322: Type '(_id: string, params: { type: string; event: string; impact?: number | undefined; duration?: number | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/research.ts(147,11): error TS2322: Type '(_id: string, params: { format?: string | undefined; timeframe?: string | undefined; type?: string | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/social.ts(21,11): error TS2322: Type '(_id: string, params: { action: string; contact: string; topic?: string | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/social.ts(59,11): error TS2322: Type '(_id: string, params: { action: string; query?: string | undefined; name?: string | undefined; relationship?: string | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/test_suite.ts(41,12): error TS2339: Property 'needs' does not exist on type '{}'.
+src/tools/test_suite.ts(42,12): error TS2339: Property 'current_location' does not exist on type '{}'.
+src/tools/test_suite.ts(48,16): error TS2339: Property 'is_asleep' does not exist on type '{}'.
+src/tools/test_suite.ts(49,16): error TS2339: Property 'sleep_start' does not exist on type '{}'.
+src/tools/test_suite.ts(75,12): error TS2339: Property 'needs' does not exist on type '{}'.
+src/tools/test_suite.ts(76,12): error TS2339: Property 'needs' does not exist on type '{}'.
+src/tools/test_suite.ts(77,12): error TS2339: Property 'needs' does not exist on type '{}'.
+src/tools/test_suite.ts(115,15): error TS2339: Property 'portfolio' does not exist on type '{}'.
+src/tools/test_suite.ts(115,49): error TS2339: Property 'portfolio' does not exist on type '{}'.
+src/tools/test_suite.ts(116,15): error TS2339: Property 'last_update' does not exist on type '{}'.
+src/tools/test_suite.ts(117,15): error TS2339: Property 'last_event' does not exist on type '{}'.
+src/tools/test_suite.ts(120,53): error TS2339: Property 'portfolio' does not exist on type '{}'.
+src/tools/test_suite.ts(127,15): error TS2339: Property 'market_volatility' does not exist on type '{}'.
+src/tools/test_suite.ts(128,15): error TS2339: Property 'last_trade_reason' does not exist on type '{}'.
+src/tools/test_suite.ts(157,9): error TS2740: Type '{}' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+src/tools/test_suite.ts(181,12): error TS2339: Property 'needs' does not exist on type '{}'.
+src/tools/test_suite.ts(182,12): error TS2339: Property 'needs' does not exist on type '{}'.
+src/tools/test_suite.ts(216,12): error TS2339: Property 'needs' does not exist on type '{}'.
+src/tools/test_suite.ts(229,34): error TS2339: Property 'needs' does not exist on type '{}'.
+src/tools/test_suite.ts(236,14): error TS2339: Property 'is_asleep' does not exist on type '{}'.
+src/tools/test_suite.ts(237,14): error TS2339: Property 'is_napping' does not exist on type '{}'.
+src/tools/test_suite.ts(269,20): error TS2339: Property 'needs' does not exist on type '{}'.
+src/tools/test_suite.ts(337,28): error TS2339: Property 'default_vrm_path' does not exist on type '{}'.
+src/tools/test_suite.ts(338,31): error TS2339: Property 'default_vrm_path' does not exist on type '{}'.
+src/tools/test_suite.ts(339,79): error TS2339: Property 'default_vrm_path' does not exist on type '{}'.
+src/tools/test_suite.ts(405,11): error TS2322: Type '(_id: string, params: { scenario: ScenarioType; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/test_suite.ts(421,11): error TS2322: Type '(_id: string) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/tools/test_suite.ts(435,11): error TS2322: Type '(_id: string, params: { auto_fix?: boolean | undefined; }) => Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type '(toolCallId: string, params: any, signal?: AbortSignal | undefined, onUpdate?: AgentToolUpdateCallback<unknown> | undefined) => Promise<AgentToolResult<unknown>>'.
+  Type 'Promise<{ content: { type: "text"; text: string; }[]; }>' is not assignable to type 'Promise<AgentToolResult<unknown>>'.
+    Property 'details' is missing in type '{ content: { type: "text"; text: string; }[]; }' but required in type 'AgentToolResult<unknown>'.
+src/utils/doctor.ts(335,26): error TS2339: Property 'needs' does not exist on type '{}'.
+src/utils/logger.ts(96,17): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/utils/osc_bridge.ts(110,11): error TS2339: Property 'push' does not exist on type 'Buffer<ArrayBuffer>'.

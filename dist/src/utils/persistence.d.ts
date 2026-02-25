@@ -6,4 +6,8 @@ export declare function appendJsonl(path: string, entry: unknown): Promise<void>
 export declare function generateExpId(): string;
 export declare function todayStr(): string;
 export declare function generateId(prefix: string): string;
+/**
+ * Read a JSONL (JSON Lines) file and return array of objects
+ */
+export declare function readJsonl<T>(path: string): Promise<T[]>;
 //# sourceMappingURL=persistence.d.ts.map

@@ -12,7 +12,7 @@ export function registerEvolutionTools(api, paths, workspacePath) {
         parameters: Type.Object({
             entry: Type.String({ description: "Diary entry content" }),
             mood: Type.Optional(Type.String({ enum: ["happy", "neutral", "sad", "excited", "anxious", "grateful"], description: "Current mood" })),
-            tags: Type.Optional(Type.Array(Type.String()), { description: "Tags for this entry" }),
+            tags: Type.Optional(Type.Array(Type.String())),
         }),
         async execute(_id, params) {
             const date = todayStr();

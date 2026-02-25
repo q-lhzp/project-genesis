@@ -5,6 +5,10 @@ import { Type } from "@sinclair/typebox";
 import { readJson, writeJson, generateId } from "../utils/persistence.js";
 import { execFilePromise } from "../utils/bridge-executor.js";
 import { join } from "node:path";
+// Helper to ensure tool return has details field
+function toolResult(text) {
+    return { content: [{ type: "text", text }], details: {} };
+}
 export function registerEconomyTools(api, paths, vaultPaths, modules, workspacePath) {
     // Tool: reality_work
     api.registerTool({
@@ -18,14 +22,14 @@ export function registerEconomyTools(api, paths, vaultPaths, modules, workspaceP
         }),
         async execute(_id, params) {
             if (!modules.economy)
-                return { content: [{ type: "text", text: "Economy module not enabled." }] };
+                return { content: [{ type: "text", text: "Economy module not enabled." }], details: {} };
             const finance = await readJson(paths.finances);
             if (!finance)
-                return { content: [{ type: "text", text: "finances.json not found." }] };
+                return { content: [{ type: "text", text: "finances.json not found." }], details: {} };
             if (params.action === "work") {
                 const income = finance.income_sources.find(i => !i.ended_at);
                 if (!income)
-                    return { content: [{ type: "text", text: "No active job. Apply first." }] };
+                    return { content: [{ type: "text", text: "No active job. Apply first." }], details: {} };
                 finance.balance += income.salary_per_month / 30; // Daily rate
                 await writeJson(paths.finances, finance);
                 return { content: [{ type: "text", text: `Worked. Earned ${income.salary_per_month / 30} Credits.` }] };
@@ -59,10 +63,10 @@ export function registerEconomyTools(api, paths, vaultPaths, modules, workspaceP
         }),
         async execute(_id, params) {
             if (!modules.economy)
-                return { content: [{ type: "text", text: "Economy module not enabled." }] };
+                return { content: [{ type: "text", text: "Economy module not enabled." }], details: {} };
             const finance = await readJson(paths.finances);
             if (!finance)
-                return { content: [{ type: "text", text: "finances.json not found." }] };
+                return { content: [{ type: "text", text: "finances.json not found." }], details: {} };
             // Simple price estimation
             const price = 10 * (params.quantity ?? 1);
             if (finance.balance < price) {

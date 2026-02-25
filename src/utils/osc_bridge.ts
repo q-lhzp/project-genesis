@@ -104,10 +104,10 @@ function floatToBytes(value: number): Buffer {
  * Convert string to OSC string bytes (null-terminated, padded to 4 bytes)
  */
 function stringToBytes(str: string): Buffer {
-  const bytes = Buffer.from(str + "\0");
+  let bytes = Buffer.from(str + "\0");
   // Pad to 4 bytes
   while (bytes.length % 4 !== 0) {
-    bytes.push(0);
+    bytes = Buffer.concat([bytes, Buffer.from([0])]);
   }
   return bytes;
 }

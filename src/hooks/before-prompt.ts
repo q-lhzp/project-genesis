@@ -4,15 +4,16 @@
 
 import { join } from "node:path";
 import { promises as fs } from "node:fs";
-import { 
-  readJson, 
-  writeJson, 
-  withFileLock, 
-  resolvePath 
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
+import {
+  readJson,
+  writeJson,
+  withFileLock,
+  resolvePath
 } from "../utils/persistence.js";
-import { 
-  updateMetabolism, 
-  updateLifecycle, 
+import {
+  updateMetabolism,
+  updateLifecycle,
   advanceCycleDay,
   detectAgentRole,
   cleanupExpiredMemos,
@@ -24,11 +25,10 @@ import {
 } from "../prompts/context-engine.js";
 import { getInteractionContext } from "../simulation/prop_mapper.js";
 import { getCurrentProject } from "../simulation/self_expansion_engine.js";
-import type { 
-  OpenClawPluginApi, 
-  Physique, 
-  LifecycleState, 
-  CycleState, 
+import type {
+  Physique,
+  LifecycleState,
+  CycleState,
   CycleProfile,
   SocialState,
   FinanceState,
@@ -38,10 +38,17 @@ import type {
   SkillState,
   PsychState,
   DreamState,
-  PromptBuildCtx
-} from "../types/index.js";
+} from "../types/simulation.js";
 import type { SimulationPaths, ToolModules } from "../types/paths.js";
 import type { PluginConfig } from "../types/config.js";
+
+// PromptBuildCtx interface (from OpenClaw SDK)
+interface PromptBuildCtx {
+  agent?: { id?: string; name?: string };
+  agentId: string;
+  agentName: string;
+  workspace: string;
+}
 
 export function registerBeforePromptHook(
   api: OpenClawPluginApi, 
@@ -92,7 +99,12 @@ export function registerBeforePromptHook(
             last_advance: new Date().toISOString(),
             phase: "menstruation",
             hormones: { estrogen: 10, progesterone: 5, lh: 5, fsh: 10 },
-            symptom_modifiers: {}
+            symptom_modifiers: {
+              cramps: 0, bloating: 0, fatigue: 0, mood_swings: 0,
+              headache: 0, breast_tenderness: 0, acne: 0, appetite_changes: 0,
+              back_pain: 0, insomnia: 0
+            },
+            simulator: { active: false, simulated_day: 0, custom_modifiers: {} }
           };
           await writeJson(paths.cycle, cs);
         }

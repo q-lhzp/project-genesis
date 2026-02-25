@@ -22,6 +22,7 @@ export interface SimulationPaths {
     psychology: string;
     world: string;
     worldNews: string;
+    news: string;
     newsEvents: string;
     dreams: string;
     dreamState: string;
