@@ -2,7 +2,7 @@
   "id": "project_genesis",
   "name": "Project Genesis",
   "description": "The Human Lifecycle — Full biological, social, and economic simulation",
-  "version": "4.0.0",
+  "version": "5.2.0",
   "skills": ["./skills/soul-evolution"],
   "configSchema": {
     "type": "object",
@@ -10,7 +10,7 @@
     "properties": {
       "workspacePath": { "type": "string" },
       "language": { "type": "string", "enum": ["de", "en"], "default": "en" },
-      "birthDate": { "type": "string", "format": "date", "description": "The simulated birthday of the human entity (YYYY-MM-DD)" },
+      "birthDate": { "type": "string",  "description": "The simulated birthday of the human entity (YYYY-MM-DD)" },
       "initialAgeDays": { "type": "number", "default": 0, "description": "Start aging from this many days if not starting from birth" },
       "initialBalance": { "type": "number", "default": 1000, "description": "Starting balance in Credits" },
       "location": {

@@ -1,0 +1,15 @@
+/home/leo/Schreibtisch/project-genesis/skills/soul-evolution/tools/soul-viz.py:3309: SyntaxWarning: "\*" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\*"? A raw string is also an option.
+  const nameMatch = idText.match(/\*\*Name:\*\*\s*(.+)/i) || idText.match(/Name:\s*(.+)/i);
+Reading workspace: /home/leo/Schreibtisch/project-genesis
+  Soul sections: 4
+  Experiences: 0
+  Reflections: 0
+  Soul changes: 0
+Traceback (most recent call last):
+  File "/home/leo/Schreibtisch/project-genesis/skills/soul-evolution/tools/soul-viz.py", line 10971, in <module>
+    main()
+    ~~~~^^
+  File "/home/leo/Schreibtisch/project-genesis/skills/soul-evolution/tools/soul-viz.py", line 9167, in main
+    f.write(mindmap_html)
+    ~~~~~~~^^^^^^^^^^^^^^
+TypeError: write() argument must be str, not None

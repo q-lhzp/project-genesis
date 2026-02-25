@@ -1,0 +1,1 @@
+{"version":3,"file":"needs.d.ts","sourceRoot":"","sources":["../../../src/tools/needs.ts"],"names":[],"mappings":"AAUA,OAAO,KAAK,EAAE,eAAe,EAAE,WAAW,EAAE,MAAM,mBAAmB,CAAC;AACtE,OAAO,KAAK,EAAE,iBAAiB,EAAE,MAAM,qBAAqB,CAAC;AAE7D,wBAAgB,kBAAkB,CAAC,GAAG,EAAE,iBAAiB,EAAE,KAAK,EAAE,eAAe,EAAE,OAAO,EAAE,WAAW,EAAE,IAAI,GAAE,IAAI,GAAG,IAAW,EAAE,aAAa,GAAE,MAAW,QAuN5J"}

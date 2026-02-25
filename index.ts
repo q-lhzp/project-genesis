@@ -9,7 +9,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // v4.0.0 Modular imports
-import { readJson, writeJson, withFileLock, resolvePath, generateId, todayStr, generateExpId, appendJsonl } from "./src/utils/index.js";
+import { readJson, writeJson, withFileLock, resolvePath, generateId, todayStr, generateExpId, appendJsonl, initLogger, log } from "./src/utils/index.js";
 import * as Simulation from "./src/simulation/index.js";
 import { syncAvatarExpressions } from "./src/simulation/expression_mapper.js";
 import { syncAvatarMotion } from "./src/simulation/motion_mapper.js";
@@ -25,6 +25,7 @@ import { processPresence, getPresenceState } from "./src/simulation/presence_eng
 import { processHardwareResonance } from "./src/simulation/hardware_engine.js";
 import * as Prompts from "./src/prompts/index.js";
 import { registerBeforePromptHook, registerLlmOutputHook } from "./src/hooks/index.js";
+import { registerReflexLockHook } from "./src/hooks/reflex-lock.js";
 
 // Tool registration functions
 import { registerNeedsTools } from "./src/tools/needs.js";
@@ -32,6 +33,8 @@ import { registerSocialTools } from "./src/tools/social.js";
 import { registerEconomyTools } from "./src/tools/economy.js";
 import { registerIdentityTools } from "./src/tools/identity.js";
 import { registerSystemTools } from "./src/tools/system.js";
+import { registerEvolutionTools } from "./src/tools/evolution.js";
+import { registerResearchTools } from "./src/tools/research.js";
 
 // Types
 import type { PluginConfig } from "./src/types/config.js";
@@ -69,6 +72,10 @@ export default {
     if (!cfg?.workspacePath && !api.config?.agents?.list?.[0]?.workspace) {
       api.logger.warn("[genesis] workspacePath not configured — using '.' (cwd).");
     }
+
+    // Initialize unified logger (Phase 41)
+    const logger = initLogger(ws);
+    logger.info("genesis", "Project Genesis v5.1.0 starting", { workspace: ws, version: "5.1.0" });
 
     // Load centralized simulation config (v5.1.0)
     const simConfigPath = resolvePath(ws, "memory", "reality", "simulation_config.json");
@@ -165,12 +172,15 @@ export default {
     // ---------------------------------------------------------------------------
     registerBeforePromptHook(api, paths, cfg, modules, rates, cfg?.reflexThreshold ?? 95, ws, lang);
     registerLlmOutputHook(api, paths, modules);
+    registerReflexLockHook(api, paths, cfg?.reflexThreshold ?? 95);
     
     registerNeedsTools(api, paths, modules, lang, ws);
     registerSocialTools(api, paths, modules);
-    registerEconomyTools(api, paths, paths, modules, ws); 
+    registerEconomyTools(api, paths, paths, modules, ws);
     registerIdentityTools(api, paths, ws);
     registerSystemTools(api, ws);
+    registerEvolutionTools(api, paths, ws);
+    registerResearchTools(api, paths, ws);
 
     // ---------------------------------------------------------------------------
     // Lifecycle Tick (periodic metabolism updates)
@@ -178,7 +188,12 @@ export default {
     api.on("tick", async () => {
       try {
         const ph = await readJson<Physique>(paths.physique);
-        if (!ph) return;
+        if (!ph) {
+          log.warn("tick", "No physique data found, skipping tick");
+          return;
+        }
+
+        log.debug("tick", "Tick processing", { location: ph.current_location, energy: ph.needs.energy });
 
         const lifecycleState = modules.cycle || modules.dreams ? await readJson<LifecycleState>(paths.lifecycle) : null;
         const cycleState = modules.cycle ? await readJson<CycleState>(paths.cycle) : null;
@@ -186,6 +201,7 @@ export default {
         const updated = Simulation.updateMetabolism(ph, rates, { eros: modules.eros, cycle: modules.cycle }, cycleState, lifecycleState ?? undefined);
         if (updated) {
           await writeJson(paths.physique, ph);
+          log.debug("tick", "Metabolism updated", { energy: ph.needs.energy, stress: ph.needs.stress });
         }
 
         // Phase 23: Sync avatar expressions based on biological state
@@ -238,16 +254,12 @@ export default {
           isInteractingWithDesktop = spatialResult.isActive;
         }
 
-        // Phase 37: Process Economy (Autonomous Trading) - BEFORE avatar sync
+        // Phase 37: Process Economy (Autonomous Trading)
         let isTrading = false;
         if (modules.economy && !dreamResult.isDreaming) {
           const economyResult = await processEconomy(ws, ph, isResearching);
           isTrading = economyResult.isActive;
         }
-
-        // Sync avatar with sleep, research, expansion, social, and trading states
-        await syncAvatarMotion(ws, ph, dreamResult.isDreaming, isResearching, isExpanding, hasSocialEvent, isTrading, isStrained, isDancing);
-        await syncAvatarExpressions(ws, ph, dreamResult.isDreaming, isResearching, isExpanding, hasSocialEvent, isTrading, isStrained, isDancing);
 
         // Phase 39: Process Presence (Digital Extroversion)
         if (modules.social && !dreamResult.isDreaming) {
@@ -265,6 +277,10 @@ export default {
         isStrained = hardwareResult.resonanceLevel === "strained" || hardwareResult.resonanceLevel === "overloaded";
         isDancing = hardwareResult.isDancing;
         hardwareMessage = hardwareResult.hardwareMessage;
+
+        // Sync avatar with sleep, research, expansion, social, trading, and hardware states
+        await syncAvatarMotion(ws, ph, dreamResult.isDreaming, isResearching, isExpanding, hasSocialEvent, isTrading, isStrained, isDancing);
+        await syncAvatarExpressions(ws, ph, dreamResult.isDreaming, isResearching, isExpanding, hasSocialEvent, isTrading, isStrained, isDancing);
 
         // Phase 29: Sync atmosphere (time-based lighting)
         await syncAtmosphere(ws, ph.current_location || "home_bedroom");

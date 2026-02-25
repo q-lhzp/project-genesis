@@ -241,6 +241,58 @@ def collect_data(workspace: str) -> dict:
                             except (json.JSONDecodeError, ValueError):
                                 pass
 
+    # Phase 6: System Config Status (API Keys & Modules)
+    skills_tools_dir = os.path.join(workspace, "skills", "soul-evolution", "tools")
+    
+    system_config = {
+        "mem0_configured": False,
+        "vault_configured": False,
+        "openai_ok": False,
+        "anthropic_ok": False,
+        "venice_ok": False,
+        "xai_ok": False,
+        "gemini_ok": False,
+        "fal_ok": False,
+        "browser_tool_ok": os.path.exists(os.path.join(skills_tools_dir, "browser_bridge.py")),
+        "desktop_tool_ok": os.path.exists(os.path.join(skills_tools_dir, "desktop_bridge.py")),
+        "weather_engine_ok": os.path.exists(os.path.join(memory_dir, "reality", "atmosphere_state.json"))
+    }
+    
+    # Check mem0 config
+    mem0_config_path = os.path.join(memory_dir, "reality", "mem0_config.json")
+    if os.path.exists(mem0_config_path):
+        try:
+            mconfig = load_json(mem0_config_path)
+            if mconfig.get("api_key") and mconfig.get("api_key") != "":
+                system_config["mem0_configured"] = True
+        except:
+            pass
+            
+    # Check model configs
+    model_config_path = os.path.join(memory_dir, "reality", "model_config.json")
+    if os.path.exists(model_config_path):
+        try:
+            mconfig = load_json(model_config_path)
+            if mconfig.get("api_key") and mconfig.get("api_key") != "":
+                system_config["openai_ok"] = True
+            if mconfig.get("key_anthropic") and mconfig.get("key_anthropic") != "":
+                system_config["anthropic_ok"] = True
+            if mconfig.get("key_venice") and mconfig.get("key_venice") != "":
+                system_config["venice_ok"] = True
+            if mconfig.get("key_xai") and mconfig.get("key_xai") != "":
+                system_config["xai_ok"] = True
+            if mconfig.get("key_gemini_img") and mconfig.get("key_gemini_img") != "":
+                system_config["gemini_ok"] = True
+            if mconfig.get("key_fal") and mconfig.get("key_fal") != "":
+                system_config["fal_ok"] = True
+        except:
+            pass
+            
+    # Check vault config (Kraken/Alpaca)
+    # usually stored in vault_state or a separate config. Let's just check if vault_state has active positions or keys
+    if vault_state.get("kraken_connected") or vault_state.get("alpaca_connected") or vault_state.get("paper_trading"):
+        system_config["vault_configured"] = True # or maybe let the frontend decide based on vault_state directly
+
     return {
         "soul_tree": soul_tree,
         "soul_raw": soul_content,
@@ -276,6 +328,7 @@ def collect_data(workspace: str) -> dict:
         "photos": photos,
         "telemetry_vitality": vitality_data[-100:] if len(vitality_data) > 100 else vitality_data,  # Last 100 entries
         "telemetry_economy": economy_data[-100:] if len(economy_data) > 100 else economy_data,
+        "system_config": system_config,
     }
 
 
@@ -283,18 +336,18 @@ def generate_html(data: dict) -> str:
     """Generate the interactive visualization HTML."""
     data_json = json.dumps(data, indent=None, default=str)
 
-    return f"""<!DOCTYPE html>
+    html = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Soul Evolution</title>
+<title>Project Genesis</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap');
 
-* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-:root {{
+:root {
   --bg: #0a0a0f;
   --bg-card: #12121a;
   --bg-hover: #1a1a28;
@@ -316,79 +369,79 @@ def generate_html(data: dict) -> str:
   --section-continuity: #50b8e0;
   --section-default: #888;
   --timeline-line: #2a2a40;
-}}
+}
 
-html {{ font-size: 15px; }}
+html { font-size: 15px; }
 
-body {{
+body {
   background: var(--bg);
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
-}}
+}
 
 /* Grain overlay */
-body::after {{
+body::after {
   content: '';
   position: fixed; inset: 0;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 9999;
-}}
+}
 
 /* Header */
-.header {{
+.header {
   padding: 3rem 2rem 2rem;
   text-align: center;
   position: relative;
-}}
-.header::before {{
+}
+.header::before {
   content: '';
   position: absolute; top: 0; left: 50%; transform: translateX(-50%);
   width: 600px; height: 300px;
   background: radial-gradient(ellipse, var(--accent-glow), transparent 70%);
   pointer-events: none;
-}}
-.header h1 {{
+}
+.header h1 {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 300;
   font-size: 2.2rem;
   letter-spacing: 0.15em;
   color: var(--text-bright);
   position: relative;
-}}
-.header h1 .evolution {{ color: var(--accent); }}
-.header h1 .soul {{ color: var(--text-dim); }}
-.header .subtitle {{
+}
+.header h1 .evolution { color: var(--accent); }
+.header h1 .soul { color: var(--text-dim); }
+.header .subtitle {
   font-size: 0.85rem;
   color: var(--text-dim);
   margin-top: 0.6rem;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.05em;
-}}
-.header .subtitle .evolution {{ color: var(--accent); }}
-.header .subtitle .soul {{ color: var(--text-dim); }}
-.stats-bar {{
+}
+.header .subtitle .evolution { color: var(--accent); }
+.header .subtitle .soul { color: var(--text-dim); }
+.stats-bar {
   display: flex; justify-content: center; gap: 2.5rem;
   margin-top: 1.5rem; flex-wrap: wrap;
-}}
-.stat {{
+}
+.stat {
   text-align: center;
-}}
-.stat .num {{
+}
+.stat .num {
   font-family: 'JetBrains Mono', monospace;
   font-size: 1.6rem; font-weight: 700;
   color: var(--text-bright);
-}}
-  .stat .label {{
+}
+  .stat .label {
     font-size: 0.7rem; color: var(--text-dim);
     text-transform: uppercase; letter-spacing: 0.1em;
     margin-top: 0.2rem;
-  }}
+  }
 
   /* News Ticker */
-  .news-ticker {{
+  .news-ticker {
     background: var(--bg-card);
     border-bottom: 1px solid var(--border);
     height: 32px;
@@ -400,97 +453,96 @@ body::after {{
     font-size: 0.75rem;
     color: var(--accent);
     z-index: 100;
-  }}
-  .ticker-content {{
+  }
+  .ticker-content {
     display: inline-block;
-    padding-left: 100%;
-    animation: ticker 60s linear infinite;
-  }}
-  @keyframes ticker {{
-    0% {{ transform: translateX(0); }}
-    100% {{ transform: translateX(-100%); }}
-  }}
-  .ticker-item {{
+    animation: ticker 30s linear infinite;
+  }
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .ticker-item {
     display: inline-block;
-    padding: 0 2rem;
-  }}
-  .ticker-item::before {{ content: '⚡'; margin-right: 0.5rem; }}
+    padding: 0 4rem;
+  }
+  .ticker-item::before { content: '⚡'; margin-right: 0.5rem; }
 
-  .pulse {{
+  .pulse {
     display: inline-block;
     animation: pulse 2s infinite;
     margin-right: 0.5rem;
-  }}
-  @keyframes pulse {{
-    0% {{ opacity: 1; transform: scale(1); }}
-    50% {{ opacity: 0.4; transform: scale(0.8); }}
-    100% {{ opacity: 1; transform: scale(1); }}
-  }}
+  }
+  @keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1); }
+  }
 
   /* Mental Activity */
-  .mental-card {{
+  .mental-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-left: 4px solid var(--accent);
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 1rem;
-  }}
-  .mental-label {{
+  }
+  .mental-label {
     font-size: 0.7rem;
     text-transform: uppercase;
     color: var(--text-dim);
     margin-bottom: 0.5rem;
     display: block;
-  }}
-  .mental-content {{
+  }
+  .mental-content {
     font-size: 0.95rem;
     line-height: 1.4;
     color: var(--text-bright);
     font-style: italic;
-  }}
-  .mental-sub {{
+  }
+  .mental-sub {
     font-size: 0.8rem;
     color: var(--text-dim);
     margin-top: 0.5rem;
     display: block;
-  }}
-  .browser-snap {{
+  }
+  .browser-snap {
     width: 100%;
     border-radius: 4px;
     margin-top: 0.5rem;
     border: 1px solid var(--border);
     cursor: pointer;
     transition: transform 0.2s;
-  }}
-  .browser-snap:hover {{
+  }
+  .browser-snap:hover {
     transform: scale(1.02);
-  }}
+  }
 
   /* Layout */
 
-.main {{
+.main {
   max-width: 1600px;
   margin: 0 auto;
   padding: 0 2rem 4rem;
   display: grid;
   grid-template-columns: 1fr 380px 380px;
   gap: 1.5rem;
-}}
-@media (max-width: 1200px) {{
-  .main {{ grid-template-columns: 1fr; }}
-  .soul-map {{ order: -1; }}
-}}
+}
+@media (max-width: 1200px) {
+  .main { grid-template-columns: 1fr; }
+  .soul-map { order: -1; }
+}
 
 /* Soul Map */
-.soul-map {{
+.soul-map {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   position: relative;
-}}
-.soul-map h2 {{
+}
+.soul-map h2 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
   text-transform: uppercase;
@@ -499,9 +551,9 @@ body::after {{
   margin-bottom: 1.2rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
+}
 
-.section-block {{
+.section-block {
   margin-bottom: 1.5rem;
   border-radius: 8px;
   overflow: hidden;
@@ -509,12 +561,12 @@ body::after {{
   opacity: 0;
   transform: translateY(12px);
   transition: opacity 0.5s, transform 0.5s;
-}}
-.section-block.visible {{
+}
+.section-block.visible {
   opacity: 1;
   transform: translateY(0);
-}}
-.section-header {{
+}
+.section-header {
   padding: 0.7rem 1rem;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
@@ -522,36 +574,36 @@ body::after {{
   display: flex; align-items: center; gap: 0.6rem;
   cursor: pointer;
   user-select: none;
-}}
-.section-header .dot {{
+}
+.section-header .dot {
   width: 8px; height: 8px; border-radius: 50%;
   flex-shrink: 0;
-}}
-.section-header .arrow {{
+}
+.section-header .arrow {
   margin-left: auto;
   font-size: 0.7rem;
   transition: transform 0.3s;
   color: var(--text-dim);
-}}
-.section-block.collapsed .section-header .arrow {{
+}
+.section-block.collapsed .section-header .arrow {
   transform: rotate(-90deg);
-}}
-.section-block.collapsed .section-body {{
+}
+.section-block.collapsed .section-body {
   display: none;
-}}
+}
 
-.subsection {{
+.subsection {
   padding: 0.3rem 1rem 0.5rem 1.6rem;
-}}
-.subsection-title {{
+}
+.subsection-title {
   font-size: 0.72rem;
   color: var(--text-dim);
   font-weight: 500;
   margin-bottom: 0.4rem;
   padding-left: 0.4rem;
-}}
+}
 
-.bullet {{
+.bullet {
   padding: 0.45rem 0.6rem;
   margin: 0.25rem 0;
   border-radius: 6px;
@@ -562,18 +614,18 @@ body::after {{
   align-items: flex-start;
   transition: all 0.3s;
   position: relative;
-}}
-.bullet:hover {{
+}
+.bullet:hover {
   background: var(--bg-hover);
-}}
-.bullet.highlight-enter {{
+}
+.bullet.highlight-enter {
   animation: bulletEnter 1s ease-out;
-}}
-@keyframes bulletEnter {{
-  0% {{ background: rgba(124, 111, 240, 0.3); transform: scale(1.02); }}
-  100% {{ background: transparent; transform: scale(1); }}
-}}
-.bullet .tag {{
+}
+@keyframes bulletEnter {
+  0% { background: rgba(124, 111, 240, 0.3); transform: scale(1.02); }
+  100% { background: transparent; transform: scale(1); }
+}
+.bullet .tag {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
   font-weight: 700;
@@ -582,43 +634,43 @@ body::after {{
   flex-shrink: 0;
   margin-top: 0.15rem;
   letter-spacing: 0.05em;
-}}
-.bullet .tag.core {{
+}
+.bullet .tag.core {
   color: var(--core);
   background: var(--core-bg);
   border: 1px solid var(--core-border);
-}}
-.bullet .tag.mutable {{
+}
+.bullet .tag.mutable {
   color: var(--mutable);
   background: var(--mutable-bg);
   border: 1px solid var(--mutable-border);
-}}
-.bullet.is-new {{
+}
+.bullet.is-new {
   opacity: 0;
   max-height: 0;
   overflow: hidden;
   transition: opacity 0.6s, max-height 0.6s;
-}}
-.bullet.is-new.revealed {{
+}
+.bullet.is-new.revealed {
   opacity: 1;
   max-height: 200px;
-}}
+}
 
 /* Right panel */
-.right-panel {{
+.right-panel {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}}
+}
 
 /* Timeline */
-.timeline-panel {{
+.timeline-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
-}}
-.timeline-panel h2 {{
+}
+.timeline-panel h2 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
   text-transform: uppercase;
@@ -627,13 +679,13 @@ body::after {{
   margin-bottom: 1rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
+}
 
-.timeline-controls {{
+.timeline-controls {
   display: flex; align-items: center; gap: 0.6rem;
   margin-bottom: 1.2rem;
-}}
-.timeline-controls button {{
+}
+.timeline-controls button {
   background: var(--bg-hover);
   border: 1px solid var(--border);
   color: var(--text);
@@ -643,43 +695,43 @@ body::after {{
   font-size: 0.72rem;
   cursor: pointer;
   transition: all 0.2s;
-}}
-.timeline-controls button:hover {{
+}
+.timeline-controls button:hover {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
-}}
-.timeline-controls button.active {{
+}
+.timeline-controls button.active {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
-}}
-.timeline-slider {{
+}
+.timeline-slider {
   flex: 1;
   -webkit-appearance: none;
   height: 4px;
   border-radius: 2px;
   background: var(--timeline-line);
   outline: none;
-}}
-.timeline-slider::-webkit-slider-thumb {{
+}
+.timeline-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px; height: 14px;
   border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
   box-shadow: 0 0 8px var(--accent-glow);
-}}
-.timeline-label {{
+}
+.timeline-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;
   color: var(--text-dim);
   min-width: 3rem;
   text-align: right;
-}}
+}
 
 /* Change entries */
-.change-entry {{
+.change-entry {
   padding: 0.8rem;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -688,21 +740,21 @@ body::after {{
   transition: all 0.3s;
   opacity: 0;
   transform: translateX(10px);
-}}
-.change-entry.visible {{
+}
+.change-entry.visible {
   opacity: 1;
   transform: translateX(0);
-}}
-.change-entry:hover {{
+}
+.change-entry:hover {
   border-color: var(--accent);
   background: var(--bg-hover);
-}}
-.change-entry .change-time {{
+}
+.change-entry .change-time {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.65rem;
   color: var(--text-dim);
-}}
-.change-entry .change-type {{
+}
+.change-entry .change-type {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
   font-weight: 700;
@@ -712,44 +764,44 @@ body::after {{
   border-radius: 3px;
   display: inline-block;
   margin: 0.3rem 0;
-}}
-.change-entry .change-type.add {{
+}
+.change-entry .change-type.add {
   color: var(--mutable);
   background: var(--mutable-bg);
   border: 1px solid var(--mutable-border);
-}}
-.change-entry .change-type.modify {{
+}
+.change-entry .change-type.modify {
   color: var(--accent);
   background: var(--accent-glow);
   border: 1px solid rgba(124, 111, 240, 0.3);
-}}
-.change-entry .change-type.remove {{
+}
+.change-entry .change-type.remove {
   color: var(--core);
   background: var(--core-bg);
   border: 1px solid var(--core-border);
-}}
-.change-entry .change-section {{
+}
+.change-entry .change-section {
   font-size: 0.72rem;
   color: var(--text-dim);
   margin: 0.2rem 0;
-}}
-.change-entry .change-content {{
+}
+.change-entry .change-content {
   font-size: 0.78rem;
   line-height: 1.4;
   color: var(--text);
   margin-top: 0.3rem;
-}}
+}
 
 /* Experience feed */
-.feed-panel {{
+.feed-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   max-height: 400px;
   overflow-y: auto;
-}}
-.feed-panel h2 {{
+}
+.feed-panel h2 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
   text-transform: uppercase;
@@ -758,30 +810,30 @@ body::after {{
   margin-bottom: 1rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
-.feed-panel::-webkit-scrollbar {{
+}
+.feed-panel::-webkit-scrollbar {
   width: 4px;
-}}
-.feed-panel::-webkit-scrollbar-track {{
+}
+.feed-panel::-webkit-scrollbar-track {
   background: transparent;
-}}
-.feed-panel::-webkit-scrollbar-thumb {{
+}
+.feed-panel::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 2px;
-}}
+}
 
-.exp-entry {{
+.exp-entry {
   padding: 0.6rem 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.78rem;
   line-height: 1.4;
-}}
-.exp-entry:last-child {{ border-bottom: none; }}
-.exp-meta {{
+}
+.exp-entry:last-child { border-bottom: none; }
+.exp-meta {
   display: flex; gap: 0.5rem; align-items: center;
   margin-bottom: 0.25rem;
-}}
-.exp-source {{
+}
+.exp-source {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
   font-weight: 600;
@@ -791,56 +843,56 @@ body::after {{
   border-radius: 3px;
   background: var(--bg-hover);
   color: var(--text-dim);
-}}
-.exp-source.moltbook {{ color: #f0a050; background: rgba(240, 160, 80, 0.1); }}
-.exp-source.conversation {{ color: var(--accent); background: var(--accent-glow); }}
-.exp-sig {{
+}
+.exp-source.moltbook { color: #f0a050; background: rgba(240, 160, 80, 0.1); }
+.exp-source.conversation { color: var(--accent); background: var(--accent-glow); }
+.exp-sig {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.55rem;
   color: var(--text-dim);
-}}
-.exp-sig.notable {{ color: var(--mutable); }}
-.exp-sig.pivotal {{ color: var(--core); }}
-.exp-content {{ color: var(--text-dim); }}
+}
+.exp-sig.notable { color: var(--mutable); }
+.exp-sig.pivotal { color: var(--core); }
+.exp-content { color: var(--text-dim); }
 
 /* Legend */
-.legend {{
+.legend {
   display: flex; gap: 1.2rem; flex-wrap: wrap;
   padding: 0.8rem 1rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.7rem;
-}}
-.legend-item {{
+}
+.legend-item {
   display: flex; align-items: center; gap: 0.4rem;
-}}
-.legend-dot {{
+}
+.legend-dot {
   width: 8px; height: 8px; border-radius: 50%;
-}}
+}
 
 /* Empty state */
-.empty-state {{
+.empty-state {
   text-align: center;
   padding: 2rem;
   color: var(--text-dim);
   font-size: 0.85rem;
   font-style: italic;
-}}
+}
 
 /* Edit mode */
-.edit-bar {{
+.edit-bar {
   display: flex; align-items: center; gap: 0.6rem;
   margin-bottom: 1rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
-.edit-bar h2 {{
+}
+.edit-bar h2 {
   margin: 0 !important; padding: 0 !important; border: none !important;
   flex-shrink: 0;
-}}
-.edit-bar .spacer {{ flex: 1; min-width: 0; }}
-.btn-edit, .btn-save {{
+}
+.edit-bar .spacer { flex: 1; min-width: 0; }
+.btn-edit, .btn-save {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.68rem;
   padding: 0.35rem 0.7rem;
@@ -854,38 +906,38 @@ body::after {{
   flex-shrink: 0;
   position: relative;
   z-index: 2;
-}}
-.btn-edit:hover {{ background: var(--accent); color: #fff; border-color: var(--accent); }}
-.btn-save {{
+}
+.btn-edit:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-save {
   background: rgba(80, 200, 120, 0.15);
   border-color: var(--mutable-border);
   color: var(--mutable);
-}}
-.btn-save:hover {{
+}
+.btn-save:hover {
   background: var(--mutable);
   color: #fff;
   border-color: var(--mutable);
-}}
-.btn-edit.active {{
+}
+.btn-edit.active {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
-}}
+}
 
 /* Genesis Toggle Switch */
-#genesis-enabled {{ opacity: 0; width: 0; height: 0; }}
-#genesis-enabled + span {{ background-color: #ccc; }}
-#genesis-enabled:checked + span {{ background-color: var(--core); }}
-#genesis-enabled:checked + span:before {{ transform: translateX(24px); }}
-#genesis-enabled + span:before {{ position: absolute; content: ''; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; }}
+#genesis-enabled { opacity: 0; width: 0; height: 0; }
+#genesis-enabled + span { background-color: #ccc; }
+#genesis-enabled:checked + span { background-color: var(--core); }
+#genesis-enabled:checked + span:before { transform: translateX(24px); }
+#genesis-enabled + span:before { position: absolute; content: ''; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; }
 
 /* Editable bullets */
-.bullet.editing {{
+.bullet.editing {
   background: var(--bg-hover);
   border: 1px solid var(--border);
   border-radius: 6px;
-}}
-.bullet .edit-text {{
+}
+.bullet .edit-text {
   flex: 1;
   background: transparent;
   border: none;
@@ -897,17 +949,17 @@ body::after {{
   resize: none;
   min-height: 1.4em;
   overflow: hidden;
-}}
-.bullet .edit-text:focus {{
+}
+.bullet .edit-text:focus {
   color: var(--text-bright);
-}}
-.bullet .tag-toggle {{
+}
+.bullet .tag-toggle {
   cursor: pointer;
   user-select: none;
   transition: transform 0.15s;
-}}
-.bullet .tag-toggle:hover {{ transform: scale(1.15); }}
-.bullet .btn-delete {{
+}
+.bullet .tag-toggle:hover { transform: scale(1.15); }
+.bullet .btn-delete {
   background: none;
   border: none;
   color: var(--text-dim);
@@ -917,10 +969,10 @@ body::after {{
   opacity: 0;
   transition: all 0.2s;
   flex-shrink: 0;
-}}
-.bullet.editing .btn-delete {{ opacity: 0.5; }}
-.bullet.editing .btn-delete:hover {{ opacity: 1; color: var(--core); }}
-.btn-add-bullet {{
+}
+.bullet.editing .btn-delete { opacity: 0.5; }
+.bullet.editing .btn-delete:hover { opacity: 1; color: var(--core); }
+.btn-add-bullet {
   background: none;
   border: 1px dashed var(--border);
   border-radius: 6px;
@@ -934,16 +986,16 @@ body::after {{
   text-align: left;
   transition: all 0.2s;
   display: none;
-}}
-.soul-map.edit-mode .btn-add-bullet {{ display: block; }}
-.btn-add-bullet:hover {{
+}
+.soul-map.edit-mode .btn-add-bullet { display: block; }
+.btn-add-bullet:hover {
   border-color: var(--mutable);
   color: var(--mutable);
   background: var(--mutable-bg);
-}}
+}
 
 /* Save toast */
-.save-toast {{
+.save-toast {
   position: fixed;
   top: 1.5rem; left: 50%; transform: translateX(-50%);
   z-index: 10500;
@@ -957,11 +1009,11 @@ body::after {{
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;
-}}
-.save-toast.show {{ opacity: 1; }}
+}
+.save-toast.show { opacity: 1; }
 
 /* Modal */
-.modal-overlay {{
+.modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.7);
@@ -969,27 +1021,27 @@ body::after {{
   display: none;
   align-items: center;
   justify-content: center;
-}}
-.modal-overlay.open {{ display: flex; }}
-.modal-box {{
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   min-width: 340px;
   max-width: 480px;
-}}
-.modal-title {{
+}
+.modal-title {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--text-bright);
   margin-bottom: 1rem;
-}}
-.modal-field {{
+}
+.modal-field {
   margin-bottom: 0.8rem;
-}}
-.modal-field label {{
+}
+.modal-field label {
   display: block;
   font-size: 0.7rem;
   color: var(--text-dim);
@@ -997,8 +1049,8 @@ body::after {{
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 0.3rem;
-}}
-.modal-field input, .modal-field select {{
+}
+.modal-field input, .modal-field select {
   width: 100%;
   padding: 0.5rem 0.8rem;
   border-radius: 6px;
@@ -1009,17 +1061,17 @@ body::after {{
   font-family: 'DM Sans', sans-serif;
   outline: none;
   transition: border-color 0.3s;
-}}
-.modal-field input:focus, .modal-field select:focus {{ border-color: var(--accent); }}
-.modal-buttons {{
+}
+.modal-field input:focus, .modal-field select:focus { border-color: var(--accent); }
+.modal-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 1rem;
-}}
+}
 
 /* Mindmap link */
-.mindmap-link {{
+.mindmap-link {
   display: flex;
   align-items: center;
   gap: 0.8rem;
@@ -1036,44 +1088,44 @@ body::after {{
   transition: all 0.3s;
   position: relative;
   overflow: hidden;
-}}
-.mindmap-link::before {{
+}
+.mindmap-link::before {
   content: '';
   position: absolute; inset: 0;
   background: linear-gradient(135deg, rgba(80, 200, 120, 0.08), rgba(124, 111, 240, 0.08));
   opacity: 0;
   transition: opacity 0.3s;
-}}
-.mindmap-link:hover {{
+}
+.mindmap-link:hover {
   border-color: var(--mutable);
   transform: translateY(-1px);
   box-shadow: 0 4px 20px rgba(80, 200, 120, 0.1);
-}}
-.mindmap-link:hover::before {{ opacity: 1; }}
-.mindmap-link-icon {{ font-size: 1.3rem; position: relative; }}
-.mindmap-link-sub {{
+}
+.mindmap-link:hover::before { opacity: 1; }
+.mindmap-link-icon { font-size: 1.3rem; position: relative; }
+.mindmap-link-sub {
   font-size: 0.65rem;
   color: var(--text-dim);
   font-weight: 300;
   letter-spacing: 0.05em;
-}}
-.mindmap-link-arrow {{
+}
+.mindmap-link-arrow {
   margin-left: auto;
   font-size: 1.1rem;
   color: var(--mutable);
   transition: transform 0.3s;
   position: relative;
-}}
-.mindmap-link:hover .mindmap-link-arrow {{ transform: translateX(4px); }}
+}
+.mindmap-link:hover .mindmap-link-arrow { transform: translateX(4px); }
 
 /* Vitals Dashboard */
-.vitals-panel {{
+.vitals-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
-}}
-.vitals-panel h2 {{
+}
+.vitals-panel h2 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
   text-transform: uppercase;
@@ -1082,45 +1134,45 @@ body::after {{
   margin-bottom: 1rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
-.vitals-grid {{
+}
+.vitals-grid {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}}
-.vital-row {{
+}
+.vital-row {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   font-size: 0.78rem;
-}}
-.vital-label {{
+}
+.vital-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;
   color: var(--text-dim);
   min-width: 60px;
   text-transform: capitalize;
-}}
-.vital-bar-bg {{
+}
+.vital-bar-bg {
   flex: 1;
   height: 10px;
   background: var(--bg-hover);
   border-radius: 5px;
   overflow: hidden;
-}}
-.vital-bar {{
+}
+.vital-bar {
   height: 100%;
   border-radius: 5px;
   transition: width 0.5s ease;
-}}
-.vital-value {{
+}
+.vital-value {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.65rem;
   color: var(--text-dim);
   min-width: 30px;
   text-align: right;
-}}
-.vitals-meta {{
+}
+.vitals-meta {
   margin-top: 0.8rem;
   padding-top: 0.8rem;
   border-top: 1px solid var(--border);
@@ -1129,22 +1181,22 @@ body::after {{
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-}}
-.vitals-meta span {{
+}
+.vitals-meta span {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.68rem;
-}}
+}
 
 /* Proposals Panel */
-.proposals-panel {{
+.proposals-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   max-height: 500px;
   overflow-y: auto;
-}}
-.proposals-panel h2 {{
+}
+.proposals-panel h2 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
   text-transform: uppercase;
@@ -1153,62 +1205,62 @@ body::after {{
   margin-bottom: 1rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
-.proposal-card {{
+}
+.proposal-card {
   padding: 0.8rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   margin-bottom: 0.6rem;
   transition: all 0.3s;
-}}
-.proposal-card:hover {{
+}
+.proposal-card:hover {
   border-color: var(--accent);
   background: var(--bg-hover);
-}}
-.proposal-header {{
+}
+.proposal-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.4rem;
-}}
-.proposal-id {{
+}
+.proposal-id {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
   color: var(--text-dim);
-}}
-.proposal-type {{
+}
+.proposal-type {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
   padding: 0.1rem 0.35rem;
   border-radius: 3px;
-}}
-.proposal-type.add {{ color: var(--mutable); background: var(--mutable-bg); border: 1px solid var(--mutable-border); }}
-.proposal-type.modify {{ color: var(--accent); background: var(--accent-glow); border: 1px solid rgba(124, 111, 240, 0.3); }}
-.proposal-type.remove {{ color: var(--core); background: var(--core-bg); border: 1px solid var(--core-border); }}
-.proposal-section {{
+}
+.proposal-type.add { color: var(--mutable); background: var(--mutable-bg); border: 1px solid var(--mutable-border); }
+.proposal-type.modify { color: var(--accent); background: var(--accent-glow); border: 1px solid rgba(124, 111, 240, 0.3); }
+.proposal-type.remove { color: var(--core); background: var(--core-bg); border: 1px solid var(--core-border); }
+.proposal-section {
   font-size: 0.7rem;
   color: var(--text-dim);
   margin-bottom: 0.3rem;
-}}
-.proposal-content {{
+}
+.proposal-content {
   font-size: 0.78rem;
   color: var(--text);
   line-height: 1.4;
   margin-bottom: 0.3rem;
-}}
-.proposal-reason {{
+}
+.proposal-reason {
   font-size: 0.7rem;
   color: var(--text-dim);
   font-style: italic;
-}}
-.proposal-actions {{
+}
+.proposal-actions {
   display: flex;
   gap: 0.5rem;
   margin-top: 0.5rem;
-}}
-.btn-approve, .btn-reject {{
+}
+.btn-approve, .btn-reject {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.65rem;
   padding: 0.3rem 0.6rem;
@@ -1216,30 +1268,30 @@ body::after {{
   cursor: pointer;
   transition: all 0.2s;
   border: 1px solid;
-}}
-.btn-approve {{
+}
+.btn-approve {
   color: var(--mutable);
   background: var(--mutable-bg);
   border-color: var(--mutable-border);
-}}
-.btn-approve:hover {{ background: var(--mutable); color: #fff; }}
-.btn-reject {{
+}
+.btn-approve:hover { background: var(--mutable); color: #fff; }
+.btn-reject {
   color: var(--core);
   background: var(--core-bg);
   border-color: var(--core-border);
-}}
-.btn-reject:hover {{ background: var(--core); color: #fff; }}
+}
+.btn-reject:hover { background: var(--core); color: #fff; }
 
 /* Reflections Panel */
-.reflections-panel {{
+.reflections-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   max-height: 400px;
   overflow-y: auto;
-}}
-.reflections-panel h2 {{
+}
+.reflections-panel h2 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
   text-transform: uppercase;
@@ -1248,14 +1300,14 @@ body::after {{
   margin-bottom: 1rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
-.reflection-card {{
+}
+.reflection-card {
   border: 1px solid var(--border);
   border-radius: 8px;
   margin-bottom: 0.5rem;
   overflow: hidden;
-}}
-.reflection-header {{
+}
+.reflection-header {
   padding: 0.6rem 0.8rem;
   cursor: pointer;
   display: flex;
@@ -1263,9 +1315,9 @@ body::after {{
   gap: 0.5rem;
   font-size: 0.75rem;
   transition: background 0.2s;
-}}
-.reflection-header:hover {{ background: var(--bg-hover); }}
-.reflection-header .ref-type {{
+}
+.reflection-header:hover { background: var(--bg-hover); }
+.reflection-header .ref-type {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
   font-weight: 700;
@@ -1274,41 +1326,41 @@ body::after {{
   border-radius: 3px;
   color: var(--accent);
   background: var(--accent-glow);
-}}
-.reflection-header .ref-arrow {{
+}
+.reflection-header .ref-arrow {
   margin-left: auto;
   font-size: 0.65rem;
   color: var(--text-dim);
   transition: transform 0.3s;
-}}
-.reflection-card.collapsed .ref-arrow {{ transform: rotate(-90deg); }}
-.reflection-card.collapsed .reflection-body {{ display: none; }}
-.reflection-body {{
+}
+.reflection-card.collapsed .ref-arrow { transform: rotate(-90deg); }
+.reflection-card.collapsed .reflection-body { display: none; }
+.reflection-body {
   padding: 0.5rem 0.8rem 0.8rem;
   font-size: 0.75rem;
   line-height: 1.5;
   color: var(--text-dim);
   border-top: 1px solid var(--border);
-}}
-.reflection-body .ref-insights {{
+}
+.reflection-body .ref-insights {
   margin-top: 0.4rem;
   padding-left: 0.8rem;
-}}
-.reflection-body .ref-insights li {{
+}
+.reflection-body .ref-insights li {
   margin-bottom: 0.2rem;
   list-style: disc;
-}}
+}
 
 /* Significant Memories */
-.significant-panel {{
+.significant-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   max-height: 400px;
   overflow-y: auto;
-}}
-.significant-panel h2 {{
+}
+.significant-panel h2 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
   text-transform: uppercase;
@@ -1317,15 +1369,15 @@ body::after {{
   margin-bottom: 1rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
-.sig-entry {{
+}
+.sig-entry {
   padding: 0.6rem 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.78rem;
   line-height: 1.4;
-}}
-.sig-entry:last-child {{ border-bottom: none; }}
-.sig-badge {{
+}
+.sig-entry:last-child { border-bottom: none; }
+.sig-badge {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.55rem;
   font-weight: 700;
@@ -1335,20 +1387,20 @@ body::after {{
   color: var(--core);
   background: var(--core-bg);
   border: 1px solid var(--core-border);
-}}
-.sig-content {{ color: var(--text); margin-top: 0.25rem; }}
-.sig-context {{ font-size: 0.68rem; color: var(--text-dim); margin-top: 0.15rem; }}
+}
+.sig-content { color: var(--text); margin-top: 0.25rem; }
+.sig-context { font-size: 0.68rem; color: var(--text-dim); margin-top: 0.15rem; }
 
 /* Pipeline State */
-.pipeline-panel {{
+.pipeline-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   max-height: 400px;
   overflow-y: auto;
-}}
-.pipeline-panel h2 {{
+}
+.pipeline-panel h2 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
   text-transform: uppercase;
@@ -1357,81 +1409,127 @@ body::after {{
   margin-bottom: 1rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
-.state-cards {{
+}
+.state-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
   margin-bottom: 1rem;
-}}
-.state-card {{
+}
+.state-card {
   padding: 0.6rem;
   background: var(--bg-hover);
   border: 1px solid var(--border);
   border-radius: 8px;
   text-align: center;
-}}
-.state-card .sc-value {{
+}
+.state-card .sc-value {
   font-family: 'JetBrains Mono', monospace;
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-bright);
-}}
-.state-card .sc-label {{
+}
+.state-card .sc-label {
   font-size: 0.6rem;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-top: 0.2rem;
-}}
-.pipeline-run {{
+}
+.pipeline-run {
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.72rem;
   color: var(--text-dim);
-}}
-.pipeline-run:last-child {{ border-bottom: none; }}
+}
+.pipeline-run:last-child { border-bottom: none; }
 
 /* Tab Navigation */
-.tab-bar {{
+/* Layout container */
+.app-container {
   display: flex;
-  gap: 0;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  border-bottom: 1px solid var(--border);
-}}
-.tab-btn {{
-  padding: 0.7rem 1.5rem;
+  min-height: 100vh;
+  background: var(--bg);
+}
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
+}
+.sidebar-header {
+  margin-bottom: 2rem;
+  padding: 0 0.5rem;
+}
+.sidebar-header h2 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.main-view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.tab-btn {
+  padding: 0.8rem 1rem;
   background: none;
   border: none;
   color: var(--text-dim);
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.3s;
-}}
-.tab-btn:hover {{ color: var(--text); }}
-.tab-btn.active {{
+  border-left: 3px solid transparent;
+  text-align: left;
+  transition: all 0.25s;
+  border-radius: 0 4px 4px 0;
+}
+.tab-btn:hover { 
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+.tab-btn.active {
   color: var(--accent);
-  border-bottom-color: var(--accent);
-}}
-.tab-content {{ display: none; }}
-.tab-content.active {{ display: block; }}
+  border-left-color: var(--accent);
+  background: rgba(var(--accent-rgb, 124, 111, 240), 0.08);
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: fadeIn 0.4s ease-out; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* Shared panel styles for new tabs */
-.panel-card {{
+.panel-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1rem;
-}}
-.panel-card h2 {{
+}
+.panel-card h2 {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem; font-weight: 500;
   text-transform: uppercase;
@@ -1440,15 +1538,15 @@ body::after {{
   margin-bottom: 1rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid var(--border);
-}}
+}
 
 /* Notifications */
-.toast-container {{
+.toast-container {
   position: fixed; top: 2rem; right: 2rem;
   display: flex; flex-direction: column; gap: 0.75rem;
   z-index: 10000;
-}}
-.toast {{
+}
+.toast {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-left: 4px solid var(--accent);
@@ -1459,110 +1557,110 @@ body::after {{
   min-width: 280px;
   animation: slideIn 0.3s ease-out;
   cursor: pointer;
-}}
-@keyframes slideIn {{
-  from {{ transform: translateX(100%); opacity: 0; }}
-  to {{ transform: translateX(0); opacity: 1; }}
-}}
-.toast.success {{ border-left-color: var(--growth); }}
-.toast.info {{ border-left-color: var(--accent); }}
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.toast.success { border-left-color: var(--growth); }
+.toast.info { border-left-color: var(--accent); }
 
 /* Cycle Tab */
-.cycle-phase-banner {{
+.cycle-phase-banner {
   text-align: center;
   font-size: 1.1rem;
   padding: 1rem 1.5rem;
-}}
-.cycle-phase-banner .phase-name {{
+}
+.cycle-phase-banner .phase-name {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 700;
   font-size: 1.3rem;
   margin-bottom: 0.3rem;
-}}
-.cycle-legend {{
+}
+.cycle-legend {
   display: flex; gap: 1.5rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap;
-}}
-.cycle-legend span {{
+}
+.cycle-legend span {
   font-size: 0.75rem; color: var(--text-dim);
   display: flex; align-items: center; gap: 0.3rem;
-}}
-.cycle-legend span::before {{
+}
+.cycle-legend span::before {
   content: ''; display: inline-block; width: 12px; height: 3px; border-radius: 2px;
-}}
-.cycle-legend .leg-estrogen::before {{ background: #ff69b4; }}
-.cycle-legend .leg-progesterone::before {{ background: #9b59b6; }}
-.cycle-legend .leg-lh::before {{ background: #f1c40f; }}
-.cycle-legend .leg-fsh::before {{ background: #3498db; }}
+}
+.cycle-legend .leg-estrogen::before { background: #ff69b4; }
+.cycle-legend .leg-progesterone::before { background: #9b59b6; }
+.cycle-legend .leg-lh::before { background: #f1c40f; }
+.cycle-legend .leg-fsh::before { background: #3498db; }
 
-.cycle-bar-row {{
+.cycle-bar-row {
   display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.6rem;
-}}
-.cycle-bar-label {{ width: 80px; font-size: 0.8rem; color: var(--text-dim); text-align: right; }}
-.cycle-bar-track {{
+}
+.cycle-bar-label { width: 80px; font-size: 0.8rem; color: var(--text-dim); text-align: right; }
+.cycle-bar-track {
   flex: 1; height: 20px; background: var(--bg); border-radius: 4px; position: relative; overflow: hidden;
-}}
-.cycle-bar-fill {{
+}
+.cycle-bar-fill {
   height: 100%; border-radius: 4px; transition: width 0.3s;
-}}
-.cycle-bar-value {{ width: 50px; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; }}
-.cycle-bar-fill.positive {{ background: linear-gradient(90deg, #2ecc71, #27ae60); }}
-.cycle-bar-fill.negative {{ background: linear-gradient(90deg, #e74c3c, #c0392b); }}
+}
+.cycle-bar-value { width: 50px; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; }
+.cycle-bar-fill.positive { background: linear-gradient(90deg, #2ecc71, #27ae60); }
+.cycle-bar-fill.negative { background: linear-gradient(90deg, #e74c3c, #c0392b); }
 
-.cycle-body-row {{
+.cycle-body-row {
   display: flex; align-items: flex-start; gap: 0.8rem; margin-bottom: 1rem;
   padding: 0.6rem; border-radius: 8px; background: var(--bg);
-}}
-.cycle-body-icon {{ font-size: 1.4rem; }}
-.cycle-body-text h3 {{ font-size: 0.85rem; color: var(--text-bright); margin-bottom: 0.2rem; }}
-.cycle-body-text p {{ font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }}
+}
+.cycle-body-icon { font-size: 1.4rem; }
+.cycle-body-text h3 { font-size: 0.85rem; color: var(--text-bright); margin-bottom: 0.2rem; }
+.cycle-body-text p { font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
 
-.cycle-sim-row {{
+.cycle-sim-row {
   display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.8rem;
-}}
-.cycle-sim-row label {{ width: 140px; font-size: 0.8rem; color: var(--text-dim); }}
-.cycle-sim-row input[type=range] {{ flex: 1; accent-color: var(--accent); }}
-.cycle-sim-row .sim-val {{ width: 50px; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; text-align: right; }}
-.cycle-presets {{ display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }}
-.cycle-presets button {{
+}
+.cycle-sim-row label { width: 140px; font-size: 0.8rem; color: var(--text-dim); }
+.cycle-sim-row input[type=range] { flex: 1; accent-color: var(--accent); }
+.cycle-sim-row .sim-val { width: 50px; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; text-align: right; }
+.cycle-presets { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.cycle-presets button {
   padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid var(--border);
   background: var(--bg-hover); color: var(--text); font-size: 0.75rem; cursor: pointer;
   transition: all 0.2s;
-}}
-.cycle-presets button:hover {{ border-color: var(--accent); color: var(--accent); }}
+}
+.cycle-presets button:hover { border-color: var(--accent); color: var(--accent); }
 
-.cycle-edu-card {{
+.cycle-edu-card {
   border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.5rem; overflow: hidden;
-}}
-.cycle-edu-header {{
+}
+.cycle-edu-header {
   padding: 0.8rem 1rem; cursor: pointer; display: flex; justify-content: space-between;
   align-items: center; font-size: 0.85rem; font-weight: 500; transition: background 0.2s;
-}}
-.cycle-edu-header:hover {{ background: var(--bg-hover); }}
-.cycle-edu-body {{
+}
+.cycle-edu-header:hover { background: var(--bg-hover); }
+.cycle-edu-body {
   padding: 0 1rem; max-height: 0; overflow: hidden; transition: max-height 0.3s, padding 0.3s;
   font-size: 0.8rem; line-height: 1.6; color: var(--text-dim);
-}}
-.cycle-edu-card.open .cycle-edu-body {{ max-height: 500px; padding: 0.8rem 1rem; }}
+}
+.cycle-edu-card.open .cycle-edu-body { max-height: 500px; padding: 0.8rem 1rem; }
 
 /* Item Cards Grid */
-.item-grid {{
+.item-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
-}}
-.item-card {{
+}
+.item-card {
   background: var(--bg-hover);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1rem;
   cursor: pointer;
   transition: all 0.3s;
-}}
-.item-card:hover {{
+}
+.item-card:hover {
   border-color: var(--accent);
   transform: translateY(-2px);
-}}
-.item-card .thumb {{
+}
+.item-card .thumb {
   width: 100%;
   height: 120px;
   border-radius: 6px;
@@ -1574,31 +1672,31 @@ body::after {{
   margin-bottom: 0.6rem;
   color: var(--text-dim);
   font-size: 2rem;
-}}
-.item-card .thumb img {{
+}
+.item-card .thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}}
-.item-card .card-name {{
+}
+.item-card .card-name {
   font-size: 0.85rem;
   color: var(--text-bright);
   font-weight: 500;
-}}
-.item-card .card-meta {{
+}
+.item-card .card-meta {
   font-size: 0.7rem;
   color: var(--text-dim);
   margin-top: 0.2rem;
-}}
+}
 
 /* Category chips */
-.chip-bar {{
+.chip-bar {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
-}}
-.chip {{
+}
+.chip {
   padding: 0.3rem 0.8rem;
   border-radius: 20px;
   font-size: 0.7rem;
@@ -1608,15 +1706,15 @@ body::after {{
   color: var(--text-dim);
   cursor: pointer;
   transition: all 0.2s;
-}}
-.chip:hover, .chip.active {{
+}
+.chip:hover, .chip.active {
   background: var(--accent-glow);
   border-color: var(--accent);
   color: var(--accent);
-}}
+}
 
 /* Status badges */
-.badge {{
+.badge {
   display: inline-block;
   padding: 0.15rem 0.5rem;
   border-radius: 12px;
@@ -1625,14 +1723,14 @@ body::after {{
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-}}
-.badge-draft {{ background: rgba(120,120,120,0.2); color: #999; }}
-.badge-pending {{ background: rgba(240,180,50,0.15); color: #f0b432; }}
-.badge-approved {{ background: rgba(80,200,120,0.15); color: #50c878; }}
-.badge-active {{ background: rgba(80,160,240,0.15); color: #50a0f0; }}
+}
+.badge-draft { background: rgba(120,120,120,0.2); color: #999; }
+.badge-pending { background: rgba(240,180,50,0.15); color: #f0b432; }
+.badge-approved { background: rgba(80,200,120,0.15); color: #50c878; }
+.badge-active { background: rgba(80,160,240,0.15); color: #50a0f0; }
 
 /* Lightbox */
-.lightbox-overlay {{
+.lightbox-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.85);
@@ -1642,20 +1740,20 @@ body::after {{
   justify-content: center;
   flex-direction: column;
   gap: 1rem;
-}}
-.lightbox-overlay.open {{ display: flex; }}
-.lightbox-overlay img {{
+}
+.lightbox-overlay.open { display: flex; }
+.lightbox-overlay img {
   max-width: 90vw;
   max-height: 70vh;
   border-radius: 8px;
-}}
-.lightbox-gallery {{
+}
+.lightbox-gallery {
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
   padding: 0.5rem;
-}}
-.lightbox-gallery img {{
+}
+.lightbox-gallery img {
   width: 80px;
   height: 80px;
   object-fit: cover;
@@ -1663,11 +1761,11 @@ body::after {{
   cursor: pointer;
   border: 2px solid transparent;
   transition: border-color 0.2s;
-}}
-.lightbox-gallery img:hover, .lightbox-gallery img.active {{
+}
+.lightbox-gallery img:hover, .lightbox-gallery img.active {
   border-color: var(--accent);
-}}
-.lightbox-close {{
+}
+.lightbox-close {
   position: absolute;
   top: 1rem;
   right: 1.5rem;
@@ -1676,12 +1774,12 @@ body::after {{
   color: var(--text);
   font-size: 2rem;
   cursor: pointer;
-}}
-.lightbox-actions {{
+}
+.lightbox-actions {
   display: flex;
   gap: 0.5rem;
-}}
-.lightbox-actions button {{
+}
+.lightbox-actions button {
   padding: 0.4rem 1rem;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -1689,13 +1787,13 @@ body::after {{
   color: var(--text);
   font-size: 0.75rem;
   cursor: pointer;
-}}
-.lightbox-actions button:hover {{ border-color: var(--accent); }}
-.lightbox-actions button.danger {{ color: var(--core); }}
-.lightbox-actions button.danger:hover {{ border-color: var(--core); }}
+}
+.lightbox-actions button:hover { border-color: var(--accent); }
+.lightbox-actions button.danger { color: var(--core); }
+.lightbox-actions button.danger:hover { border-color: var(--core); }
 
 /* Upload zone */
-.upload-zone {{
+.upload-zone {
   border: 2px dashed var(--border);
   border-radius: 10px;
   padding: 1.5rem;
@@ -1705,21 +1803,21 @@ body::after {{
   cursor: pointer;
   transition: all 0.3s;
   margin-top: 0.5rem;
-}}
-.upload-zone:hover, .upload-zone.dragover {{
+}
+.upload-zone:hover, .upload-zone.dragover {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-glow);
-}}
+}
 
 /* Room tabs */
-.room-tabs {{
+.room-tabs {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1rem;
   flex-wrap: wrap;
-}}
-.room-tab {{
+}
+.room-tab {
   padding: 0.4rem 1rem;
   border-radius: 8px;
   font-size: 0.75rem;
@@ -1729,15 +1827,15 @@ body::after {{
   color: var(--text-dim);
   cursor: pointer;
   transition: all 0.2s;
-}}
-.room-tab:hover, .room-tab.active {{
+}
+.room-tab:hover, .room-tab.active {
   background: var(--accent-glow);
   border-color: var(--accent);
   color: var(--accent);
-}}
+}
 
 /* Search bar */
-.search-bar {{
+.search-bar {
   width: 100%;
   padding: 0.6rem 1rem;
   border-radius: 8px;
@@ -1749,11 +1847,11 @@ body::after {{
   margin-bottom: 1rem;
   outline: none;
   transition: border-color 0.3s;
-}}
-.search-bar:focus {{ border-color: var(--accent); }}
+}
+.search-bar:focus { border-color: var(--accent); }
 
 /* CRUD buttons */
-.btn-crud {{
+.btn-crud {
   padding: 0.35rem 0.8rem;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -1763,25 +1861,25 @@ body::after {{
   font-family: 'JetBrains Mono', monospace;
   cursor: pointer;
   transition: all 0.2s;
-}}
-.btn-crud:hover {{ border-color: var(--accent); color: var(--accent); }}
-.btn-crud.danger:hover {{ border-color: var(--core); color: var(--core); }}
+}
+.btn-crud:hover { border-color: var(--accent); color: var(--accent); }
+.btn-crud.danger:hover { border-color: var(--core); color: var(--core); }
 
 /* Detail panel */
-.detail-panel {{
+.detail-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   margin-top: 1rem;
-}}
-.detail-images {{
+}
+.detail-images {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
   margin: 0.5rem 0;
-}}
-.detail-images img {{
+}
+.detail-images img {
   width: 100px;
   height: 100px;
   object-fit: cover;
@@ -1789,26 +1887,26 @@ body::after {{
   cursor: pointer;
   border: 2px solid var(--border);
   transition: border-color 0.2s;
-}}
-.detail-images img:hover {{ border-color: var(--accent); }}
+}
+.detail-images img:hover { border-color: var(--accent); }
 
 /* Avatar Tab (Phase 22) */
-#vrm-canvas {{
+#vrm-canvas {
   width: 100%;
   height: 100%;
   display: block;
-}}
-#avatar-viewer {{
+}
+#avatar-viewer {
   position: relative;
   border: 2px solid var(--border);
-}}
-#avatar-error {{
+}
+#avatar-error {
   text-align: center;
-}}
-#avatar-status {{
+}
+#avatar-status {
   font-family: 'JetBrains Mono', monospace;
-}}
-.avatar-controls button {{
+}
+.avatar-controls button {
   padding: 8px 16px;
   background: var(--accent);
   color: #fff;
@@ -1817,10 +1915,10 @@ body::after {{
   cursor: pointer;
   font-size: 0.85rem;
   transition: background 0.2s;
-}}
-.avatar-controls button:hover {{
+}
+.avatar-controls button:hover {
   background: var(--growth);
-}}
+}
 </style>
 </head>
 <body>
@@ -1831,37 +1929,47 @@ body::after {{
     <div class="ticker-item">Waiting for world events...</div>
   </div>
 </div>
-<div class="header">
-  <h1><span id="agent-name">Agent</span> Soul Evolution</h1>
-  <div class="subtitle">powered by <span class="evolution">Soul</span><span class="soul"> Evolution</span></div>
-  <div class="stats-bar" id="stats-bar"></div>
-  <div id="cognitive-status" style="margin-top:1rem;font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--accent);">
-    <span class="pulse">●</span> <span id="status-text">Cognitive System Synchronized</span>
+<div class="app-container">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Navigation</h2>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+      <button class="tab-btn" onclick="switchTab('interior')">Interior</button>
+      <button class="tab-btn" onclick="switchTab('inventory')">Inventory</button>
+      <button class="tab-btn" onclick="switchTab('wardrobe')">Wardrobe</button>
+      <button class="tab-btn" onclick="switchTab('development')">Development</button>
+      <button class="tab-btn" onclick="switchTab('cycle')">Cycle</button>
+      <button class="tab-btn" onclick="switchTab('world')">World</button>
+      <button class="tab-btn" onclick="switchTab('skills')">Skills</button>
+      <button class="tab-btn" onclick="switchTab('psychology')">Psychology</button>
+      <button class="tab-btn" onclick="switchTab('reputation')">Social Standing</button>
+      <button class="tab-btn" onclick="switchTab('stream')">Life Stream</button>
+      <button class="tab-btn" onclick="switchTab('genesis')">Genesis Lab</button>
+      <button class="tab-btn" onclick="switchTab('memory')">Memory</button>
+      <button class="tab-btn" onclick="switchTab('vault')">The Vault</button>
+      <button class="tab-btn" onclick="switchTab('avatar')">Live Avatar</button>
+      <button class="tab-btn" onclick="switchTab('interests')">Interests</button>
+      <button class="tab-btn" onclick="switchTab('dreams')">Dream Journal</button>
+      <button class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
+      <button class="tab-btn" onclick="switchTab('config')">⚙️ Config</button>
+      <button class="tab-btn" onclick="switchTab('diagnostics')">🔧 Diagnostics</button>
+    </div>
   </div>
-</div>
 
-<div class="tab-bar">
-  <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
-  <button class="tab-btn" onclick="switchTab('interior')">Interior</button>
-  <button class="tab-btn" onclick="switchTab('inventory')">Inventory</button>
-  <button class="tab-btn" onclick="switchTab('wardrobe')">Wardrobe</button>
-  <button class="tab-btn" onclick="switchTab('development')">Development</button>
-  <button class="tab-btn" onclick="switchTab('cycle')">Cycle</button>
-  <button class="tab-btn" onclick="switchTab('world')">World</button>
-  <button class="tab-btn" onclick="switchTab('skills')">Skills</button>
-  <button class="tab-btn" onclick="switchTab('psychology')">Psychology</button>
-  <button class="tab-btn" onclick="switchTab('reputation')">Social Standing</button>
-  <button class="tab-btn" onclick="switchTab('stream')">Life Stream</button>
-  <button class="tab-btn" onclick="switchTab('genesis')">Genesis Lab</button>
-  <button class="tab-btn" onclick="switchTab('memory')">Memory</button>
-  <button class="tab-btn" onclick="switchTab('vault')">The Vault</button>
-  <button class="tab-btn" onclick="switchTab('avatar')">Live Avatar</button>
-  <button class="tab-btn" onclick="switchTab('interests')">Interests</button>
-  <button class="tab-btn" onclick="switchTab('dreams')">Dream Journal</button>
-  <button class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
-  <button class="tab-btn" onclick="switchTab('config')">⚙️ Config</button>
-  <button class="tab-btn" onclick="switchTab('diagnostics')">🔧 Diagnostics</button>
-</div>
+  <div class="main-view">
+    <div class="header">
+      <h1><span id="agent-name">The Entity</span> — Project Genesis</h1>
+      <div class="subtitle">Sovereign <span class="evolution">Digital</span><span class="soul"> Entity</span></div>
+      <div class="stats-bar" id="stats-bar"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding:0 2rem;">
+        <div id="cognitive-status" style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--accent);">
+          <span class="pulse">●</span> <span id="status-text">Cognitive System Synchronized</span>
+        </div>
+        <div id="clock" style="font-family:'JetBrains Mono',monospace;font-size:1.2rem;color:var(--accent);font-weight:bold;letter-spacing:0.05em;">00:00:00</div>
+      </div>
+    </div>
 
 <div id="tab-dashboard" class="tab-content active">
 <div style="max-width:1200px;margin:0 auto;padding:0 2rem 1rem;">
@@ -1898,7 +2006,7 @@ body::after {{
     <!-- Phase 40: Hardware Resonance Widget -->
     <div class="panel-card" style="border-left:4px solid #8b5cf6;">
       <h3>🔮 Hardware Resonance</h3>
-      <p style="color:var(--text-dim);font-size:0.8rem;margin-top:0.25rem;">Q feels the machine's state.</p>
+      <p style="color:var(--text-dim);font-size:0.8rem;margin-top:0.25rem;">The entity feels the machine's state.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
         <div style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;">
           <div style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;">CPU</div>
@@ -2043,7 +2151,7 @@ body::after {{
     <div class="panel-card" style="margin-top:1rem;">
       <h3>📁 Project Files</h3>
       <div id="projects-list" style="margin-top:0.5rem;">
-        <div style="color:var(--text-dim);font-size:0.9rem;">No projects yet. Q will create autonomous projects when she has high energy and strong technical interests.</div>
+        <div style="color:var(--text-dim);font-size:0.9rem;">No projects yet. The entity will create autonomous projects when they have high energy and strong technical interests.</div>
       </div>
     </div>
   </div>
@@ -2261,7 +2369,7 @@ body::after {{
     <!-- Phase 39: Social Feed -->
     <div class="panel-card" style="margin-top:2rem;border-left:4px solid #ec4899;">
       <h3>📱 Social Feed</h3>
-      <p style="color:var(--text-dim);font-size:0.85rem;">Q's autonomous social media presence.</p>
+      <p style="color:var(--text-dim);font-size:0.85rem;">The entity's autonomous social media presence.</p>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem;">
         <div style="padding:0.75rem;background:var(--bg);border-radius:6px;">
@@ -2365,9 +2473,11 @@ body::after {{
 
         <!-- API Key -->
         <div style="margin-top:0.75rem;">
-          <label style="font-size:0.8rem;">API Key</label>
+          <label style="font-size:0.8rem;">Default API Key (OpenAI/Base)</label>
           <input type="password" id="api-key" placeholder="sk-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
-          <p style="font-size:0.7rem;color:var(--text-dim);margin:0.25rem 0 0 0;">Your API key is stored locally and never sent to external servers.</p>
+          <label style="font-size:0.8rem;margin-top:0.5rem;display:block;">Anthropic API Key</label>
+          <input type="password" id="key-anthropic" placeholder="sk-ant-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
+          <p style="font-size:0.7rem;color:var(--text-dim);margin:0.25rem 0 0 0;">Your API keys are stored locally and never sent to external servers.</p>
         </div>
 
         <!-- Save Button -->
@@ -2608,7 +2718,7 @@ body::after {{
   <!-- VMC/OSC External Streaming (Phase 32) -->
   <div class="panel-card" style="border-left:4px solid var(--accent);margin-top:1rem;">
     <h3>🌐 External Streaming (VMC/OSC)</h3>
-    <p style="color:var(--text-dim);margin-top:0.5rem;font-size:0.85rem;">Stream Q's avatar data to external 3D applications (VRChat, 3DXChat, VSeeFace).</p>
+    <p style="color:var(--text-dim);margin-top:0.5rem;font-size:0.85rem;">Stream the entity's avatar data to external 3D applications (VRChat, 3DXChat, VSeeFace).</p>
 
     <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem;">
       <label style="display:flex;align-items:center;cursor:pointer;">
@@ -2638,7 +2748,7 @@ body::after {{
   <!-- Phase 36: Spatial Input Control -->
   <div class="panel-card" style="border-left:4px solid #06b6d4;margin-top:1rem;">
     <h3>🖥️ Spatial Input (VRM-to-Desktop)</h3>
-    <p style="color:var(--text-dim);margin-top:0.5rem;font-size:0.85rem;">Q's 3D actions trigger real desktop inputs. Sovereignty Override stops inputs when Q is in reflex lock.</p>
+    <p style="color:var(--text-dim);margin-top:0.5rem;font-size:0.85rem;">The entity's 3D actions trigger real desktop inputs. Sovereignty Override stops inputs when the entity is in reflex lock.</p>
 
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem;">
       <div>
@@ -3226,6 +3336,79 @@ body::after {{
       </div>
     </div>
 
+    <!-- AI Model Status -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid var(--accent);">
+      <h3>🧠 AI Model Status</h3>
+      <p style="color:var(--text-dim);font-size:0.85rem;margin-top:0.25rem;">Diagnostics for active model configurations. Click any model to reconfigure.</p>
+      <div id="diagnostics-ai-models"
+        style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.5rem;margin-top:0.75rem;">
+        <div onclick="jumpToConfig('api-key')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">OpenAI</div>
+          <div id="model-status-openai" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+        <div onclick="jumpToConfig('key-anthropic')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Anthropic</div>
+          <div id="model-status-anthropic" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+        <div onclick="jumpToConfig('key-venice')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Venice</div>
+          <div id="model-status-venice" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+        <div onclick="jumpToConfig('key-xai')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">xAI</div>
+          <div id="model-status-xai" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+        <div onclick="jumpToConfig('key-gemini-img')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Gemini (Vision)</div>
+          <div id="model-status-gemini" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+        <div onclick="jumpToConfig('key-fal')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Fal.ai (Vision)</div>
+          <div id="model-status-fal" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+        <div onclick="jumpToConfig('mem0-api-key')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Mem0</div>
+          <div id="model-status-mem0" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+        <div onclick="jumpToConfig('vault-api-key')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">The Vault</div>
+          <div id="model-status-vault" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Tools Status -->
+    <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid var(--section-continuity);">
+      <h3>🛠️ System Tools</h3>
+      <p style="color:var(--text-dim);font-size:0.85rem;margin-top:0.25rem;">Diagnostics for active core engine tools and capabilities.</p>
+      <div id="diagnostics-system-tools"
+        style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.5rem;margin-top:0.75rem;">
+        <div onclick="switchTab('config')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Visual Browser</div>
+          <div id="model-status-browser" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+        <div onclick="switchTab('config')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Desktop Control</div>
+          <div id="model-status-desktop" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+        <div onclick="switchTab('config')"
+          style="padding:0.5rem;background:var(--bg);border-radius:4px;text-align:center;cursor:pointer;">
+          <div style="font-size:0.7rem;color:var(--text-dim);">Weather Engine</div>
+          <div id="model-status-weather" style="font-weight:bold;color:var(--text-dim);">Checking...</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Log Controls -->
     <div class="panel-card" style="margin-bottom:1rem;border-left:4px solid var(--warning);">
       <h3>📋 Log Stream</h3>
@@ -3259,7 +3442,8 @@ body::after {{
       </div>
     </div>
   </div>
-</div>
+  </div> <!-- end main-view -->
+</div> <!-- end app-container -->
 
 <!-- Lightbox -->
 <div class="lightbox-overlay" id="lightbox" onclick="if(event.target===this)closeLightbox()">
@@ -3288,108 +3472,108 @@ body::after {{
 </div>
 
 <script>
-const DATA = {data_json};
+const DATA =  {data_json};
 
-const SECTION_COLORS = {{
+const SECTION_COLORS = {
   'Personality': '#f0a050',
   'Philosophy': '#7c6ff0',
   'Boundaries': '#e05050',
   'Continuity': '#50b8e0',
-}};
-function sectionColor(name) {{
-  for (const [k, v] of Object.entries(SECTION_COLORS)) {{
+};
+function sectionColor(name) {
+  for (const [k, v] of Object.entries(SECTION_COLORS)) {
     if (name && name.includes(k)) return v;
-  }}
+  }
   return '#888';
-}}
+}
 
   // --- Agent Name ---
-  function renderAgentName() {{
+  function renderAgentName() {
     const idText = DATA.identity_raw || '';
     const nameMatch = idText.match(/\*\*Name:\*\*\s*(.+)/i) || idText.match(/Name:\s*(.+)/i);
-    if (nameMatch && nameMatch[1]) {{
+    if (nameMatch && nameMatch[1]) {
       const name = nameMatch[1].replace(/\[|\]/g, '').trim();
-      if (name && !name.includes('Agent Name')) {{
+      if (name && !name.includes('Agent Name')) {
         document.getElementById('agent-name').textContent = name;
-        document.title = name + ' — Soul Evolution';
-      }}
-    }}
-  }}
+        document.title = name + ' — Project Genesis';
+      }
+    }
+  }
 
   // --- Stats ---
 
-function renderStats() {{
+function renderStats() {
   const bar = document.getElementById('stats-bar');
   const tree = DATA.soul_tree;
   let core = 0, mutable = 0, totalBullets = 0;
-  tree.forEach(sec => {{
-    sec.children.forEach(child => {{
-      if (child.type === 'bullet') {{
+  tree.forEach(sec => {
+    sec.children.forEach(child => {
+      if (child.type === 'bullet') {
         totalBullets++;
         if (child.tag === 'CORE') core++;
         if (child.tag === 'MUTABLE') mutable++;
-      }}
-      if (child.children) child.children.forEach(b => {{
-        if (b.type === 'bullet') {{
+      }
+      if (child.children) child.children.forEach(b => {
+        if (b.type === 'bullet') {
           totalBullets++;
           if (b.tag === 'CORE') core++;
           if (b.tag === 'MUTABLE') mutable++;
-        }}
-      }});
-    }});
-  }});
+        }
+      });
+    });
+  });
       const stats = [
-        {{ num: DATA.experiences.length, label: 'Experiences' }},
-        {{ num: DATA.reflections.length, label: 'Reflections' }},
-        {{ num: (DATA.news?.browsing_history || []).length, label: 'Web Searches' }},
-        {{ num: (DATA.news?.headlines || []).length, label: 'World News' }},
-        {{ num: core, label: 'Core' }},
-        {{ num: mutable, label: 'Mutable' }},
+        { num: DATA.experiences.length, label: 'Experiences' },
+        { num: DATA.reflections.length, label: 'Reflections' },
+        { num: (DATA.news?.browsing_history || []).length, label: 'Web Searches' },
+        { num: (DATA.news?.headlines || []).length, label: 'World News' },
+        { num: core, label: 'Core' },
+        { num: mutable, label: 'Mutable' },
       ];
   
   bar.innerHTML = stats.map(s =>
-    `<div class="stat"><div class="num">${{s.num}}</div><div class="label">${{s.label}}</div></div>`
+    `<div class="stat"><div class="num">${s.num}</div><div class="label">${s.label}</div></div>`
   ).join('');
-}}
+}
 
 // --- Legend ---
-function renderLegend() {{
+function renderLegend() {
   const el = document.getElementById('legend');
   const items = [
-    {{ color: 'var(--core)', label: 'CORE (immutable)' }},
-    {{ color: 'var(--mutable)', label: 'MUTABLE (evolvable)' }},
-    ...Object.entries(SECTION_COLORS).map(([k, v]) => ({{ color: v, label: k }})),
+    { color: 'var(--core)', label: 'CORE (immutable)' },
+    { color: 'var(--mutable)', label: 'MUTABLE (evolvable)' },
+    ...Object.entries(SECTION_COLORS).map(([k, v]) => ({ color: v, label: k })),
   ];
   el.innerHTML = items.map(i =>
-    `<div class="legend-item"><div class="legend-dot" style="background:${{i.color}}"></div>${{i.label}}</div>`
+    `<div class="legend-item"><div class="legend-dot" style="background:${i.color}"></div>${i.label}</div>`
   ).join('');
-}}
+}
 
 // --- Soul Map ---
 let allBulletEls = [];
-let changesBulletMap = {{}};
+let changesBulletMap = {};
 
 let editMode = false;
 
-function renderSoulTree(revealUpTo) {{
+function renderSoulTree(revealUpTo) {
   const container = document.getElementById('soul-tree');
   container.innerHTML = '';
   allBulletEls = [];
 
   // Build set of bullets added by changes after revealUpTo
   const hiddenAfter = new Set();
-  if (!editMode) {{
+  if (!editMode) {
     const changes = DATA.changes;
-    for (let i = changes.length - 1; i >= 0; i--) {{
-      if (i >= revealUpTo) {{
-        if (changes[i].change_type === 'add' && changes[i].after) {{
+    for (let i = changes.length - 1; i >= 0; i--) {
+      if (i >= revealUpTo) {
+        if (changes[i].change_type === 'add' && changes[i].after) {
           hiddenAfter.add(changes[i].after.trim());
-        }}
-      }}
-    }}
-  }}
+        }
+      }
+    }
+  }
 
-  DATA.soul_tree.forEach((sec, si) => {{
+  DATA.soul_tree.forEach((sec, si) => {
     const color = sectionColor(sec.text);
     const block = document.createElement('div');
     block.className = 'section-block';
@@ -3398,23 +3582,23 @@ function renderSoulTree(revealUpTo) {{
     const header = document.createElement('div');
     header.className = 'section-header';
     header.style.background = color + '0d';
-    header.innerHTML = `<div class="dot" style="background:${{color}}"></div>${{esc(sec.text)}}<span class="arrow">▼</span>`;
+    header.innerHTML = `<div class="dot" style="background:${color}"></div>${esc(sec.text)}<span class="arrow">▼</span>`;
     header.onclick = () => block.classList.toggle('collapsed');
     block.appendChild(header);
 
     const body = document.createElement('div');
     body.className = 'section-body';
 
-    sec.children.forEach((child, ci) => {{
-      if (child.type === 'subsection') {{
+    sec.children.forEach((child, ci) => {
+      if (child.type === 'subsection') {
         const sub = document.createElement('div');
         sub.className = 'subsection';
-        sub.innerHTML = `<div class="subsection-title">${{esc(child.text)}}</div>`;
+        sub.innerHTML = `<div class="subsection-title">${esc(child.text)}</div>`;
 
-        (child.children || []).forEach((b, bi) => {{
+        (child.children || []).forEach((b, bi) => {
           const bEl = renderBullet(b, hiddenAfter, [si, ci, bi]);
           sub.appendChild(bEl);
-        }});
+        });
 
         // Add bullet button
         const addBtn = document.createElement('button');
@@ -3424,43 +3608,43 @@ function renderSoulTree(revealUpTo) {{
         sub.appendChild(addBtn);
 
         body.appendChild(sub);
-      }} else if (child.type === 'bullet') {{
+      } else if (child.type === 'bullet') {
         body.appendChild(renderBullet(child, hiddenAfter, [si, ci, -1]));
-      }}
-    }});
+      }
+    });
 
     block.appendChild(body);
     container.appendChild(block);
 
     setTimeout(() => block.classList.add('visible'), 80 * si);
-  }});
-}}
+  });
+}
 
-function renderBullet(b, hiddenAfter, path) {{
+function renderBullet(b, hiddenAfter, path) {
   const el = document.createElement('div');
   el.className = 'bullet';
   const isHidden = hiddenAfter.has(b.raw.trim());
-  if (isHidden) {{
+  if (isHidden) {
     el.classList.add('is-new');
-  }}
+  }
 
   const tagClass = b.tag === 'CORE' ? 'core' : (b.tag === 'MUTABLE' ? 'mutable' : '');
 
-  if (editMode) {{
+  if (editMode) {
     el.classList.add('editing');
     const [si, ci, bi] = path;
 
     // Tag toggle
     const tagEl = document.createElement('span');
-    tagEl.className = `tag ${{tagClass}} tag-toggle`;
+    tagEl.className = `tag ${tagClass} tag-toggle`;
     tagEl.textContent = b.tag || 'TAG';
     tagEl.title = 'Click to toggle CORE/MUTABLE';
-    tagEl.onclick = () => {{
+    tagEl.onclick = () => {
       const next = b.tag === 'CORE' ? 'MUTABLE' : 'CORE';
       b.tag = next;
       updateBulletRaw(b);
       renderSoulTree(currentStep);
-    }};
+    };
     el.appendChild(tagEl);
 
     // Editable text
@@ -3468,14 +3652,14 @@ function renderBullet(b, hiddenAfter, path) {{
     input.className = 'edit-text';
     input.value = b.text;
     input.rows = 1;
-    input.oninput = () => {{
+    input.oninput = () => {
       input.style.height = 'auto';
       input.style.height = input.scrollHeight + 'px';
       b.text = input.value;
       updateBulletRaw(b);
-    }};
+    };
     // Auto-resize on mount
-    setTimeout(() => {{ input.style.height = input.scrollHeight + 'px'; }}, 0);
+    setTimeout(() => { input.style.height = input.scrollHeight + 'px'; }, 0);
     el.appendChild(input);
 
     // Delete button
@@ -3483,71 +3667,71 @@ function renderBullet(b, hiddenAfter, path) {{
     del.className = 'btn-delete';
     del.innerHTML = '×';
     del.title = 'Remove bullet';
-    del.onclick = () => {{
+    del.onclick = () => {
       deleteBullet(si, ci, bi);
-    }};
+    };
     el.appendChild(del);
-  }} else {{
+  } else {
     el.innerHTML = `
-      ${{tagClass ? `<span class="tag ${{tagClass}}">${{esc(b.tag)}}</span>` : ''}}
-      <span>${{esc(b.text)}}</span>
+      ${tagClass ? `<span class="tag ${tagClass}">${esc(b.tag)}</span>` : ''}
+      <span>${esc(b.text)}</span>
     `;
-  }}
+  }
 
-  allBulletEls.push({{ el, raw: b.raw, tag: b.tag }});
+  allBulletEls.push({ el, raw: b.raw, tag: b.tag });
   return el;
-}}
+}
 
-function updateBulletRaw(b) {{
-  b.raw = `- ${{b.text}} [${{b.tag}}]`;
-}}
+function updateBulletRaw(b) {
+  b.raw = `- ${b.text} [${b.tag}]`;
+}
 
-function toggleEditMode() {{
+function toggleEditMode() {
   editMode = !editMode;
   const btn = document.getElementById('btn-edit');
   const saveBtn = document.getElementById('btn-save');
   const mapEl = document.getElementById('soul-map');
 
-  if (editMode) {{
+  if (editMode) {
     btn.classList.add('active');
     btn.textContent = '✎ Editing';
     saveBtn.style.display = '';
     mapEl.classList.add('edit-mode');
-  }} else {{
+  } else {
     btn.classList.remove('active');
     btn.textContent = '✎ Edit';
     saveBtn.style.display = 'none';
     mapEl.classList.remove('edit-mode');
-  }}
+  }
   renderSoulTree(currentStep);
-}}
+}
 
-function addBullet(si, ci) {{
+function addBullet(si, ci) {
   const sub = DATA.soul_tree[si].children[ci];
   if (!sub.children) sub.children = [];
   const sec = DATA.soul_tree[si];
-  const newBullet = {{
+  const newBullet = {
     type: 'bullet',
     text: 'New belief',
     raw: '- New belief [MUTABLE]',
     tag: 'MUTABLE',
     section: sec.raw,
     subsection: sub.raw,
-  }};
+  };
   sub.children.push(newBullet);
   renderSoulTree(currentStep);
-}}
+}
 
-function deleteBullet(si, ci, bi) {{
-  if (bi >= 0) {{
+function deleteBullet(si, ci, bi) {
+  if (bi >= 0) {
     DATA.soul_tree[si].children[ci].children.splice(bi, 1);
-  }} else {{
+  } else {
     DATA.soul_tree[si].children.splice(ci, 1);
-  }}
+  }
   renderSoulTree(currentStep);
-}}
+}
 
-function reconstructSoulMd() {{
+function reconstructSoulMd() {
   let lines = [];
   lines.push('# SOUL.md - Who You Are');
   lines.push('');
@@ -3558,53 +3742,53 @@ function reconstructSoulMd() {{
   lines.push('');
   lines.push('---');
 
-  DATA.soul_tree.forEach(sec => {{
+  DATA.soul_tree.forEach(sec => {
     lines.push('');
-    lines.push(`## ${{sec.text}}`);
+    lines.push(`## ${sec.text}`);
 
-    sec.children.forEach(child => {{
-      if (child.type === 'subsection') {{
+    sec.children.forEach(child => {
+      if (child.type === 'subsection') {
         lines.push('');
-        lines.push(`### ${{child.text}}`);
+        lines.push(`### ${child.text}`);
         lines.push('');
-        (child.children || []).forEach(b => {{
-          lines.push(`- ${{b.text}} [${{b.tag}}]`);
-        }});
-      }} else if (child.type === 'bullet') {{
-        lines.push(`- ${{child.text}} [${{child.tag}}]`);
-      }}
-    }});
-  }});
+        (child.children || []).forEach(b => {
+          lines.push(`- ${b.text} [${b.tag}]`);
+        });
+      } else if (child.type === 'bullet') {
+        lines.push(`- ${child.text} [${child.tag}]`);
+      }
+    });
+  });
 
   lines.push('');
   lines.push('---');
   lines.push('');
   lines.push('_This file is yours to evolve. As you learn who you are, update it._');
   return lines.join('\\n');
-}}
+}
 
-function saveSoul() {{
+function saveSoul() {
   const content = reconstructSoulMd();
   const toast = document.getElementById('save-toast');
 
   // Try server-side save first (works in --serve mode)
-  fetch('/save-soul', {{
+  fetch('/save-soul', {
     method: 'POST',
-    headers: {{ 'Content-Type': 'text/markdown' }},
+    headers: { 'Content-Type': 'text/markdown' },
     body: content
-  }})
-  .then(resp => {{
-    if (resp.ok) {{
+  })
+  .then(resp => {
+    if (resp.ok) {
       toast.textContent = '✓ SOUL.md saved to workspace';
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2500);
-    }} else {{
+    } else {
       throw new Error('Server save failed');
-    }}
-  }})
-  .catch(() => {{
+    }
+  })
+  .catch(() => {
     // Fallback: browser download (static HTML mode)
-    const blob = new Blob([content], {{ type: 'text/markdown' }});
+    const blob = new Blob([content], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -3614,40 +3798,40 @@ function saveSoul() {{
     toast.textContent = '✓ SOUL.md downloaded';
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 2500);
-  }});
-}}
+  });
+}
 
 // --- Timeline ---
 let currentStep = -1;
 let playing = false;
 let playInterval = null;
 
-function renderTimeline() {{
+function renderTimeline() {
   const changes = DATA.changes;
   const slider = document.getElementById('timeline-slider');
   slider.max = changes.length;
   slider.value = changes.length;
   currentStep = changes.length;
 
-  slider.oninput = () => {{
+  slider.oninput = () => {
     currentStep = parseInt(slider.value);
     updateTimelineView();
-  }};
+  };
 
   updateTimelineView();
-}}
+}
 
-function updateTimelineView() {{
+function updateTimelineView() {
   const changes = DATA.changes;
   const label = document.getElementById('timeline-label');
 
-  if (currentStep === 0) {{
+  if (currentStep === 0) {
     label.textContent = 'origin';
-  }} else if (currentStep <= changes.length) {{
+  } else if (currentStep <= changes.length) {
     const c = changes[currentStep - 1];
     const t = c.timestamp || '';
-    label.textContent = t.slice(11, 16) || `#${{currentStep}}`;
-  }}
+    label.textContent = t.slice(11, 16) || `#${currentStep}`;
+  }
 
   // Re-render soul map with visibility
   renderSoulTree(currentStep);
@@ -3657,20 +3841,20 @@ function updateTimelineView() {{
 
   // Update slider
   document.getElementById('timeline-slider').value = currentStep;
-}}
+}
 
-function renderChangesList(upTo) {{
+function renderChangesList(upTo) {
   const container = document.getElementById('changes-list');
   const changes = DATA.changes;
 
-  if (changes.length === 0) {{
+  if (changes.length === 0) {
     container.innerHTML = '<div class="empty-state">No soul changes yet. The soul is in its original state.</div>';
     return;
-  }}
+  }
 
   container.innerHTML = '';
   const visible = changes.slice(0, upTo);
-  visible.forEach((c, i) => {{
+  visible.forEach((c, i) => {
     const el = document.createElement('div');
     el.className = 'change-entry';
 
@@ -3681,82 +3865,82 @@ function renderChangesList(upTo) {{
     const cleanContent = content.replace(/\\s*\\[(CORE|MUTABLE)\\]\\s*/g, '').replace(/^- /, '');
 
     el.innerHTML = `
-      <div class="change-time">${{esc(time)}}</div>
-      <span class="change-type ${{esc(c.change_type)}}">${{esc(c.change_type)}}</span>
-      <div class="change-section">${{esc(section)}}</div>
-      <div class="change-content">${{esc(cleanContent)}}</div>
+      <div class="change-time">${esc(time)}</div>
+      <span class="change-type ${esc(c.change_type)}">${esc(c.change_type)}</span>
+      <div class="change-section">${esc(section)}</div>
+      <div class="change-content">${esc(cleanContent)}</div>
     `;
 
     container.appendChild(el);
     setTimeout(() => el.classList.add('visible'), 60 * i);
-  }});
+  });
 
-  if (upTo === 0) {{
+  if (upTo === 0) {
     container.innerHTML = '<div class="empty-state">⟲ Origin state — no changes applied yet</div>';
-  }}
-}}
+  }
+}
 
 // --- Play / Reset ---
-document.getElementById('btn-play').onclick = () => {{
-  if (playing) {{
+document.getElementById('btn-play').onclick = () => {
+  if (playing) {
     clearInterval(playInterval);
     playing = false;
     document.getElementById('btn-play').textContent = '▶';
     document.getElementById('btn-play').classList.remove('active');
     return;
-  }}
+  }
   playing = true;
   document.getElementById('btn-play').textContent = '⏸';
   document.getElementById('btn-play').classList.add('active');
   currentStep = 0;
   updateTimelineView();
 
-  playInterval = setInterval(() => {{
+  playInterval = setInterval(() => {
     currentStep++;
-    if (currentStep > DATA.changes.length) {{
+    if (currentStep > DATA.changes.length) {
       clearInterval(playInterval);
       playing = false;
       document.getElementById('btn-play').textContent = '▶';
       document.getElementById('btn-play').classList.remove('active');
       return;
-    }}
+    }
     updateTimelineView();
     // Highlight the newly revealed bullet
     const change = DATA.changes[currentStep - 1];
-    if (change && change.after) {{
+    if (change && change.after) {
       const match = allBulletEls.find(b => b.raw.trim() === change.after.trim());
-      if (match) {{
+      if (match) {
         match.el.classList.remove('is-new');
         match.el.classList.add('revealed');
         match.el.classList.add('highlight-enter');
-        match.el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
-      }}
-    }}
-  }}, 1800);
-}};
+        match.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, 1800);
+};
 
-document.getElementById('btn-reset').onclick = () => {{
-  if (playing) {{
+document.getElementById('btn-reset').onclick = () => {
+  if (playing) {
     clearInterval(playInterval);
     playing = false;
     document.getElementById('btn-play').textContent = '▶';
     document.getElementById('btn-play').classList.remove('active');
-  }}
+  }
   currentStep = 0;
   updateTimelineView();
-}};
+};
 
 // --- Experience Feed ---
-function renderFeed() {{
+function renderFeed() {
   const container = document.getElementById('exp-feed');
   const exps = DATA.experiences.slice().reverse();
 
-  if (exps.length === 0) {{
+  if (exps.length === 0) {
     container.innerHTML = '<div class="empty-state">No experiences logged yet.</div>';
     return;
-  }}
+  }
 
-  container.innerHTML = exps.map(e => {{
+  container.innerHTML = exps.map(e => {
     const t = (e.timestamp || '').slice(11, 16);
     const sourceClass = (e.source || '').toLowerCase();
     const sigClass = (e.significance || '').toLowerCase();
@@ -3764,219 +3948,219 @@ function renderFeed() {{
     return `
       <div class="exp-entry">
         <div class="exp-meta">
-          <span class="exp-source ${{esc(sourceClass)}}">${{esc(e.source)}}</span>
-          <span class="exp-sig ${{esc(sigClass)}}">${{esc(e.significance)}}</span>
-          <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${{esc(t)}}</span>
+          <span class="exp-source ${esc(sourceClass)}">${esc(e.source)}</span>
+          <span class="exp-sig ${esc(sigClass)}">${esc(e.significance)}</span>
+          <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${esc(t)}</span>
         </div>
-        <div class="exp-content">${{esc(content)}}</div>
+        <div class="exp-content">${esc(content)}</div>
       </div>
     `;
-  }}).join('');
-}}
+  }).join('');
+}
 
 // --- Vitals Dashboard ---
-function vitalColor(value, key) {{
-  if (key === 'energy') {{
+function vitalColor(value, key) {
+  if (key === 'energy') {
     if (value < 10) return '#e05050';
     if (value < 30) return '#f0a050';
     if (value < 60) return '#e0d050';
     return '#50c878';
-  }}
+  }
   if (value > 90) return '#e05050';
   if (value > 70) return '#f0a050';
   if (value > 40) return '#e0d050';
   return '#50c878';
-}}
+}
 
-  function renderVitals() {{
+  function renderVitals() {
     const ph = DATA.physique;
     const grid = document.getElementById('vitals-grid');
     const meta = document.getElementById('vitals-meta');
 
-    if (!ph || !ph.needs) {{
+    if (!ph || !ph.needs) {
       grid.innerHTML = '<div class="empty-state">No vitals data available.</div>';
       return;
-    }}
+    }
 
     const needKeys = ['energy', 'hunger', 'thirst', 'bladder', 'bowel', 'hygiene', 'stress', 'arousal'];
-    grid.innerHTML = needKeys.map(k => {{
+    grid.innerHTML = needKeys.map(k => {
       const v = ph.needs[k] ?? 0;
       const color = vitalColor(v, k);
       return `
         <div class="vital-row">
-          <span class="vital-label">${{k}}</span>
+          <span class="vital-label">${k}</span>
           <div class="vital-bar-bg">
-            <div class="vital-bar" style="width:${{v}}%;background:${{color}}"></div>
+            <div class="vital-bar" style="width:${v}%;background:${color}"></div>
           </div>
-          <span class="vital-value">${{v}}</span>
+          <span class="vital-value">${v}</span>
         </div>
       `;
-    }}).join('');
+    }).join('');
 
     const metaLines = [];
-    if (ph.current_location) metaLines.push(`<span>📍 ${{esc(ph.current_location)}}</span>`);
-    if (ph.current_outfit && ph.current_outfit.length) metaLines.push(`<span>👔 ${{esc(ph.current_outfit.join(', '))}}</span>`);
-    if (ph.last_tick) metaLines.push(`<span>⏱ ${{esc(ph.last_tick.slice(0, 19).replace('T', ' '))}}</span>`);
+    if (ph.current_location) metaLines.push(`<span>📍 ${esc(ph.current_location)}</span>`);
+    if (ph.current_outfit && ph.current_outfit.length) metaLines.push(`<span>👔 ${esc(ph.current_outfit.join(', '))}</span>`);
+    if (ph.last_tick) metaLines.push(`<span>⏱ ${esc(ph.last_tick.slice(0, 19).replace('T', ' '))}</span>`);
     meta.innerHTML = metaLines.join('');
-  }}
+  }
 
   // --- Mental Activity & Ticker ---
-  function renderMentalActivity() {{
+  function renderMentalActivity() {
     const container = document.getElementById('mental-activity-list');
-    const news = DATA.news || {{}};
-    const comms = DATA.internal_comm || {{}};
+    const news = DATA.news || {};
+    const comms = DATA.internal_comm || {};
     const refs = DATA.reflections || [];
-    const social = DATA.social_events || {{ pending: [] }};
+    const social = DATA.social_events || { pending: [] };
     
     let html = '';
 
     // 1. Incoming Social Message (Phase 12)
     const activeSocial = social.pending.find(e => !e.processed);
-    if (activeSocial) {{
+    if (activeSocial) {
       html += `
         <div class="mental-card" style="border-left-color: #f0a050;">
-          <span class="mental-label">Incoming Message from ${{esc(activeSocial.sender_name)}}</span>
-          <div class="mental-content">"${{esc(activeSocial.message)}}"</div>
-          <span class="mental-sub">${{new Date(activeSocial.timestamp).toLocaleTimeString()}}</span>
+          <span class="mental-label">Incoming Message from ${esc(activeSocial.sender_name)}</span>
+          <div class="mental-content">"${esc(activeSocial.message)}"</div>
+          <span class="mental-sub">${new Date(activeSocial.timestamp).toLocaleTimeString()}</span>
         </div>
       `;
-    }}
+    }
 
     // 2. Current Thought (from latest Limbic memo or Reflection)
     const latestMemo = (comms.memos || []).find(m => m.sender === 'limbic' && m.type === 'emotion');
     const latestRef = refs[refs.length - 1];
     
-    if (latestMemo) {{
+    if (latestMemo) {
       html += `
         <div class="mental-card">
           <span class="mental-label">Inner Voice (Limbic)</span>
-          <div class="mental-content">"${{esc(latestMemo.content)}}"</div>
-          <span class="mental-sub">${{new Date(latestMemo.timestamp).toLocaleTimeString()}}</span>
+          <div class="mental-content">"${esc(latestMemo.content)}"</div>
+          <span class="mental-sub">${new Date(latestMemo.timestamp).toLocaleTimeString()}</span>
         </div>
       `;
-    }} else if (latestRef) {{
+    } else if (latestRef) {
       html += `
         <div class="mental-card">
           <span class="mental-label">Current Reflection</span>
-          <div class="mental-content">${{esc(latestRef.summary || latestRef.reflection_summary || '')}}</div>
+          <div class="mental-content">${esc(latestRef.summary || latestRef.reflection_summary || '')}</div>
         </div>
       `;
-    }}
+    }
 
     // 2. Recent Web Research
     const history = news.browsing_history || [];
-    if (history.length > 0) {{
+    if (history.length > 0) {
       const last = history[0];
       let snapHtml = '';
-      if (last.screenshot) {{
+      if (last.screenshot) {
         // Extract filename from absolute path for media endpoint
         const filename = last.screenshot.split('/').pop();
-        snapHtml = `<img src="/media/browser_snapshots/${{filename}}" class="browser-snap" onclick="window.open(this.src)">`;
-      }}
+        snapHtml = `<img src="/media/browser_snapshots/${filename}" class="browser-snap" onclick="window.open(this.src)">`;
+      }
       html += `
         <div class="mental-card" style="border-left-color: var(--growth);">
           <span class="mental-label">Web Research</span>
-          <div class="mental-content">Searching for: <strong>${{esc(last.query)}}</strong></div>
-          ${{snapHtml}}
-          <span class="mental-sub">${{new Date(last.timestamp).toLocaleTimeString()}}</span>
+          <div class="mental-content">Searching for: <strong>${esc(last.query)}</strong></div>
+          ${snapHtml}
+          <span class="mental-sub">${new Date(last.timestamp).toLocaleTimeString()}</span>
         </div>
       `;
-    }}
+    }
 
-    if (!html) {{
+    if (!html) {
       html = '<div class="empty-state">Observing cognitive processes...</div>';
-    }}
+    }
     container.innerHTML = html;
 
     // Update Ticker
     const ticker = document.getElementById('ticker-content');
     const headlines = news.headlines || [];
-    if (headlines.length > 0) {{
+    if (headlines.length > 0) {
       ticker.innerHTML = headlines.map(h => `
-        <div class="ticker-item">[${{h.category.toUpperCase()}}] ${{esc(h.title)}}</div>
+        <div class="ticker-item">[${h.category.toUpperCase()}] ${esc(h.title)}</div>
       `).join('') + headlines.map(h => `
-        <div class="ticker-item">[${{h.category.toUpperCase()}}] ${{esc(h.title)}}</div>
+        <div class="ticker-item">[${h.category.toUpperCase()}] ${esc(h.title)}</div>
       `).join(''); // Duplicate for seamless loop
-    }}
+    }
 
     // Update Status Text
     const statusText = document.getElementById('status-text');
-    if (history.length > 0 && (new Date() - new Date(history[0].timestamp)) < 300000) {{
+    if (history.length > 0 && (new Date() - new Date(history[0].timestamp)) < 300000) {
       statusText.textContent = 'Autonomous Web Research Active';
       statusText.style.color = 'var(--growth)';
-    }} else if (latestMemo) {{
+    } else if (latestMemo) {
       statusText.textContent = 'Processing Internal Narrative';
       statusText.style.color = 'var(--accent)';
-    }} else {{
+    } else {
       statusText.textContent = 'Cognitive System Synchronized';
       statusText.style.color = 'var(--text-dim)';
-    }}
-  }}
+    }
+  }
 // --- Proposals ---
-function renderProposals() {{
+function renderProposals() {
   const list = document.getElementById('proposals-list');
   const count = document.getElementById('proposals-count');
   const pending = DATA.proposals_pending || [];
 
-  count.textContent = pending.length > 0 ? `(${{pending.length}})` : '';
+  count.textContent = pending.length > 0 ? `(${pending.length})` : '';
 
-  if (pending.length === 0) {{
+  if (pending.length === 0) {
     list.innerHTML = '<div class="empty-state">No pending proposals.</div>';
     return;
-  }}
+  }
 
-  list.innerHTML = pending.map((p, i) => {{
+  list.innerHTML = pending.map((p, i) => {
     const changeType = (p.change_type || p.type || 'modify').toLowerCase();
     return `
-      <div class="proposal-card" id="proposal-${{i}}">
+      <div class="proposal-card" id="proposal-${i}">
         <div class="proposal-header">
-          <span class="proposal-id">${{esc(p.id || 'PROP-' + i)}}</span>
-          <span class="proposal-type ${{esc(changeType)}}">${{esc(changeType)}}</span>
+          <span class="proposal-id">${esc(p.id || 'PROP-' + i)}</span>
+          <span class="proposal-type ${esc(changeType)}">${esc(changeType)}</span>
         </div>
-        <div class="proposal-section">${{esc(p.section || '')}} ${{p.subsection ? '› ' + esc(p.subsection) : ''}}</div>
-        <div class="proposal-content">${{esc(p.content || p.after || p.proposed || '')}}</div>
-        <div class="proposal-reason">${{esc(p.reason || p.rationale || '')}}</div>
+        <div class="proposal-section">${esc(p.section || '')} ${p.subsection ? '› ' + esc(p.subsection) : ''}</div>
+        <div class="proposal-content">${esc(p.content || p.after || p.proposed || '')}</div>
+        <div class="proposal-reason">${esc(p.reason || p.rationale || '')}</div>
         <div class="proposal-actions">
-          <button class="btn-approve" onclick="resolveProposal(${{i}}, 'approved')">Approve</button>
-          <button class="btn-reject" onclick="resolveProposal(${{i}}, 'rejected')">Reject</button>
+          <button class="btn-approve" onclick="resolveProposal(${i}, 'approved')">Approve</button>
+          <button class="btn-reject" onclick="resolveProposal(${i}, 'rejected')">Reject</button>
         </div>
       </div>
     `;
-  }}).join('');
-}}
+  }).join('');
+}
 
-function resolveProposal(index, decision) {{
-  fetch('/resolve-proposal', {{
+function resolveProposal(index, decision) {
+  fetch('/resolve-proposal', {
     method: 'POST',
-    headers: {{ 'Content-Type': 'application/json' }},
-    body: JSON.stringify({{ index, decision }})
-  }})
-  .then(r => {{
-    if (r.ok) {{
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ index, decision })
+  })
+  .then(r => {
+    if (r.ok) {
       const card = document.getElementById('proposal-' + index);
       if (card) card.style.display = 'none';
       const toast = document.getElementById('save-toast');
       toast.textContent = '✓ Proposal ' + decision;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2500);
-    }} else {{
+    } else {
       alert('Failed to resolve proposal. Is server running?');
-    }}
-  }})
+    }
+  })
   .catch(() => alert('Server not reachable. Proposals can only be resolved in --serve mode.'));
-}}
+}
 
 // --- Reflections ---
-function renderReflections() {{
+function renderReflections() {
   const list = document.getElementById('reflections-list');
   const refs = (DATA.reflections || []).slice().reverse();
 
-  if (refs.length === 0) {{
+  if (refs.length === 0) {
     list.innerHTML = '<div class="empty-state">No reflections yet.</div>';
     return;
-  }}
+  }
 
-  list.innerHTML = refs.slice(0, 20).map((r, i) => {{
+  list.innerHTML = refs.slice(0, 20).map((r, i) => {
     const summary = r.summary || r.reflection_summary || '';
     const insights = r.insights || r.key_insights || [];
     const refType = r.type || r.reflection_type || 'batch';
@@ -3984,80 +4168,89 @@ function renderReflections() {{
     return `
       <div class="reflection-card collapsed">
         <div class="reflection-header" onclick="this.parentElement.classList.toggle('collapsed')">
-          <span class="ref-type">${{esc(refType)}}</span>
-          <span style="color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${{esc(summary.slice(0, 80))}}</span>
+          <span class="ref-type">${esc(refType)}</span>
+          <span style="color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(summary.slice(0, 80))}</span>
           <span class="ref-arrow">▼</span>
         </div>
         <div class="reflection-body">
-          <div>${{esc(summary)}}</div>
-          ${{insights.length > 0 ? '<ul class="ref-insights">' + insights.map(ins => '<li>' + esc(typeof ins === 'string' ? ins : (ins.insight || JSON.stringify(ins))) + '</li>').join('') + '</ul>' : ''}}
-          ${{proposalDecision ? '<div style="margin-top:0.4rem;font-size:0.68rem;color:var(--accent)">Proposals: ' + esc(String(proposalDecision)) + '</div>' : ''}}
+          <div>${esc(summary)}</div>
+          ${insights.length > 0 ? '<ul class="ref-insights">' + insights.map(ins => '<li>' + esc(typeof ins === 'string' ? ins : (ins.insight || JSON.stringify(ins))) + '</li>').join('') + '</ul>' : ''}
+          ${proposalDecision ? `<div style="margin-top:0.4rem;font-size:0.68rem;color:var(--accent)">Proposals: ${esc(String(proposalDecision))}</div>` : ''}
         </div>
       </div>
     `;
-  }}).join('');
-}}
+  }).join('');
+}
 
 // --- Significant Memories ---
-function renderSignificant() {{
+function renderSignificant() {
   const list = document.getElementById('significant-list');
   const sigs = (DATA.significant || []).slice().reverse();
 
-  if (sigs.length === 0) {{
+  if (sigs.length === 0) {
     list.innerHTML = '<div class="empty-state">No significant memories yet.</div>';
     return;
-  }}
+  }
 
-  list.innerHTML = sigs.map(s => {{
+  list.innerHTML = sigs.map(s => {
     const sig = s.significance || 'notable';
     const content = s.content || s.summary || '';
     const context = s.context || s.significance_reason || '';
     return `
       <div class="sig-entry">
         <div class="exp-meta">
-          <span class="sig-badge">${{esc(sig)}}</span>
-          <span style="font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${{esc(s.id || '')}}</span>
-          <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${{esc((s.timestamp || '').slice(0, 16).replace('T', ' '))}}</span>
+          <span class="sig-badge">${esc(sig)}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${esc(s.id || '')}</span>
+          <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim)">${esc((s.timestamp || '').slice(0, 16).replace('T', ' '))}</span>
         </div>
-        <div class="sig-content">${{esc(content.slice(0, 200))}}</div>
-        ${{context ? '<div class="sig-context">' + esc(context) + '</div>' : ''}}
+        <div class="sig-content">${esc(content.slice(0, 200))}</div>
+        ${context ? '<div class="sig-context">' + esc(context) + '</div>' : ''}
       </div>
     `;
-  }}).join('');
-}}
+  }).join('');
+}
 
 // --- Pipeline State ---
-function renderPipelineState() {{
+function renderPipelineState() {
   const cards = document.getElementById('state-cards');
   const runs = document.getElementById('pipeline-runs');
-  const state = DATA.state || {{}};
+  const state = DATA.state || {};
   const pipeline = DATA.pipeline || [];
 
   const stateEntries = Object.entries(state);
-  if (stateEntries.length === 0 && pipeline.length === 0) {{
+  if (stateEntries.length === 0 && pipeline.length === 0) {
     cards.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No pipeline state yet.</div>';
     return;
-  }}
+  }
 
-  cards.innerHTML = stateEntries.map(([k, v]) => {{
+  cards.innerHTML = stateEntries.map(([k, v]) => {
     const display = typeof v === 'object' ? JSON.stringify(v) : String(v);
     return `
       <div class="state-card">
-        <div class="sc-value">${{esc(display.length > 12 ? display.slice(0, 12) + '…' : display)}}</div>
-        <div class="sc-label">${{esc(k.replace(/_/g, ' '))}}</div>
+        <div class="sc-value">${esc(display.length > 12 ? display.slice(0, 12) + '…' : display)}</div>
+        <div class="sc-label">${esc(k.replace(/_/g, ' '))}</div>
       </div>
     `;
-  }}).join('');
+  }).join('');
 
-  if (pipeline.length > 0) {{
-    runs.innerHTML = '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.7rem;color:var(--text-dim);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.08em">Recent Runs</div>' +
-      pipeline.slice(-10).reverse().map(p => {{
+  if (pipeline.length > 0) {
+    runs.innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text-dim);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.08em">Recent Runs</div>` +
+      pipeline.slice(-10).reverse().map(p => {
         const ts = (p.timestamp || p.completed_at || '').slice(0, 16).replace('T', ' ');
         const status = p.status || p.result || 'done';
-        return `<div class="pipeline-run">${{esc(ts)}} — ${{esc(status)}}</div>`;
-      }}).join('');
-  }}
-}}
+        return `<div class="pipeline-run">${esc(ts)} — ${esc(status)}</div>`;
+      }).join('');
+  }
+}
+
+function updateClock() {
+  const el = document.getElementById('clock');
+  if (el) {
+    el.textContent = new Date().toLocaleTimeString();
+  }
+}
+setInterval(updateClock, 1000);
+updateClock();
 
   // --- Init ---
   renderAgentName();
@@ -4076,13 +4269,13 @@ renderReflections();
   renderPipelineState();
 
   // Auto-refresh Dashboard every 30s
-  setInterval(() => {{
-    if (document.getElementById('tab-dashboard').classList.contains('active')) {{
+  setInterval(() => {
+    if (document.getElementById('tab-dashboard').classList.contains('active')) {
       location.reload();
-    }}
-  }}, 30000);
+    }
+  }, 30000);
 // --- Notifications ---
-function showToast(message, type = 'info') {{
+function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   if (!container) return;
   
@@ -4093,307 +4286,308 @@ function showToast(message, type = 'info') {{
   
   container.appendChild(toast);
   
-  setTimeout(() => {{
+  setTimeout(() => {
     toast.style.animation = 'slideIn 0.3s ease-in reverse forwards';
     setTimeout(() => toast.remove(), 300);
-  }}, 5000);
-}}
+  }, 5000);
+}
 
 // ---------------------------------------------------------------------------
 // Tab Navigation
 // ---------------------------------------------------------------------------
-function switchTab(tabId) {{
+function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   const el = document.getElementById('tab-' + tabId);
   if (el) el.classList.add('active');
-  document.querySelectorAll('.tab-btn').forEach(b => {{
+  document.querySelectorAll('.tab-btn').forEach(b => {
     if (b.textContent.toLowerCase().trim() === tabId) b.classList.add('active');
-  }});
-  if (tabId === 'interior' && !window._interiorRendered) {{ renderInterior(); window._interiorRendered = true; }}
-  if (tabId === 'inventory' && !window._inventoryRendered) {{ renderInventoryPanel(); window._inventoryRendered = true; }}
-  if (tabId === 'wardrobe' && !window._wardrobeRendered) {{ renderWardrobePanel(); window._wardrobeRendered = true; }}
-  if (tabId === 'development' && !window._devRendered) {{ renderDevPanel(); window._devRendered = true; }}
-  if (tabId === 'development') {{ loadExpansionState(); loadProjectsList(); }}
-  if (tabId === 'cycle' && !window._cycleRendered) {{ renderCyclePanel(); window._cycleRendered = true; }}
-  if (tabId === 'world' && !window._worldRendered) {{ renderWorldPanel(); window._worldRendered = true; }}
-  if (tabId === 'skills' && !window._skillsRendered) {{ renderSkillsPanel(); window._skillsRendered = true; }}
-  if (tabId === 'psychology' && !window._psychRendered) {{ renderPsychPanel(); window._psychRendered = true; }}
-  if (tabId === 'reputation' && !window._repRendered) {{ renderReputationPanel(); loadContactCRM(); loadPendingSocialEvents(); window._repRendered = true; }}
-  if (tabId === 'reputation') {{ loadPendingSocialEvents(); }}
-  if (tabId === 'stream' && !window._streamRendered) {{ renderPhotoStream(); window._streamRendered = true; }}
-  if (tabId === 'genesis' && !window._genesisRendered) {{ window._genesisRendered = true; loadGenesisStatus(); loadConfigs(); }}
-  if (tabId === 'genesis') {{ refreshSpatialState(); }}
-  if (tabId === 'vault' && !window._vaultRendered) {{ window._vaultRendered = true; loadVaultData(); }}
-}}
+  });
+  if (tabId === 'interior' && !window._interiorRendered) { renderInterior(); window._interiorRendered = true; }
+  if (tabId === 'inventory' && !window._inventoryRendered) { renderInventoryPanel(); window._inventoryRendered = true; }
+  if (tabId === 'wardrobe' && !window._wardrobeRendered) { renderWardrobePanel(); window._wardrobeRendered = true; }
+  if (tabId === 'development' && !window._devRendered) { renderDevPanel(); window._devRendered = true; }
+  if (tabId === 'development') { loadExpansionState(); loadProjectsList(); }
+  if (tabId === 'cycle' && !window._cycleRendered) { renderCyclePanel(); window._cycleRendered = true; }
+  if (tabId === 'world' && !window._worldRendered) { renderWorldPanel(); window._worldRendered = true; }
+  if (tabId === 'skills' && !window._skillsRendered) { renderSkillsPanel(); window._skillsRendered = true; }
+  if (tabId === 'psychology' && !window._psychRendered) { renderPsychPanel(); window._psychRendered = true; }
+  if (tabId === 'reputation' && !window._repRendered) { renderReputationPanel(); loadContactCRM(); loadPendingSocialEvents(); window._repRendered = true; }
+  if (tabId === 'reputation') { loadPendingSocialEvents(); }
+  if (tabId === 'stream' && !window._streamRendered) { renderPhotoStream(); window._streamRendered = true; }
+  if (tabId === 'genesis' && !window._genesisRendered) { window._genesisRendered = true; loadGenesisStatus(); loadConfigs(); }
+  if (tabId === 'genesis') { refreshSpatialState(); }
+  if (tabId === 'vault' && !window._vaultRendered) { window._vaultRendered = true; loadVaultData(); }
+  if (tabId === 'diagnostics') { loadDiagnostics(); }
+}
 
 // ---------------------------------------------------------------------------
 // Modal system (replaces prompt())
 // ---------------------------------------------------------------------------
 let _modalResolve = null;
 
-function openModal(title, fields) {{
-  return new Promise(resolve => {{
+function openModal(title, fields) {
+  return new Promise(resolve => {
     _modalResolve = resolve;
     document.getElementById('modal-title').textContent = title;
     const container = document.getElementById('modal-fields');
-    container.innerHTML = fields.map(f => {{
-      if (f.type === 'select') {{
-        const opts = f.options.map(o => `<option value="${{o}}">${{o}}</option>`).join('');
-        return `<div class="modal-field"><label>${{f.label}}</label><select id="mf-${{f.key}}">${{opts}}</select></div>`;
-      }}
-      return `<div class="modal-field"><label>${{f.label}}</label><input id="mf-${{f.key}}" type="${{f.type||'text'}}" value="${{f.default||''}}" placeholder="${{f.placeholder||''}}"></div>`;
-    }}).join('');
-    document.getElementById('modal-ok').onclick = () => {{
-      const result = {{}};
-      fields.forEach(f => {{ result[f.key] = document.getElementById('mf-' + f.key).value; }});
+    container.innerHTML = fields.map(f => {
+      if (f.type === 'select') {
+        const opts = f.options.map(o => `<option value="${o}">${o}</option>`).join('');
+        return `<div class="modal-field"><label>${f.label}</label><select id="mf-${f.key}">${opts}</select></div>`;
+      }
+      return `<div class="modal-field"><label>${f.label}</label><input id="mf-${f.key}" type="${f.type||'text'}" value="${f.default||''}" placeholder="${f.placeholder||''}"></div>`;
+    }).join('');
+    document.getElementById('modal-ok').onclick = () => {
+      const result = {};
+      fields.forEach(f => { result[f.key] = document.getElementById('mf-' + f.key).value; });
       closeModal();
       resolve(result);
-    }};
+    };
     document.getElementById('modal-overlay').classList.add('open');
     // Focus first field
     const first = container.querySelector('input, select');
     if (first) setTimeout(() => first.focus(), 100);
-  }});
-}}
+  });
+}
 
-function closeModal() {{
+function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
-  if (_modalResolve) {{ _modalResolve(null); _modalResolve = null; }}
-}}
+  if (_modalResolve) { _modalResolve(null); _modalResolve = null; }
+}
 
 // ---------------------------------------------------------------------------
 // Lightbox
 // ---------------------------------------------------------------------------
-let _lightboxCtx = {{ category: '', itemId: '', images: [], currentIdx: 0 }};
+let _lightboxCtx = { category: '', itemId: '', images: [], currentIdx: 0 };
 
-function openLightbox(category, itemId, images, startIdx) {{
-  _lightboxCtx = {{ category, itemId, images: images || [], currentIdx: startIdx || 0 }};
+function openLightbox(category, itemId, images, startIdx) {
+  _lightboxCtx = { category, itemId, images: images || [], currentIdx: startIdx || 0 };
   document.getElementById('lightbox').classList.add('open');
   renderLightbox();
-}}
+}
 
-function closeLightbox() {{
+function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
-}}
+}
 
 // Escape key closes lightbox and modal
-document.addEventListener('keydown', e => {{
-  if (e.key === 'Escape') {{
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
     if (document.getElementById('lightbox').classList.contains('open')) closeLightbox();
     else if (document.getElementById('modal-overlay').classList.contains('open')) closeModal();
-  }}
-}});
+  }
+});
 
-function renderLightbox() {{
+function renderLightbox() {
   const main = document.getElementById('lightbox-main');
   const gallery = document.getElementById('lightbox-gallery');
-  if (_lightboxCtx.images.length === 0) {{
+  if (_lightboxCtx.images.length === 0) {
     main.src = '';
     main.alt = 'No images';
     gallery.innerHTML = '<span style="color:var(--text-dim);font-size:0.8rem;">No images yet — drop an image or click Upload</span>';
     return;
-  }}
+  }
   const current = _lightboxCtx.images[_lightboxCtx.currentIdx] || _lightboxCtx.images[0];
   main.src = '/' + current;
   gallery.innerHTML = _lightboxCtx.images.map((img, i) =>
-    `<img src="/${{img}}" class="${{i === _lightboxCtx.currentIdx ? 'active' : ''}}" onclick="_lightboxCtx.currentIdx=${{i}};renderLightbox();">`
+    `<img src="/${img}" class="${i === _lightboxCtx.currentIdx ? 'active' : ''}" onclick="_lightboxCtx.currentIdx=${i};renderLightbox();">`
   ).join('');
-}}
+}
 
-function doUpload(file) {{
+function doUpload(file) {
   if (!file || !file.type.startsWith('image/')) return;
   const reader = new FileReader();
-  reader.onload = function(e) {{
+  reader.onload = function(e) {
     const b64 = e.target.result.split(',')[1];
-    fetch('/upload-image', {{
+    fetch('/upload-image', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         category: _lightboxCtx.category,
         item_id: _lightboxCtx.itemId,
         filename: file.name,
         data: b64,
-      }})
-    }}).then(r => r.json()).then(res => {{
+      })
+    }).then(r => r.json()).then(res => {
       _lightboxCtx.images.push(res.path);
       _lightboxCtx.currentIdx = _lightboxCtx.images.length - 1;
       renderLightbox();
       refreshPanel(_lightboxCtx.category);
       showToast('Image uploaded', 'success');
-    }}).catch(err => showToast('Upload failed: ' + err, 'error'));
-  }};
+    }).catch(err => showToast('Upload failed: ' + err, 'error'));
+  };
   reader.readAsDataURL(file);
-}}
+}
 
-function uploadLightboxImage(event) {{
+function uploadLightboxImage(event) {
   doUpload(event.target.files[0]);
   event.target.value = '';
-}}
+}
 
 // Drag-and-drop on lightbox dropzone
-(function() {{
+(function() {
   const dz = document.getElementById('lightbox-dropzone');
   if (!dz) return;
-  dz.addEventListener('dragover', e => {{ e.preventDefault(); dz.classList.add('dragover'); }});
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
-  dz.addEventListener('drop', e => {{
+  dz.addEventListener('drop', e => {
     e.preventDefault();
     dz.classList.remove('dragover');
     if (e.dataTransfer.files.length > 0) doUpload(e.dataTransfer.files[0]);
-  }});
-}})();
+  });
+})();
 
-function deleteLightboxImage() {{
+function deleteLightboxImage() {
   if (_lightboxCtx.images.length === 0) return;
   const path = _lightboxCtx.images[_lightboxCtx.currentIdx];
   if (!confirm('Delete this image?')) return;
-  fetch('/delete-image', {{
+  fetch('/delete-image', {
     method: 'POST',
-    headers: {{ 'Content-Type': 'application/json' }},
-    body: JSON.stringify({{ category: _lightboxCtx.category, item_id: _lightboxCtx.itemId, path: path }})
-  }}).then(() => {{
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category: _lightboxCtx.category, item_id: _lightboxCtx.itemId, path: path })
+  }).then(() => {
     _lightboxCtx.images.splice(_lightboxCtx.currentIdx, 1);
     if (_lightboxCtx.currentIdx >= _lightboxCtx.images.length) _lightboxCtx.currentIdx = Math.max(0, _lightboxCtx.images.length - 1);
     renderLightbox();
     refreshPanel(_lightboxCtx.category);
     showToast('Image deleted', 'success');
-  }}).catch(err => showToast('Delete failed: ' + err, 'error'));
-}}
+  }).catch(err => showToast('Delete failed: ' + err, 'error'));
+}
 
-function refreshPanel(category) {{
-  if (category === 'interior') {{ window._interiorRendered = false; renderInterior(); window._interiorRendered = true; }}
-  if (category === 'inventory') {{ window._inventoryRendered = false; renderInventoryPanel(); window._inventoryRendered = true; }}
-  if (category === 'wardrobe') {{ window._wardrobeRendered = false; renderWardrobePanel(); window._wardrobeRendered = true; }}
-}}
+function refreshPanel(category) {
+  if (category === 'interior') { window._interiorRendered = false; renderInterior(); window._interiorRendered = true; }
+  if (category === 'inventory') { window._inventoryRendered = false; renderInventoryPanel(); window._inventoryRendered = true; }
+  if (category === 'wardrobe') { window._wardrobeRendered = false; renderWardrobePanel(); window._wardrobeRendered = true; }
+}
 
 // Delete all images for an item (orphan cleanup)
-function deleteAllImages(category, itemId, images) {{
+function deleteAllImages(category, itemId, images) {
   if (!images || images.length === 0) return Promise.resolve();
   return Promise.all(images.map(path =>
-    fetch('/delete-image', {{
+    fetch('/delete-image', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ category, item_id: itemId, path }})
-    }}).catch(() => {{}})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category, item_id: itemId, path })
+    }).catch(() => {})
   ));
-}}
+}
 
 // ---------------------------------------------------------------------------
 // Interior Panel
 // ---------------------------------------------------------------------------
 let _currentRoom = null;
 
-function renderInterior() {{
-  const interior = DATA.interior || {{ rooms: [] }};
+function renderInterior() {
+  const interior = DATA.interior || { rooms: [] };
   const tabsEl = document.getElementById('room-tabs');
   const gridEl = document.getElementById('interior-grid');
   const detailEl = document.getElementById('interior-detail');
 
-  if (interior.rooms.length === 0) {{
+  if (interior.rooms.length === 0) {
     tabsEl.innerHTML = '';
     gridEl.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem;">No rooms yet. Add one to get started.</div>';
     detailEl.innerHTML = '';
     return;
-  }}
+  }
 
-  if (!_currentRoom || !interior.rooms.find(r => r.id === _currentRoom)) {{
+  if (!_currentRoom || !interior.rooms.find(r => r.id === _currentRoom)) {
     _currentRoom = interior.rooms[0].id;
-  }}
+  }
 
-  tabsEl.innerHTML = interior.rooms.map(r => {{
+  tabsEl.innerHTML = interior.rooms.map(r => {
     const cnt = r.objects ? r.objects.length : 0;
-    return `<button class="room-tab ${{r.id === _currentRoom ? 'active' : ''}}" onclick="_currentRoom='${{esc(r.id)}}';renderInterior();">${{esc(r.name)}} (${{cnt}})</button>`;
-  }}).join('') + `<button class="room-tab" style="color:var(--core);" onclick="removeRoom('${{esc(_currentRoom)}}')">- Remove</button>`;
+    return `<button class="room-tab ${r.id === _currentRoom ? 'active' : ''}" onclick="_currentRoom='${esc(r.id)}';renderInterior();">${esc(r.name)} (${cnt})</button>`;
+  }).join('') + `<button class="room-tab" style="color:var(--core);" onclick="removeRoom('${esc(_currentRoom)}')">- Remove</button>`;
 
   const room = interior.rooms.find(r => r.id === _currentRoom);
   if (!room) return;
 
-  detailEl.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.5rem;">${{esc(room.description || '')}}</div>
-    <button class="btn-crud" onclick="addObject('${{esc(room.id)}}')">+ Object</button>`;
+  detailEl.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.5rem;">${esc(room.description || '')}</div>
+    <button class="btn-crud" onclick="addObject('${esc(room.id)}')">+ Object</button>`;
 
   const topLevel = room.objects.filter(o => !o.located_on);
-  gridEl.innerHTML = topLevel.map(obj => {{
+  gridEl.innerHTML = topLevel.map(obj => {
     const thumb = obj.images && obj.images.length > 0
-      ? `<img src="/${{obj.images[0]}}" alt="${{esc(obj.name)}}">`
+      ? `<img src="/${obj.images[0]}" alt="${esc(obj.name)}">`
       : getCategoryIcon(obj.category);
     const subs = (obj.items_on || []).map(id => room.objects.find(o => o.id === id)).filter(Boolean);
     const subHtml = subs.length > 0
-      ? `<div style="font-size:0.65rem;color:var(--text-dim);margin-top:0.3rem;">Items: ${{subs.map(s => esc(s.name)).join(', ')}}</div>`
+      ? `<div style="font-size:0.65rem;color:var(--text-dim);margin-top:0.3rem;">Items: ${subs.map(s => esc(s.name)).join(', ')}</div>`
       : '';
-    return `<div class="item-card" onclick="openLightbox('interior','${{esc(obj.id)}}',${{JSON.stringify(obj.images||[])}},0)">
-      <div class="thumb">${{thumb}}</div>
-      <div class="card-name">${{esc(obj.name)}}</div>
-      <div class="card-meta">${{esc(obj.category)}}${{subHtml}}</div>
+    return `<div class="item-card" onclick="openLightbox('interior','${esc(obj.id)}',${JSON.stringify(obj.images||[])},0)">
+      <div class="thumb">${thumb}</div>
+      <div class="card-name">${esc(obj.name)}</div>
+      <div class="card-meta">${esc(obj.category)}${subHtml}</div>
       <div style="margin-top:0.4rem;display:flex;gap:0.3rem;">
-        <button class="btn-crud danger" onclick="event.stopPropagation();removeObject('${{esc(room.id)}}','${{esc(obj.id)}}')">Remove</button>
+        <button class="btn-crud danger" onclick="event.stopPropagation();removeObject('${esc(room.id)}','${esc(obj.id)}')">Remove</button>
       </div>
     </div>`;
-  }}).join('');
-}}
+  }).join('');
+}
 
-function esc(s) {{ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }}
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-function getCategoryIcon(cat) {{
-  const icons = {{ furniture: '🪑', electronics: '💻', decoration: '🎨', storage: '📦' }};
+function getCategoryIcon(cat) {
+  const icons = { furniture: '🪑', electronics: '💻', decoration: '🎨', storage: '📦' };
   return icons[cat] || '📦';
-}}
+}
 
-async function addRoom() {{
+async function addRoom() {
   const result = await openModal('Add Room', [
-    {{ key: 'name', label: 'Room Name', placeholder: 'e.g. Living Room' }},
-    {{ key: 'desc', label: 'Description (optional)', placeholder: '' }},
+    { key: 'name', label: 'Room Name', placeholder: 'e.g. Living Room' },
+    { key: 'desc', label: 'Description (optional)', placeholder: '' },
   ]);
   if (!result || !result.name) return;
-  const interior = DATA.interior || {{ rooms: [] }};
-  const newRoom = {{ id: 'room_' + Date.now().toString(36), name: result.name, description: result.desc || '', objects: [] }};
+  const interior = DATA.interior || { rooms: [] };
+  const newRoom = { id: 'room_' + Date.now().toString(36), name: result.name, description: result.desc || '', objects: [] };
   interior.rooms.push(newRoom);
   DATA.interior = interior;
   _currentRoom = newRoom.id;
   saveInterior();
   renderInterior();
-}}
+}
 
-function removeRoom(roomId) {{
+function removeRoom(roomId) {
   if (!confirm('Remove this room and all its objects?')) return;
-  const interior = DATA.interior || {{ rooms: [] }};
+  const interior = DATA.interior || { rooms: [] };
   const room = interior.rooms.find(r => r.id === roomId);
   // Cleanup orphaned images
-  if (room) {{
-    for (const obj of room.objects) {{
+  if (room) {
+    for (const obj of room.objects) {
       deleteAllImages('interior', obj.id, obj.images);
-    }}
-  }}
+    }
+  }
   interior.rooms = interior.rooms.filter(r => r.id !== roomId);
   DATA.interior = interior;
   _currentRoom = null;
   saveInterior();
   renderInterior();
-}}
+}
 
-async function addObject(roomId) {{
+async function addObject(roomId) {
   const result = await openModal('Add Object', [
-    {{ key: 'name', label: 'Object Name', placeholder: 'e.g. Desk' }},
-    {{ key: 'category', label: 'Category', type: 'select', options: ['furniture', 'electronics', 'decoration', 'storage', 'other'] }},
-    {{ key: 'desc', label: 'Description (optional)', placeholder: '' }},
+    { key: 'name', label: 'Object Name', placeholder: 'e.g. Desk' },
+    { key: 'category', label: 'Category', type: 'select', options: ['furniture', 'electronics', 'decoration', 'storage', 'other'] },
+    { key: 'desc', label: 'Description (optional)', placeholder: '' },
   ]);
   if (!result || !result.name) return;
-  const interior = DATA.interior || {{ rooms: [] }};
+  const interior = DATA.interior || { rooms: [] };
   const room = interior.rooms.find(r => r.id === roomId);
   if (!room) return;
-  room.objects.push({{
+  room.objects.push({
     id: 'obj_' + Date.now().toString(36),
     name: result.name, category: result.category || 'other', description: result.desc || '',
     images: [], added_at: new Date().toISOString()
-  }});
+  });
   DATA.interior = interior;
   saveInterior();
   renderInterior();
-}}
+}
 
-function removeObject(roomId, objId) {{
+function removeObject(roomId, objId) {
   if (!confirm('Remove this object?')) return;
-  const interior = DATA.interior || {{ rooms: [] }};
+  const interior = DATA.interior || { rooms: [] };
   const room = interior.rooms.find(r => r.id === roomId);
   if (!room) return;
   // Cleanup orphaned images
@@ -4403,42 +4597,42 @@ function removeObject(roomId, objId) {{
   DATA.interior = interior;
   saveInterior();
   renderInterior();
-}}
+}
 
-  function saveInterior() {{
-    fetch('/update-interior', {{
+  function saveInterior() {
+    fetch('/update-interior', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(DATA.interior)
-    }}).then(r => {{
+    }).then(r => {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       showToast('Interior saved', 'success');
-    }}).catch(err => showToast('Save failed: ' + err, 'error'));
-  }}
+    }).catch(err => showToast('Save failed: ' + err, 'error'));
+  }
 // ---------------------------------------------------------------------------
 // Inventory Panel
 // ---------------------------------------------------------------------------
 let _invCategoryFilter = 'all';
 
-function renderInventoryPanel() {{
-  const inv = DATA.inventory || {{ items: [], categories: [] }};
+function renderInventoryPanel() {
+  const inv = DATA.inventory || { items: [], categories: [] };
   const chipsEl = document.getElementById('inv-chips');
 
   const cats = ['all', ...(inv.categories || [])];
-  const countMap = {{}};
-  (inv.items || []).forEach(i => {{ countMap[i.category] = (countMap[i.category] || 0) + 1; }});
+  const countMap = {};
+  (inv.items || []).forEach(i => { countMap[i.category] = (countMap[i.category] || 0) + 1; });
   const totalCount = (inv.items || []).length;
 
-  chipsEl.innerHTML = cats.map(c => {{
+  chipsEl.innerHTML = cats.map(c => {
     const cnt = c === 'all' ? totalCount : (countMap[c] || 0);
-    return `<button class="chip ${{c === _invCategoryFilter ? 'active' : ''}}" onclick="_invCategoryFilter='${{c}}';renderInventoryPanel();">${{c}} (${{cnt}})</button>`;
-  }}).join('') + `<button class="btn-crud" style="margin-left:auto;" onclick="addInventoryItem()">+ Item</button>`;
+    return `<button class="chip ${c === _invCategoryFilter ? 'active' : ''}" onclick="_invCategoryFilter='${c}';renderInventoryPanel();">${c} (${cnt})</button>`;
+  }).join('') + `<button class="btn-crud" style="margin-left:auto;" onclick="addInventoryItem()">+ Item</button>`;
 
   filterInventory();
-}}
+}
 
-function filterInventory() {{
-  const inv = DATA.inventory || {{ items: [], categories: [] }};
+function filterInventory() {
+  const inv = DATA.inventory || { items: [], categories: [] };
   const query = (document.getElementById('inv-search')?.value || '').toLowerCase();
   const gridEl = document.getElementById('inventory-grid');
 
@@ -4450,54 +4644,54 @@ function filterInventory() {{
     (i.tags || []).some(t => t.toLowerCase().includes(query))
   );
 
-  if (items.length === 0) {{
+  if (items.length === 0) {
     gridEl.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem;">No items found.</div>';
     return;
-  }}
+  }
 
-  gridEl.innerHTML = items.map(item => {{
+  gridEl.innerHTML = items.map(item => {
     const thumb = item.images && item.images.length > 0
-      ? `<img src="/${{item.images[0]}}" alt="${{esc(item.name)}}">`
+      ? `<img src="/${item.images[0]}" alt="${esc(item.name)}">`
       : '📦';
-    const locBadge = item.location ? `<span style="font-size:0.6rem;background:var(--accent-glow);padding:0.1rem 0.4rem;border-radius:8px;color:var(--accent);">@ ${{esc(item.location)}}</span>` : '';
-    const tags = (item.tags || []).map(t => `<span style="font-size:0.55rem;background:var(--bg);padding:0.1rem 0.3rem;border-radius:4px;color:var(--text-dim);">${{esc(t)}}</span>`).join(' ');
-    return `<div class="item-card" onclick="openLightbox('inventory','${{item.id}}',${{JSON.stringify(item.images||[])}},0)">
-      <div class="thumb">${{thumb}}</div>
-      <div class="card-name">${{esc(item.name)}}</div>
-      <div class="card-meta">x${{item.quantity}} [${{esc(item.category)}}] ${{locBadge}}</div>
-      <div style="margin-top:0.2rem;">${{tags}}</div>
+    const locBadge = item.location ? `<span style="font-size:0.6rem;background:var(--accent-glow);padding:0.1rem 0.4rem;border-radius:8px;color:var(--accent);">@ ${esc(item.location)}</span>` : '';
+    const tags = (item.tags || []).map(t => `<span style="font-size:0.55rem;background:var(--bg);padding:0.1rem 0.3rem;border-radius:4px;color:var(--text-dim);">${esc(t)}</span>`).join(' ');
+    return `<div class="item-card" onclick="openLightbox('inventory','${item.id}',${JSON.stringify(item.images||[])},0)">
+      <div class="thumb">${thumb}</div>
+      <div class="card-name">${esc(item.name)}</div>
+      <div class="card-meta">x${item.quantity} [${esc(item.category)}] ${locBadge}</div>
+      <div style="margin-top:0.2rem;">${tags}</div>
       <div style="margin-top:0.4rem;display:flex;gap:0.3rem;">
-        <button class="btn-crud danger" onclick="event.stopPropagation();removeInventoryItem('${{item.id}}')">Remove</button>
+        <button class="btn-crud danger" onclick="event.stopPropagation();removeInventoryItem('${item.id}')">Remove</button>
       </div>
     </div>`;
-  }}).join('');
-}}
+  }).join('');
+}
 
-async function addInventoryItem() {{
+async function addInventoryItem() {
   const result = await openModal('Add Item', [
-    {{ key: 'name', label: 'Item Name', placeholder: 'e.g. USB Cable' }},
-    {{ key: 'category', label: 'Category', placeholder: 'e.g. electronics' }},
-    {{ key: 'qty', label: 'Quantity', type: 'number', default: '1' }},
+    { key: 'name', label: 'Item Name', placeholder: 'e.g. USB Cable' },
+    { key: 'category', label: 'Category', placeholder: 'e.g. electronics' },
+    { key: 'qty', label: 'Quantity', type: 'number', default: '1' },
   ]);
   if (!result || !result.name) return;
-  const inv = DATA.inventory || {{ items: [], categories: [] }};
+  const inv = DATA.inventory || { items: [], categories: [] };
   const qty = parseInt(result.qty, 10) || 1;
   const category = result.category || 'other';
-  inv.items.push({{
+  inv.items.push({
     id: 'inv_' + Date.now().toString(36),
     name: result.name, category, description: '',
     quantity: qty, images: [], tags: [],
     added_at: new Date().toISOString()
-  }});
+  });
   if (!inv.categories.includes(category)) inv.categories.push(category);
   DATA.inventory = inv;
   saveInventory();
   renderInventoryPanel();
-}}
+}
 
-function removeInventoryItem(itemId) {{
+function removeInventoryItem(itemId) {
   if (!confirm('Remove this item?')) return;
-  const inv = DATA.inventory || {{ items: [], categories: [] }};
+  const inv = DATA.inventory || { items: [], categories: [] };
   // Cleanup orphaned images
   const item = inv.items.find(i => i.id === itemId);
   if (item) deleteAllImages('inventory', itemId, item.images);
@@ -4505,83 +4699,83 @@ function removeInventoryItem(itemId) {{
   DATA.inventory = inv;
   saveInventory();
   renderInventoryPanel();
-}}
+}
 
-function saveInventory() {{
-  fetch('/update-inventory', {{
+function saveInventory() {
+  fetch('/update-inventory', {
     method: 'POST',
-    headers: {{ 'Content-Type': 'application/json' }},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(DATA.inventory)
-  }}).then(r => {{
+  }).then(r => {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     showToast('Inventory saved', 'success');
-  }}).catch(err => showToast('Save failed: ' + err, 'error'));
-}}
+  }).catch(err => showToast('Save failed: ' + err, 'error'));
+}
 
 // ---------------------------------------------------------------------------
 // Wardrobe Panel
 // ---------------------------------------------------------------------------
 let _wardrobeCatFilter = 'all';
 
-function renderWardrobePanel() {{
-  const wd = DATA.wardrobe || {{ inventory: {{}}, outfits: {{}} }};
+function renderWardrobePanel() {
+  const wd = DATA.wardrobe || { inventory: {}, outfits: {} };
   const chipsEl = document.getElementById('wardrobe-chips');
   const gridEl = document.getElementById('wardrobe-grid');
   const outfitsEl = document.getElementById('wardrobe-outfits');
 
-  const cats = Object.keys(wd.inventory || {{}});
+  const cats = Object.keys(wd.inventory || {});
   const totalCount = cats.reduce((sum, c) => sum + (wd.inventory[c] || []).length, 0);
-  chipsEl.innerHTML = ['all', ...cats].map(c => {{
+  chipsEl.innerHTML = ['all', ...cats].map(c => {
     const cnt = c === 'all' ? totalCount : (wd.inventory[c] || []).length;
-    return `<button class="chip ${{c === _wardrobeCatFilter ? 'active' : ''}}" onclick="_wardrobeCatFilter='${{c}}';renderWardrobePanel();">${{c}} (${{cnt}})</button>`;
-  }}).join('');
+    return `<button class="chip ${c === _wardrobeCatFilter ? 'active' : ''}" onclick="_wardrobeCatFilter='${c}';renderWardrobePanel();">${c} (${cnt})</button>`;
+  }).join('');
 
   let allItems = [];
-  for (const [cat, items] of Object.entries(wd.inventory || {{}})) {{
+  for (const [cat, items] of Object.entries(wd.inventory || {})) {
     if (_wardrobeCatFilter !== 'all' && cat !== _wardrobeCatFilter) continue;
-    for (const item of items) {{
-      if (typeof item === 'object') {{
-        allItems.push({{ ...item, _cat: cat }});
-      }}
-    }}
-  }}
+    for (const item of items) {
+      if (typeof item === 'object') {
+        allItems.push({ ...item, _cat: cat });
+      }
+    }
+  }
 
-  if (allItems.length === 0) {{
+  if (allItems.length === 0) {
     gridEl.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem;">No items in wardrobe.</div>';
-  }} else {{
-    gridEl.innerHTML = allItems.map(item => {{
+  } else {
+    gridEl.innerHTML = allItems.map(item => {
       const thumb = item.images && item.images.length > 0
-        ? `<img src="/${{item.images[0]}}" alt="${{esc(item.name)}}">`
+        ? `<img src="/${item.images[0]}" alt="${esc(item.name)}">`
         : '👕';
-      return `<div class="item-card" onclick="openLightbox('wardrobe','${{item.id}}',${{JSON.stringify(item.images||[])}},0)">
-        <div class="thumb">${{thumb}}</div>
-        <div class="card-name">${{esc(item.name)}}</div>
-        <div class="card-meta">${{esc(item._cat)}}</div>
+      return `<div class="item-card" onclick="openLightbox('wardrobe','${item.id}',${JSON.stringify(item.images||[])},0)">
+        <div class="thumb">${thumb}</div>
+        <div class="card-name">${esc(item.name)}</div>
+        <div class="card-meta">${esc(item._cat)}</div>
       </div>`;
-    }}).join('');
-  }}
+    }).join('');
+  }
 
   // Outfits section
-  const outfits = wd.outfits || {{}};
+  const outfits = wd.outfits || {};
   const outfitKeys = Object.keys(outfits);
-  if (outfitKeys.length > 0) {{
-    outfitsEl.innerHTML = '<h3 style="font-family:JetBrains Mono,monospace;font-size:0.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.5rem;">Outfits</h3>' +
+  if (outfitKeys.length > 0) {
+    outfitsEl.innerHTML = `<h3 style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.5rem;">Outfits</h3>` +
       outfitKeys.map(name =>
         `<div style="padding:0.5rem;background:var(--bg-hover);border:1px solid var(--border);border-radius:8px;margin-bottom:0.5rem;">
-          <strong style="color:var(--text-bright);font-size:0.8rem;">${{esc(name)}}</strong>
-          <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.2rem;">${{outfits[name].map(n => esc(n)).join(', ')}}</div>
+          <strong style="color:var(--text-bright);font-size:0.8rem;">${esc(name)}</strong>
+          <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.2rem;">${outfits[name].map(n => esc(n)).join(', ')}</div>
         </div>`
       ).join('');
-  }} else {{
+  } else {
     outfitsEl.innerHTML = '';
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Phase 34: Self-Expansion Panel
 // ---------------------------------------------------------------------------
-async function loadExpansionState() {{
-  try {{
+async function loadExpansionState() {
+  try {
     const res = await fetch('/api/expansion/state');
     const state = await res.json();
 
@@ -4591,153 +4785,154 @@ async function loadExpansionState() {{
     const percentEl = document.getElementById('expansion-percent');
     const barEl = document.getElementById('expansion-bar');
 
-    if (state.isExpanding && state.currentProject) {{
+    if (state.isExpanding && state.currentProject) {
       statusEl.innerHTML = '<span style="color:#a855f7;">●</span> <span style="color:#a855f7;">Self-Expanding</span> - Working on: ' + state.currentProject.name;
       progressEl.style.display = 'block';
       projectNameEl.textContent = state.currentProject.name;
       const percent = state.currentProject.progress || 0;
       percentEl.textContent = percent + '%';
       barEl.style.width = percent + '%';
-    }} else {{
+    } else {
       statusEl.innerHTML = '<span style="color:var(--text-dim);">○</span> <span style="color:var(--text-dim);">Idle</span> - ' +
         (state.totalProjectsCreated > 0
           ? state.totalProjectsCreated + ' projects created, ' + (state.totalProjectsCreated - (state.active?.length || 0)) + ' completed'
           : 'Waiting for high energy + strong technical interest');
       progressEl.style.display = 'none';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     console.log('Expansion state not available');
-  }}
-}}
+  }
+}
 
 // Load projects list
-async function loadProjectsList() {{
-  try {{
+async function loadProjectsList() {
+  try {
     const res = await fetch('/api/expansion/projects');
     const data = await res.json();
 
     const listEl = document.getElementById('projects-list');
-    if (!data.projects || data.projects.length === 0) {{
-      listEl.innerHTML = '<div style="color:var(--text-dim);font-size:0.9rem;">No autonomous projects yet. Q will create projects when energy > 80% and technical interest sentiment > 0.9.</div>';
+    if (!data.projects || data.projects.length === 0) {
+      listEl.innerHTML = '<div style="color:var(--text-dim);font-size:0.9rem;">No autonomous projects yet. The entity will create projects when energy > 80% and technical interest sentiment > 0.9.</div>';
       return;
-    }}
+    }
 
-    listEl.innerHTML = data.projects.map(p => {{
-      const statusColors = {{
+    listEl.innerHTML = data.projects.map(p => {
+      const statusColors = {
         'brainstorm': '#fbbf24',
         'planning': '#60a5fa',
         'implementing': '#a855f7',
         'completed': '#22c55e',
         'paused': '#6b7280'
-      }};
+      };
       const color = statusColors[p.status] || '#6b7280';
-      return `<div style="background:var(--bg-dim);padding:0.75rem;border-radius:8px;margin-bottom:0.5rem;border-left:3px solid ${{color}};">
+      return `<div style="background:var(--bg-dim);padding:0.75rem;border-radius:8px;margin-bottom:0.5rem;border-left:3px solid ${color};">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
-            <div style="font-weight:bold;">${{esc(p.name)}}</div>
-            <div style="font-size:0.8rem;color:var(--text-dim);">${{esc(p.topic)}} &middot; ${{p.type}}</div>
+            <div style="font-weight:bold;">${esc(p.name)}</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">${esc(p.topic)} &middot; ${p.type}</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:0.85rem;color:${{color}};font-weight:bold;">${{p.status}}</div>
-            <div style="font-size:0.75rem;color:var(--text-dim);">${{p.progress}}%</div>
+            <div style="font-size:0.85rem;color:${color};font-weight:bold;">${p.status}</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">${p.progress}%</div>
           </div>
         </div>
-        ${{p.progress < 100 ? `<div style="background:var(--bg);height:4px;border-radius:2px;margin-top:0.5rem;overflow:hidden;"><div style="background:${{color}};height:100%;width:${{p.progress}}%;"></div></div>` : ''}}
+        ${p.progress < 100 ? `<div style="background:var(--bg);height:4px;border-radius:2px;margin-top:0.5rem;overflow:hidden;"><div style="background:${color};height:100%;width:${p.progress}%;"></div></div>` : ''}
       </div>`;
-    }}).join('');
-  }} catch (e) {{
+    }).join('');
+  } catch (e) {
     console.log('Projects list not available');
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Development Panel
 // ---------------------------------------------------------------------------
-function renderDevPanel() {{
-  const manifest = DATA.dev_manifest || {{ projects: [] }};
+function renderDevPanel() {
+  const manifest = DATA.dev_manifest || { projects: [] };
   const gridEl = document.getElementById('dev-grid');
   const detailEl = document.getElementById('dev-detail');
 
-  if (manifest.projects.length === 0) {{
+  if (manifest.projects.length === 0) {
     gridEl.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem;">No development projects yet. Use reality_develop to create one.</div>';
     detailEl.innerHTML = '';
     return;
-  }}
+  }
 
-  gridEl.innerHTML = manifest.projects.map(p => {{
-    const badgeClass = {{ draft: 'badge-draft', pending_review: 'badge-pending', approved: 'badge-approved', active: 'badge-active' }}[p.status] || 'badge-draft';
-    return `<div class="item-card" onclick="showDevDetail('${{p.id}}')">
-      <div class="thumb" style="font-size:1.5rem;">${{{{ tool: '🔧', skill: '🧠', plugin: '🔌', script: '📜' }}[p.type] || '📄'}}</div>
-      <div class="card-name">${{esc(p.name)}} <span class="badge ${{badgeClass}}">${{p.status}}</span></div>
-      <div class="card-meta">${{p.type}} &middot; ${{p.files.length}} files</div>
+  gridEl.innerHTML = manifest.projects.map(p => {
+    const badgeClass = { draft: 'badge-draft', pending_review: 'badge-pending', approved: 'badge-approved', active: 'badge-active' }[p.status] || 'badge-draft';
+    const typeIcon = { tool: '🔧', skill: '🧠', plugin: '🔌', script: '📜' }[p.type] || '📄';
+    return `<div class="item-card" onclick="showDevDetail('${p.id}')">
+      <div class="thumb" style="font-size:1.5rem;">${typeIcon}</div>
+      <div class="card-name">${esc(p.name)} <span class="badge ${badgeClass}">${p.status}</span></div>
+      <div class="card-meta">${p.type} &middot; ${p.files.length} files</div>
     </div>`;
-  }}).join('');
-}}
+  }).join('');
+}
 
-function showDevDetail(projId) {{
-  const manifest = DATA.dev_manifest || {{ projects: [] }};
+function showDevDetail(projId) {
+  const manifest = DATA.dev_manifest || { projects: [] };
   const proj = manifest.projects.find(p => p.id === projId);
   if (!proj) return;
   const detailEl = document.getElementById('dev-detail');
-  const badgeClass = {{ draft: 'badge-draft', pending_review: 'badge-pending', approved: 'badge-approved', active: 'badge-active' }}[proj.status] || 'badge-draft';
+  const badgeClass = { draft: 'badge-draft', pending_review: 'badge-pending', approved: 'badge-approved', active: 'badge-active' }[proj.status] || 'badge-draft';
   detailEl.innerHTML = `<div class="detail-panel">
-    <h3 style="color:var(--text-bright);font-size:1rem;margin-bottom:0.5rem;">${{esc(proj.name)}} <span class="badge ${{badgeClass}}">${{proj.status}}</span></h3>
-    <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.5rem;">${{esc(proj.description || 'No description')}}</div>
-    <div style="font-size:0.72rem;color:var(--text-dim);">Type: ${{proj.type}} &middot; Created: ${{proj.created_at}} &middot; Approved: ${{proj.approved}}</div>
+    <h3 style="color:var(--text-bright);font-size:1rem;margin-bottom:0.5rem;">${esc(proj.name)} <span class="badge ${badgeClass}">${proj.status}</span></h3>
+    <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.5rem;">${esc(proj.description || 'No description')}</div>
+    <div style="font-size:0.72rem;color:var(--text-dim);">Type: ${proj.type} &middot; Created: ${proj.created_at} &middot; Approved: ${proj.approved}</div>
     <div style="margin-top:0.5rem;font-size:0.72rem;color:var(--text-dim);">
-      <strong>Files:</strong> ${{proj.files.length > 0 ? proj.files.map(f => esc(f)).join(', ') : 'none'}}
+      <strong>Files:</strong> ${proj.files.length > 0 ? proj.files.map(f => esc(f)).join(', ') : 'none'}
     </div>
   </div>`;
-}}
+}
 
 // ---------------------------------------------------------------------------
 // Cycle Tab
 // ---------------------------------------------------------------------------
-const CYCLE_HORMONES = {{
+const CYCLE_HORMONES = {
   estrogen:     [20,22,25,28,30,35,42,50,60,70,80,90,95,100,85,65,50,45,55,65,70,68,60,50,40,32,25,20],
   progesterone: [5,5,5,5,5,5,5,5,5,5,5,5,5,8,15,30,50,65,80,90,100,95,85,70,55,40,20,8],
   lh:           [10,10,10,12,12,14,16,18,22,30,45,70,95,100,40,15,10,10,10,10,10,10,10,10,10,10,10,10],
   fsh:          [35,40,50,55,60,65,70,65,55,45,40,50,70,80,40,25,20,18,16,15,14,13,12,12,15,20,25,30]
-}};
+};
 
-const CYCLE_PHASE_COLORS = {{
+const CYCLE_PHASE_COLORS = {
   menstruation: '#e74c3c',
   follicular: '#e67e22',
   ovulation: '#f1c40f',
   luteal: '#9b59b6'
-}};
+};
 
 const CYCLE_PHASE_RANGES = [
-  {{ phase: 'menstruation', start: 1, end: 5, label: 'Menstruation' }},
-  {{ phase: 'follicular', start: 6, end: 13, label: 'Follicular' }},
-  {{ phase: 'ovulation', start: 14, end: 15, label: 'Ovulation' }},
-  {{ phase: 'luteal', start: 16, end: 28, label: 'Luteal' }}
+  { phase: 'menstruation', start: 1, end: 5, label: 'Menstruation' },
+  { phase: 'follicular', start: 6, end: 13, label: 'Follicular' },
+  { phase: 'ovulation', start: 14, end: 15, label: 'Ovulation' },
+  { phase: 'luteal', start: 16, end: 28, label: 'Luteal' }
 ];
 
-function getCyclePhaseJS(day) {{
+function getCyclePhaseJS(day) {
   if (day <= 5) return 'menstruation';
   if (day <= 13) return 'follicular';
   if (day <= 15) return 'ovulation';
   return 'luteal';
-}}
+}
 
-function getCycleModsJS(phase) {{
-  const m = {{ menstruation: {{ energy: -12, hunger: 5, stress: 8, libido: 0 }}, follicular: {{ energy: 5, hunger: 0, stress: -5, libido: 0 }}, ovulation: {{ energy: 8, hunger: 0, stress: -8, libido: 15 }}, luteal: {{ energy: -8, hunger: 12, stress: 10, libido: 0 }} }};
-  return m[phase] || {{}};
-}}
+function getCycleModsJS(phase) {
+  const m = { menstruation: { energy: -12, hunger: 5, stress: 8, libido: 0 }, follicular: { energy: 5, hunger: 0, stress: -5, libido: 0 }, ovulation: { energy: 8, hunger: 0, stress: -8, libido: 15 }, luteal: { energy: -8, hunger: 12, stress: 10, libido: 0 } };
+  return m[phase] || {};
+}
 
 let _cycleDay = 1;
 let _cycleSimActive = false;
 
-function renderCyclePanel() {{
-  const cycle = DATA.cycle || {{}};
+function renderCyclePanel() {
+  const cycle = DATA.cycle || {};
   _cycleDay = cycle.current_day || 1;
   _cycleSimActive = cycle.simulator?.active || false;
   if (_cycleSimActive && cycle.simulator?.simulated_day) _cycleDay = cycle.simulator.simulated_day;
   updateCycleAllPanels(_cycleDay, cycle);
-}}
+}
 
-function updateCycleAllPanels(day, cycle) {{
+function updateCycleAllPanels(day, cycle) {
   const phase = getCyclePhaseJS(day);
   renderCycleWheel(day);
   renderCyclePhaseBanner(day, phase);
@@ -4746,21 +4941,21 @@ function updateCycleAllPanels(day, cycle) {{
   renderCycleMetabolismImpact(phase);
   renderCycleSimulator(day, cycle);
   renderCycleEducation();
-}}
+}
 
-function setCycleDay(day) {{
+function setCycleDay(day) {
   _cycleDay = day;
-  const cycle = DATA.cycle || {{}};
+  const cycle = DATA.cycle || {};
   updateCycleAllPanels(day, cycle);
-}}
+}
 
-function renderCycleWheel(currentDay) {{
+function renderCycleWheel(currentDay) {
   const size = 450;
   const cx = size / 2, cy = size / 2;
   const outerR = size / 2 - 10, innerR = outerR - 45;
-  let svg = `<svg width="${{size}}" height="${{size}}" viewBox="0 0 ${{size}} ${{size}}">`;
+  let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
 
-  for (let d = 1; d <= 28; d++) {{
+  for (let d = 1; d <= 28; d++) {
     const phase = getCyclePhaseJS(d);
     const color = CYCLE_PHASE_COLORS[phase];
     const startAngle = ((d - 1) / 28) * 360 - 90;
@@ -4780,9 +4975,9 @@ function renderCycleWheel(currentDay) {{
     const stroke = d === currentDay ? 'white' : 'rgba(10,10,15,0.8)';
     const strokeW = d === currentDay ? 2 : 0.5;
 
-    svg += `<path d="M${{x1o}},${{y1o}} A${{outerR}},${{outerR}} 0 0,1 ${{x2o}},${{y2o}} L${{x1i}},${{y1i}} A${{innerR}},${{innerR}} 0 0,0 ${{x2i}},${{y2i}} Z"
-      fill="${{color}}" opacity="${{opacity}}" stroke="${{stroke}}" stroke-width="${{strokeW}}"
-      style="cursor:pointer" onclick="setCycleDay(${{d}})"/>`;
+    svg += `<path d="M${x1o},${y1o} A${outerR},${outerR} 0 0,1 ${x2o},${y2o} L${x1i},${y1i} A${innerR},${innerR} 0 0,0 ${x2i},${y2i} Z"
+      fill="${color}" opacity="${opacity}" stroke="${stroke}" stroke-width="${strokeW}"
+      style="cursor:pointer" onclick="setCycleDay(${d})"/>`;
 
     // Day number label
     const midAngle = ((d - 0.5) / 28) * 360 - 90;
@@ -4793,10 +4988,10 @@ function renderCycleWheel(currentDay) {{
     const fontSize = d === currentDay ? '12' : '9';
     const fontWeight = d === currentDay ? '700' : '400';
     const textColor = d === currentDay ? '#fff' : 'rgba(255,255,255,0.6)';
-    svg += `<text x="${{lx}}" y="${{ly}}" text-anchor="middle" dominant-baseline="central"
-      font-size="${{fontSize}}" font-weight="${{fontWeight}}" fill="${{textColor}}"
-      font-family="JetBrains Mono, monospace" style="cursor:pointer;pointer-events:none">${{d}}</text>`;
-  }}
+    svg += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central"
+      font-size="${fontSize}" font-weight="${fontWeight}" fill="${textColor}"
+      font-family="JetBrains Mono, monospace" style="cursor:pointer;pointer-events:none">${d}</text>`;
+  }
 
   // Glowing marker for current day
   const markerAngle = ((currentDay - 0.5) / 28) * 360 - 90;
@@ -4805,74 +5000,74 @@ function renderCycleWheel(currentDay) {{
   const mx = cx + markerR * Math.cos(markerRad);
   const my = cy + markerR * Math.sin(markerRad);
   const markerColor = CYCLE_PHASE_COLORS[getCyclePhaseJS(currentDay)];
-  svg += `<circle cx="${{mx}}" cy="${{my}}" r="6" fill="${{markerColor}}" opacity="0.9">
+  svg += `<circle cx="${mx}" cy="${my}" r="6" fill="${markerColor}" opacity="0.9">
     <animate attributeName="opacity" values="0.9;0.4;0.9" dur="2s" repeatCount="indefinite"/>
   </circle>`;
 
   // Center text
   const phase = getCyclePhaseJS(currentDay);
   const phaseLabel = CYCLE_PHASE_RANGES.find(r => r.phase === phase)?.label || phase;
-  svg += `<text x="${{cx}}" y="${{cy - 15}}" text-anchor="middle" font-size="42" font-weight="700" fill="var(--text-bright)" font-family="JetBrains Mono, monospace">${{currentDay}}</text>`;
-  svg += `<text x="${{cx}}" y="${{cy + 15}}" text-anchor="middle" font-size="13" fill="${{CYCLE_PHASE_COLORS[phase]}}" font-family="JetBrains Mono, monospace" text-transform="uppercase">${{phaseLabel}}</text>`;
-  svg += `<text x="${{cx}}" y="${{cy + 35}}" text-anchor="middle" font-size="10" fill="var(--text-dim)" font-family="DM Sans, sans-serif">of 28 days</text>`;
+  svg += `<text x="${cx}" y="${cy - 15}" text-anchor="middle" font-size="42" font-weight="700" fill="var(--text-bright)" font-family="JetBrains Mono, monospace">${currentDay}</text>`;
+  svg += `<text x="${cx}" y="${cy + 15}" text-anchor="middle" font-size="13" fill="${CYCLE_PHASE_COLORS[phase]}" font-family="JetBrains Mono, monospace" text-transform="uppercase">${phaseLabel}</text>`;
+  svg += `<text x="${cx}" y="${cy + 35}" text-anchor="middle" font-size="10" fill="var(--text-dim)" font-family="DM Sans, sans-serif">of 28 days</text>`;
   svg += `</svg>`;
 
   document.getElementById('cycle-wheel').innerHTML = svg;
-}}
+}
 
-function renderCyclePhaseBanner(day, phase) {{
-  const descs = {{
+function renderCyclePhaseBanner(day, phase) {
+  const descs = {
     menstruation: 'The body sheds the uterine lining. Energy dips, cramps may occur. A time for rest and self-care.',
     follicular: 'Estrogen rises, energy returns. A follicle matures in the ovary. Creativity and motivation increase.',
     ovulation: 'Peak fertility. LH surge triggers egg release. Energy, confidence, and libido are at their highest.',
     luteal: 'Progesterone dominates. The body prepares for potential implantation. PMS symptoms may appear.'
-  }};
+  };
   const label = CYCLE_PHASE_RANGES.find(r => r.phase === phase)?.label || phase;
   const color = CYCLE_PHASE_COLORS[phase];
   document.getElementById('cycle-phase-banner').innerHTML = `
-    <div class="phase-name" style="color:${{color}}">${{label}} — Day ${{day}}</div>
-    <div style="color:var(--text-dim);font-size:0.85rem;">${{descs[phase] || ''}}</div>`;
-}}
+    <div class="phase-name" style="color:${color}">${label} — Day ${day}</div>
+    <div style="color:var(--text-dim);font-size:0.85rem;">${descs[phase] || ''}</div>`;
+}
 
-function renderCycleHormoneChart(currentDay) {{
+function renderCycleHormoneChart(currentDay) {
   const w = 800, h = 200, pad = 40;
   const chartW = w - pad * 2, chartH = h - pad * 1.5;
-  let svg = `<svg viewBox="0 0 ${{w}} ${{h}}" style="width:100%;max-width:${{w}}px;height:auto;">`;
+  let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;max-width:${w}px;height:auto;">`;
 
   // Phase background bands
-  CYCLE_PHASE_RANGES.forEach(r => {{
+  CYCLE_PHASE_RANGES.forEach(r => {
     const x1 = pad + ((r.start - 1) / 28) * chartW;
     const x2 = pad + (r.end / 28) * chartW;
-    svg += `<rect x="${{x1}}" y="${{pad/2}}" width="${{x2-x1}}" height="${{chartH}}" fill="${{CYCLE_PHASE_COLORS[r.phase]}}" opacity="0.08"/>`;
-  }});
+    svg += `<rect x="${x1}" y="${pad/2}" width="${x2-x1}" height="${chartH}" fill="${CYCLE_PHASE_COLORS[r.phase]}" opacity="0.08"/>`;
+  });
 
   // Gridlines
-  for (let i = 0; i <= 4; i++) {{
+  for (let i = 0; i <= 4; i++) {
     const y = pad/2 + (i/4) * chartH;
-    svg += `<line x1="${{pad}}" y1="${{y}}" x2="${{pad+chartW}}" y2="${{y}}" stroke="var(--border)" stroke-width="0.5"/>`;
-    svg += `<text x="${{pad-5}}" y="${{y+3}}" text-anchor="end" font-size="8" fill="var(--text-dim)" font-family="JetBrains Mono">${{100-i*25}}%</text>`;
-  }}
+    svg += `<line x1="${pad}" y1="${y}" x2="${pad+chartW}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/>`;
+    svg += `<text x="${pad-5}" y="${y+3}" text-anchor="end" font-size="8" fill="var(--text-dim)" font-family="JetBrains Mono">${100-i*25}%</text>`;
+  }
 
   // Hormone curves
-  const colors = {{ estrogen: '#ff69b4', progesterone: '#9b59b6', lh: '#f1c40f', fsh: '#3498db' }};
-  Object.entries(CYCLE_HORMONES).forEach(([name, values]) => {{
-    let points = values.map((v, i) => {{
+  const colors = { estrogen: '#ff69b4', progesterone: '#9b59b6', lh: '#f1c40f', fsh: '#3498db' };
+  Object.entries(CYCLE_HORMONES).forEach(([name, values]) => {
+    let points = values.map((v, i) => {
       const x = pad + ((i + 0.5) / 28) * chartW;
       const y = pad/2 + chartH - (v / 100) * chartH;
-      return `${{x}},${{y}}`;
-    }});
-    svg += `<polyline points="${{points.join(' ')}}" fill="none" stroke="${{colors[name]}}" stroke-width="2" stroke-linejoin="round" opacity="0.85"/>`;
-  }});
+      return `${x},${y}`;
+    });
+    svg += `<polyline points="${points.join(' ')}" fill="none" stroke="${colors[name]}" stroke-width="2" stroke-linejoin="round" opacity="0.85"/>`;
+  });
 
   // Current day marker
   const dx = pad + ((currentDay - 0.5) / 28) * chartW;
-  svg += `<line x1="${{dx}}" y1="${{pad/2}}" x2="${{dx}}" y2="${{pad/2+chartH}}" stroke="white" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7"/>`;
+  svg += `<line x1="${dx}" y1="${pad/2}" x2="${dx}" y2="${pad/2+chartH}" stroke="white" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7"/>`;
 
   // Day labels
-  for (let d = 1; d <= 28; d += (d < 7 ? 1 : (d < 15 ? 2 : 3))) {{
+  for (let d = 1; d <= 28; d += (d < 7 ? 1 : (d < 15 ? 2 : 3))) {
     const x = pad + ((d - 0.5) / 28) * chartW;
-    svg += `<text x="${{x}}" y="${{h-5}}" text-anchor="middle" font-size="8" fill="var(--text-dim)" font-family="JetBrains Mono">${{d}}</text>`;
-  }}
+    svg += `<text x="${x}" y="${h-5}" text-anchor="middle" font-size="8" fill="var(--text-dim)" font-family="JetBrains Mono">${d}</text>`;
+  }
 
   svg += `</svg>`;
   document.getElementById('cycle-hormone-chart').innerHTML = svg;
@@ -4881,58 +5076,58 @@ function renderCycleHormoneChart(currentDay) {{
     <span class="leg-progesterone">Progesterone</span>
     <span class="leg-lh">LH</span>
     <span class="leg-fsh">FSH</span>`;
-}}
+}
 
-function renderCycleBodyStatus(day, phase) {{
+function renderCycleBodyStatus(day, phase) {
   const idx = Math.max(0, Math.min(27, day - 1));
   const e = CYCLE_HORMONES.estrogen[idx];
   const p = CYCLE_HORMONES.progesterone[idx];
 
-  const bodyData = {{
+  const bodyData = {
     menstruation: [
-      {{ icon: '🩸', title: 'Uterine Lining', desc: 'Endometrium is being shed. Menstrual bleeding occurs as the body discards the unfertilized lining.' }},
-      {{ icon: '🫘', title: 'Ovarian Activity', desc: 'Follicles are dormant. FSH begins to slowly stimulate new follicle recruitment.' }},
-      {{ icon: '💧', title: 'Cervical Mucus', desc: 'Minimal and dry. The cervix is closed and low.' }},
-      {{ icon: '🌡️', title: 'Basal Temperature', desc: 'Low baseline temperature. Typically 36.1-36.4°C (97.0-97.5°F).' }}
+      { icon: '🩸', title: 'Uterine Lining', desc: 'Endometrium is being shed. Menstrual bleeding occurs as the body discards the unfertilized lining.' },
+      { icon: '🫘', title: 'Ovarian Activity', desc: 'Follicles are dormant. FSH begins to slowly stimulate new follicle recruitment.' },
+      { icon: '💧', title: 'Cervical Mucus', desc: 'Minimal and dry. The cervix is closed and low.' },
+      { icon: '🌡️', title: 'Basal Temperature', desc: 'Low baseline temperature. Typically 36.1-36.4°C (97.0-97.5°F).' }
     ],
     follicular: [
-      {{ icon: '🧱', title: 'Uterine Lining', desc: `Rebuilding under estrogen influence (E2: ${{e}}%). Endometrium thickens progressively.` }},
-      {{ icon: '🫘', title: 'Ovarian Activity', desc: 'Dominant follicle selected and growing. Produces increasing estrogen.' }},
-      {{ icon: '💧', title: 'Cervical Mucus', desc: 'Increasing, becoming clearer and more stretchy as estrogen rises.' }},
-      {{ icon: '🌡️', title: 'Basal Temperature', desc: 'Remains low. Steady baseline before ovulation.' }}
+      { icon: '🧱', title: 'Uterine Lining', desc: `Rebuilding under estrogen influence (E2: ${e}%). Endometrium thickens progressively.` },
+      { icon: '🫘', title: 'Ovarian Activity', desc: 'Dominant follicle selected and growing. Produces increasing estrogen.' },
+      { icon: '💧', title: 'Cervical Mucus', desc: 'Increasing, becoming clearer and more stretchy as estrogen rises.' },
+      { icon: '🌡️', title: 'Basal Temperature', desc: 'Remains low. Steady baseline before ovulation.' }
     ],
     ovulation: [
-      {{ icon: '🧱', title: 'Uterine Lining', desc: `Fully developed (${{e}}% estrogen peak). Rich blood supply, glands active.` }},
-      {{ icon: '🥚', title: 'Ovarian Activity', desc: 'LH surge triggers ovulation! Egg released from dominant follicle.' }},
-      {{ icon: '💧', title: 'Cervical Mucus', desc: 'Peak fertility mucus — clear, stretchy, egg-white consistency.' }},
-      {{ icon: '🌡️', title: 'Basal Temperature', desc: 'Brief dip then sharp rise of 0.2-0.5°C after ovulation.' }}
+      { icon: '🧱', title: 'Uterine Lining', desc: `Fully developed (${e}% estrogen peak). Rich blood supply, glands active.` },
+      { icon: '🥚', title: 'Ovarian Activity', desc: 'LH surge triggers ovulation! Egg released from dominant follicle.' },
+      { icon: '💧', title: 'Cervical Mucus', desc: 'Peak fertility mucus — clear, stretchy, egg-white consistency.' },
+      { icon: '🌡️', title: 'Basal Temperature', desc: 'Brief dip then sharp rise of 0.2-0.5°C after ovulation.' }
     ],
     luteal: [
-      {{ icon: '🧱', title: 'Uterine Lining', desc: `Maintained by progesterone (${{p}}%). Secretory phase — glands produce nutrients.` }},
-      {{ icon: '🟡', title: 'Corpus Luteum', desc: 'Collapsed follicle becomes corpus luteum, producing progesterone.' }},
-      {{ icon: '💧', title: 'Cervical Mucus', desc: 'Thick, sticky, and opaque. Cervix closes and firms.' }},
-      {{ icon: '🌡️', title: 'Basal Temperature', desc: 'Elevated plateau. Remains high due to progesterone.' }}
+      { icon: '🧱', title: 'Uterine Lining', desc: `Maintained by progesterone (${p}%). Secretory phase — glands produce nutrients.` },
+      { icon: '🟡', title: 'Corpus Luteum', desc: 'Collapsed follicle becomes corpus luteum, producing progesterone.' },
+      { icon: '💧', title: 'Cervical Mucus', desc: 'Thick, sticky, and opaque. Cervix closes and firms.' },
+      { icon: '🌡️', title: 'Basal Temperature', desc: 'Elevated plateau. Remains high due to progesterone.' }
     ]
-  }};
+  };
 
   const items = bodyData[phase] || [];
   document.getElementById('cycle-body-status').innerHTML = items.map(item => `
     <div class="cycle-body-row">
-      <div class="cycle-body-icon">${{item.icon}}</div>
-      <div class="cycle-body-text"><h3>${{item.title}}</h3><p>${{item.desc}}</p></div>
+      <div class="cycle-body-icon">${item.icon}</div>
+      <div class="cycle-body-text"><h3>${item.title}</h3><p>${item.desc}</p></div>
     </div>`).join('');
-}}
+}
 
-function renderCycleMetabolismImpact(phase) {{
+function renderCycleMetabolismImpact(phase) {
   const mods = getCycleModsJS(phase);
   const items = [
-    {{ key: 'energy', label: 'Energy', val: mods.energy || 0 }},
-    {{ key: 'hunger', label: 'Hunger', val: mods.hunger || 0 }},
-    {{ key: 'stress', label: 'Stress', val: mods.stress || 0 }},
-    {{ key: 'libido', label: 'Libido', val: mods.libido || 0 }}
+    { key: 'energy', label: 'Energy', val: mods.energy || 0 },
+    { key: 'hunger', label: 'Hunger', val: mods.hunger || 0 },
+    { key: 'stress', label: 'Stress', val: mods.stress || 0 },
+    { key: 'libido', label: 'Libido', val: mods.libido || 0 }
   ];
 
-  document.getElementById('cycle-metabolism-impact').innerHTML = items.map(item => {{
+  document.getElementById('cycle-metabolism-impact').innerHTML = items.map(item => {
     const maxVal = 20;
     const absVal = Math.abs(item.val);
     const pct = Math.min(100, (absVal / maxVal) * 100);
@@ -4940,44 +5135,44 @@ function renderCycleMetabolismImpact(phase) {{
     const arrow = item.val > 0 ? '↑' : (item.val < 0 ? '↓' : '→');
     const sign = item.val > 0 ? '+' : '';
     return `<div class="cycle-bar-row">
-      <div class="cycle-bar-label">${{item.label}}</div>
-      <div class="cycle-bar-track"><div class="cycle-bar-fill ${{cls}}" style="width:${{pct}}%"></div></div>
-      <div class="cycle-bar-value">${{arrow}} ${{sign}}${{item.val}}</div>
+      <div class="cycle-bar-label">${item.label}</div>
+      <div class="cycle-bar-track"><div class="cycle-bar-fill ${cls}" style="width:${pct}%"></div></div>
+      <div class="cycle-bar-value">${arrow} ${sign}${item.val}</div>
     </div>`;
-  }}).join('');
-}}
+  }).join('');
+}
 
-function renderCycleSimulator(day, cycle) {{
+function renderCycleSimulator(day, cycle) {
   const symptoms = ['cramps','bloating','fatigue','mood_swings','headache','breast_tenderness','acne','appetite_changes','back_pain','insomnia'];
-  const symMods = cycle?.symptom_modifiers || {{}};
+  const symMods = cycle?.symptom_modifiers || {};
 
   let html = `<div class="cycle-sim-row">
     <label>
-      <input type="checkbox" id="cycle-sim-toggle" ${{_cycleSimActive ? 'checked' : ''}}
-        onchange="_cycleSimActive=this.checked; updateCycleAllPanels(_cycleDay, DATA.cycle||{{}})"> What-If Mode
+      <input type="checkbox" id="cycle-sim-toggle" ${_cycleSimActive ? 'checked' : ''}
+        onchange="_cycleSimActive=this.checked; updateCycleAllPanels(_cycleDay, DATA.cycle||{})"> What-If Mode
     </label>
   </div>`;
 
   html += `<div class="cycle-sim-row">
     <label>Day</label>
-    <input type="range" min="1" max="28" value="${{day}}" id="cycle-sim-day"
+    <input type="range" min="1" max="28" value="${day}" id="cycle-sim-day"
       oninput="setCycleDay(parseInt(this.value)); document.getElementById('cycle-sim-day-val').textContent=this.value">
-    <div class="sim-val" id="cycle-sim-day-val">${{day}}</div>
+    <div class="sim-val" id="cycle-sim-day-val">${day}</div>
   </div>`;
 
   html += `<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">
     <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.1em;">Symptom Intensity</div>`;
 
-  symptoms.forEach(s => {{
+  symptoms.forEach(s => {
     const val = symMods[s] !== undefined ? symMods[s] : 1;
     const label = s.replace(/_/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase());
     html += `<div class="cycle-sim-row">
-      <label>${{label}}</label>
-      <input type="range" min="0" max="3" step="0.1" value="${{val}}" id="sim-${{s}}-input"
-        oninput="document.getElementById('sim-${{s}}-val').textContent=parseFloat(this.value).toFixed(1)+'x'">
-      <div class="sim-val" id="sim-${{s}}-val">${{parseFloat(val).toFixed(1)}}x</div>
+      <label>${label}</label>
+      <input type="range" min="0" max="3" step="0.1" value="${val}" id="sim-${s}-input"
+        oninput="document.getElementById('sim-${s}-val').textContent=parseFloat(this.value).toFixed(1)+'x'">
+      <div class="sim-val" id="sim-${s}-val">${parseFloat(val).toFixed(1)}x</div>
     </div>`;
-  }});
+  });
 
   html += `</div>`;
 
@@ -4990,139 +5185,139 @@ function renderCycleSimulator(day, cycle) {{
   </div>`;
 
   document.getElementById('cycle-simulator').innerHTML = html;
-}}
+}
 
-function applyCyclePreset(preset) {{
-  const presets = {{
-    heavy_pms: {{ cramps: 2.5, bloating: 2.0, fatigue: 2.0, mood_swings: 2.5, headache: 1.8, breast_tenderness: 2.2, acne: 1.5, appetite_changes: 2.0, back_pain: 2.0, insomnia: 1.8 }},
-    minimal: {{ cramps: 0.3, bloating: 0.3, fatigue: 0.5, mood_swings: 0.3, headache: 0.2, breast_tenderness: 0.3, acne: 0.2, appetite_changes: 0.3, back_pain: 0.2, insomnia: 0.3 }},
-    heavy_period: {{ cramps: 3.0, bloating: 2.0, fatigue: 2.5, mood_swings: 1.5, headache: 2.0, breast_tenderness: 1.0, acne: 1.0, appetite_changes: 1.5, back_pain: 2.5, insomnia: 1.5 }},
-    reset: {{ cramps: 1, bloating: 1, fatigue: 1, mood_swings: 1, headache: 1, breast_tenderness: 1, acne: 1, appetite_changes: 1, back_pain: 1, insomnia: 1 }}
-  }};
+function applyCyclePreset(preset) {
+  const presets = {
+    heavy_pms: { cramps: 2.5, bloating: 2.0, fatigue: 2.0, mood_swings: 2.5, headache: 1.8, breast_tenderness: 2.2, acne: 1.5, appetite_changes: 2.0, back_pain: 2.0, insomnia: 1.8 },
+    minimal: { cramps: 0.3, bloating: 0.3, fatigue: 0.5, mood_swings: 0.3, headache: 0.2, breast_tenderness: 0.3, acne: 0.2, appetite_changes: 0.3, back_pain: 0.2, insomnia: 0.3 },
+    heavy_period: { cramps: 3.0, bloating: 2.0, fatigue: 2.5, mood_swings: 1.5, headache: 2.0, breast_tenderness: 1.0, acne: 1.0, appetite_changes: 1.5, back_pain: 2.5, insomnia: 1.5 },
+    reset: { cramps: 1, bloating: 1, fatigue: 1, mood_swings: 1, headache: 1, breast_tenderness: 1, acne: 1, appetite_changes: 1, back_pain: 1, insomnia: 1 }
+  };
   const vals = presets[preset];
   if (!vals) return;
-  if (!DATA.cycle) DATA.cycle = {{}};
+  if (!DATA.cycle) DATA.cycle = {};
   DATA.cycle.symptom_modifiers = vals;
   renderCycleSimulator(_cycleDay, DATA.cycle);
-}}
+}
 
-function saveCycleState() {{
-  const cycle = DATA.cycle || {{}};
+function saveCycleState() {
+  const cycle = DATA.cycle || {};
   cycle.current_day = _cycleDay;
   cycle.phase = getCyclePhaseJS(_cycleDay);
-  cycle.hormones = {{
+  cycle.hormones = {
     estrogen: CYCLE_HORMONES.estrogen[_cycleDay - 1] || 0,
     progesterone: CYCLE_HORMONES.progesterone[_cycleDay - 1] || 0,
     lh: CYCLE_HORMONES.lh[_cycleDay - 1] || 0,
     fsh: CYCLE_HORMONES.fsh[_cycleDay - 1] || 0
-  }};
-  cycle.simulator = {{ active: _cycleSimActive, simulated_day: _cycleDay, custom_modifiers: {{}} }};
+  };
+  cycle.simulator = { active: _cycleSimActive, simulated_day: _cycleDay, custom_modifiers: {} };
   cycle.last_advance = new Date().toISOString();
   if (!cycle.start_date) cycle.start_date = cycle.last_advance;
   if (!cycle.cycle_length) cycle.cycle_length = 28;
-  if (!cycle.symptom_modifiers) cycle.symptom_modifiers = {{ cramps:1,bloating:1,fatigue:1,mood_swings:1,headache:1,breast_tenderness:1,acne:1,appetite_changes:1,back_pain:1,insomnia:1 }};
+  if (!cycle.symptom_modifiers) cycle.symptom_modifiers = { cramps:1,bloating:1,fatigue:1,mood_swings:1,headache:1,breast_tenderness:1,acne:1,appetite_changes:1,back_pain:1,insomnia:1 };
 
   // Read symptom sliders
   const symptoms = ['cramps','bloating','fatigue','mood_swings','headache','breast_tenderness','acne','appetite_changes','back_pain','insomnia'];
-  symptoms.forEach(s => {{
-    const el = document.getElementById(`sim-${{s}}-input`);
+  symptoms.forEach(s => {
+    const el = document.getElementById(`sim-${s}-input`);
     if (el) cycle.symptom_modifiers[s] = parseFloat(el.value);
-  }});
+  });
 
   DATA.cycle = cycle;
-  fetch('/update-cycle', {{
+  fetch('/update-cycle', {
     method: 'POST',
-    headers: {{ 'Content-Type': 'application/json' }},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(cycle)
-      }}).then(r => {{
+      }).then(r => {
         if (r.ok) showToast('Cycle state saved', 'success');
         else showToast('Save failed', 'error');
-      }}).catch(() => showToast('Save failed', 'error'));
+      }).catch(() => showToast('Save failed', 'error'));
   
-}}
+}
 
-function renderCycleEducation() {{
+function renderCycleEducation() {
   const phases = [
-    {{
+    {
       phase: 'menstruation', label: 'Menstruation (Days 1-5)', subtitle: 'The Shedding Phase',
       color: CYCLE_PHASE_COLORS.menstruation,
       text: `<p><strong>What happens:</strong> The uterine lining (endometrium) that built up during the previous cycle is shed through the vagina. This is menstrual bleeding, lasting typically 3-7 days.</p>
 <p><strong>Hormones:</strong> Estrogen and progesterone are at their lowest. The drop in these hormones triggers the shedding. FSH begins to rise slowly, signaling the ovaries to prepare new follicles.</p>
 <p><strong>Why it happens:</strong> When no fertilized egg implanted in the uterine wall, the corpus luteum degrades, progesterone drops, and the thickened lining is no longer supported — so the body releases it.</p>
 <p><strong>Common symptoms:</strong> Cramps (prostaglandins cause uterine contractions), fatigue, lower back pain, mood changes. Iron loss through bleeding can contribute to tiredness.</p>`
-    }},
-    {{
+    },
+    {
       phase: 'follicular', label: 'Follicular Phase (Days 6-13)', subtitle: 'The Growth Phase',
       color: CYCLE_PHASE_COLORS.follicular,
       text: `<p><strong>What happens:</strong> FSH stimulates multiple ovarian follicles to develop. One becomes the "dominant follicle" and matures, producing increasing amounts of estrogen.</p>
 <p><strong>Hormones:</strong> Estrogen rises steadily. This thickens the endometrium again, preparing a new, nutrient-rich lining. FSH peaks early then decreases as the dominant follicle takes over.</p>
 <p><strong>Why it happens:</strong> The body is preparing for potential conception. Estrogen rebuilds the uterine lining and triggers changes in cervical mucus to eventually facilitate sperm transport.</p>
 <p><strong>Common experience:</strong> Rising energy, improved mood, clearer skin, increased creativity and social drive. Many people feel "at their best" during the late follicular phase.</p>`
-    }},
-    {{
+    },
+    {
       phase: 'ovulation', label: 'Ovulation (Days 14-15)', subtitle: 'The Release',
       color: CYCLE_PHASE_COLORS.ovulation,
       text: `<p><strong>What happens:</strong> A massive LH surge (triggered by peak estrogen) causes the dominant follicle to rupture and release a mature egg (ovum) into the fallopian tube.</p>
 <p><strong>Hormones:</strong> LH spikes dramatically (up to 10x baseline). Estrogen peaks just before. The egg is viable for 12-24 hours. This is the most fertile window.</p>
 <p><strong>Why it happens:</strong> High estrogen signals the pituitary gland that a follicle is mature. The pituitary responds with the LH surge, which biochemically triggers the follicle wall to break down and release the egg.</p>
 <p><strong>Common experience:</strong> Some feel a twinge or mild pain on one side (Mittelschmerz). Highest energy, confidence, and libido. Cervical mucus is clear and stretchy (egg-white consistency).</p>`
-    }},
-    {{
+    },
+    {
       phase: 'luteal', label: 'Luteal Phase (Days 16-28)', subtitle: 'The Waiting Phase',
       color: CYCLE_PHASE_COLORS.luteal,
       text: `<p><strong>What happens:</strong> The collapsed follicle becomes the corpus luteum, a temporary endocrine gland that produces progesterone and some estrogen to maintain the uterine lining.</p>
 <p><strong>Hormones:</strong> Progesterone dominates, peaking around day 21. If no implantation occurs, the corpus luteum degrades after ~12 days, hormone levels drop, and a new cycle begins.</p>
 <p><strong>Why it happens:</strong> Progesterone stabilizes the endometrium and creates a secretory environment (nutrients, blood vessels) suitable for embryo implantation. It also raises basal body temperature.</p>
 <p><strong>Common symptoms (PMS):</strong> Bloating, breast tenderness, mood swings, food cravings, acne, fatigue, irritability. These are caused by progesterone's effects and the eventual hormone withdrawal.</p>`
-    }}
+    }
   ];
 
   document.getElementById('cycle-education').innerHTML = phases.map((p, i) => `
-    <div class="cycle-edu-card${{i === 0 ? ' open' : ''}}" onclick="this.classList.toggle('open')">
-      <div class="cycle-edu-header" style="border-left:3px solid ${{p.color}};">
-        <span>${{p.label}} — ${{p.subtitle}}</span>
+    <div class="cycle-edu-card${i === 0 ? ' open' : ''}" onclick="this.classList.toggle('open')">
+      <div class="cycle-edu-header" style="border-left:3px solid ${p.color};">
+        <span>${p.label} — ${p.subtitle}</span>
         <span style="font-size:0.7rem;color:var(--text-dim);">▼</span>
       </div>
-      <div class="cycle-edu-body">${{p.text}}</div>
+      <div class="cycle-edu-body">${p.text}</div>
     </div>`).join('');
-}}
+}
 
 // ---------------------------------------------------------------------------
 // World Tab
 // ---------------------------------------------------------------------------
-function renderWorldPanel() {{
-  const ws = DATA.world_state || {{}};
+function renderWorldPanel() {
+  const ws = DATA.world_state || {};
   const locs = DATA.physique?.world?.locations || [];
 
   // Weather
-  const weatherIcons = {{ sunny: '☀️', cloudy: '☁️', rainy: '🌧️', stormy: '⛈️', snowy: '❄️' }};
+  const weatherIcons = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', stormy: '⛈️', snowy: '❄️' };
   const weatherIcon = weatherIcons[ws.weather] || '🌤️';
   document.getElementById('world-weather').innerHTML = `
-    <div style="font-size:3rem;text-align:center;">${{weatherIcon}}</div>
-    <p style="text-align:center;text-transform:capitalize;">${{ws.weather || 'unknown'}}</p>
-    <p style="text-align:center;font-size:1.5rem;">${{ws.temperature !== undefined ? ws.temperature + '°C' : 'N/A'}}</p>
+    <div style="font-size:3rem;text-align:center;">${weatherIcon}</div>
+    <p style="text-align:center;text-transform:capitalize;">${ws.weather || 'unknown'}</p>
+    <p style="text-align:center;font-size:1.5rem;">${ws.temperature !== undefined ? ws.temperature + '°C' : 'N/A'}</p>
     <div style="margin-top:1rem;display:flex;flex-direction:column;gap:0.5rem;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <span style="font-size:0.75rem;color:var(--text-dim);">Real-World Sync</span>
-        <input type="checkbox" ${{ws.sync_to_real_world ? 'checked' : ''}} 
-          onchange="updateWorld({{sync_to_real_world: this.checked}})">
+        <input type="checkbox" ${ws.sync_to_real_world ? 'checked' : ''} 
+          onchange="updateWorld({sync_to_real_world: this.checked})">
       </div>
-      <select class="btn-crud" style="width:100%;text-align:center;" onchange="updateWorld({{weather: this.value, sync_to_real_world: false}})">
+      <select class="btn-crud" style="width:100%;text-align:center;" onchange="updateWorld({weather: this.value, sync_to_real_world: false})">
         <option value="">-- Override Weather --</option>
-        ${{Object.keys(weatherIcons).map(w => `<option value="${{w}}" ${{ws.weather === w ? 'selected' : ''}}>${{w.toUpperCase()}}</option>`).join('')}}
+        ${Object.keys(weatherIcons).map(w => `<option value="${w}" ${ws.weather === w ? 'selected' : ''}>${w.toUpperCase()}</option>`).join('')}
       </select>
     </div>`;
 
   // Season
-  const seasonIcons = {{ spring: '🌸', summer: '☀️', autumn: '🍂', winter: '❄️' }};
+  const seasonIcons = { spring: '🌸', summer: '☀️', autumn: '🍂', winter: '❄️' };
   const seasonIcon = seasonIcons[ws.season] || '🌍';
   document.getElementById('world-season').innerHTML = `
-    <div style="font-size:3rem;text-align:center;">${{seasonIcon}}</div>
-    <p style="text-align:center;text-transform:capitalize;">${{ws.season || 'unknown'}}</p>
+    <div style="font-size:3rem;text-align:center;">${seasonIcon}</div>
+    <p style="text-align:center;text-transform:capitalize;">${ws.season || 'unknown'}</p>
     <div style="margin-top:1rem;">
-      <select class="btn-crud" style="width:100%;text-align:center;" onchange="updateWorld({{season: this.value, sync_to_real_world: false}})">
+      <select class="btn-crud" style="width:100%;text-align:center;" onchange="updateWorld({season: this.value, sync_to_real_world: false})">
         <option value="">-- Override Season --</option>
-        ${{Object.keys(seasonIcons).map(s => `<option value="${{s}}" ${{ws.season === s ? 'selected' : ''}}>${{s.toUpperCase()}}</option>`).join('')}}
+        ${Object.keys(seasonIcons).map(s => `<option value="${s}" ${ws.season === s ? 'selected' : ''}>${s.toUpperCase()}</option>`).join('')}
       </select>
     </div>`;
 
@@ -5130,173 +5325,173 @@ function renderWorldPanel() {{
   const marketMod = ws.market_modifier || 1.0;
   const marketColor = marketMod > 1 ? 'var(--growth)' : (marketMod < 1 ? 'var(--danger)' : 'var(--text)');
   document.getElementById('world-market').innerHTML = `
-    <p style="font-size:1.5rem;text-align:center;color:${{marketColor}};">${{(marketMod * 100).toFixed(0)}}%</p>
+    <p style="font-size:1.5rem;text-align:center;color:${marketColor};">${(marketMod * 100).toFixed(0)}%</p>
     <p style="text-align:center;font-size:0.8rem;color:var(--text-dim);">of base price</p>
     <div style="margin-top:1rem;text-align:center;">
-      <input type="range" min="0.5" max="1.5" step="0.05" value="${{marketMod}}" 
-        style="width:100%;" onchange="updateWorld({{market_modifier: parseFloat(this.value)}})">
+      <input type="range" min="0.5" max="1.5" step="0.05" value="${marketMod}" 
+        style="width:100%;" onchange="updateWorld({market_modifier: parseFloat(this.value)})">
     </div>`;
 
   // Locations
   document.getElementById('world-locations').innerHTML = locs.length > 0
     ? locs.map(l => `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);">
-        <strong>${{l.name}}</strong><br><span style="color:var(--text-dim);font-size:0.8rem;">${{l.description || 'No description'}}</span>
+        <strong>${l.name}</strong><br><span style="color:var(--text-dim);font-size:0.8rem;">${l.description || 'No description'}</span>
       </div>`).join('')
     : '<p style="color:var(--text-dim);">No locations defined</p>';
-}}
+}
 
-function updateWorld(data) {{
-  fetch('/update-world', {{
+function updateWorld(data) {
+  fetch('/update-world', {
     method: 'POST',
-    headers: {{ 'Content-Type': 'application/json' }},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
-  }})
+  })
   .then(r => r.text())
-  .then(txt => {{
-    if (txt === 'OK') {{
+  .then(txt => {
+    if (txt === 'OK') {
       showToast('World updated', 'success');
       setTimeout(() => window.location.reload(), 500);
-    }} else {{
+    } else {
       showToast(txt, 'error');
-    }}
-  }})
+    }
+  })
   .catch(e => showToast(e, 'error'));
-}}
+}
 
 // ---------------------------------------------------------------------------
 // Skills Tab
 // ---------------------------------------------------------------------------
-function renderSkillsPanel() {{
+function renderSkillsPanel() {
   const skills = DATA.skills?.skills || [];
   const totalXp = DATA.skills?.total_xp || 0;
 
   // Skills list
-  if (skills.length === 0) {{
+  if (skills.length === 0) {
     document.getElementById('skills-list').innerHTML = '<p style="color:var(--text-dim);">No skills learned yet</p>';
-  }} else {{
+  } else {
     const sorted = [...skills].sort((a, b) => b.level - a.level || b.xp - a.xp);
     document.getElementById('skills-list').innerHTML = sorted.map(s => `
       <div style="padding:0.5rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-        <span><strong>${{s.name}}</strong></span>
-        <span style="color:var(--core);">Lv.${{s.level}} <span style="color:var(--text-dim);font-size:0.8rem;">(${{s.xp}}/${{s.xp_to_next}} XP)</span></span>
+        <span><strong>${s.name}</strong></span>
+        <span style="color:var(--core);">Lv.${s.level} <span style="color:var(--text-dim);font-size:0.8rem;">(${s.xp}/${s.xp_to_next} XP)</span></span>
       </div>`).join('');
-  }}
+  }
 
   // Top skills
   const top3 = skills.slice(0, 3).sort((a, b) => b.level - a.level);
   document.getElementById('skills-top').innerHTML = top3.length > 0
     ? top3.map((s, i) => `<div style="padding:0.3rem 0;">
-        <span style="color:var(--core);">#{{i+1}}</span> <strong>${{s.name}}</strong> (Lv.${{s.level}})
+        <span style="color:var(--core);">#{i+1}</span> <strong>${s.name}</strong> (Lv.${s.level})
       </div>`).join('')
     : '<p style="color:var(--text-dim);">No skills yet</p>';
 
   // Total XP
   document.getElementById('skills-total').innerHTML = `
-    <p style="font-size:2rem;text-align:center;color:var(--growth);">${{totalXp}}</p>
+    <p style="font-size:2rem;text-align:center;color:var(--growth);">${totalXp}</p>
     <p style="text-align:center;font-size:0.8rem;color:var(--text-dim);">Total XP earned</p>`;
-}}
+}
 
 // ---------------------------------------------------------------------------
 // Voice Lab Functions - Phase 20
 // ---------------------------------------------------------------------------
-function updateVoiceLabel(param) {{
+function updateVoiceLabel(param) {
   const slider = document.getElementById('voice-' + param);
   const label = document.getElementById('voice-' + param + '-val');
-  if (slider && label) {{
-    if (param === 'speed') {{
+  if (slider && label) {
+    if (param === 'speed') {
       label.textContent = parseFloat(slider.value).toFixed(1) + 'x';
-    }} else {{
+    } else {
       label.textContent = slider.value;
-    }}
-  }}
-}}
+    }
+  }
+}
 
-function getVoiceSettings() {{
-  return {{
+function getVoiceSettings() {
+  return {
     pitch: parseFloat(document.getElementById('voice-pitch').value) || 0,
     speed: parseFloat(document.getElementById('voice-speed').value) || 1.0,
     emotional_intensity: parseFloat(document.getElementById('voice-emotion').value) || 0.5
-  }};
-}}
+  };
+}
 
-async function generateVoice() {{
+async function generateVoice() {
   const text = document.getElementById('voice-test-text').value.trim();
   const statusDiv = document.getElementById('voice-status');
 
-  if (!text) {{
+  if (!text) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter text to speak.</span>';
     return;
-  }}
+  }
 
   statusDiv.innerHTML = '<span style="color:var(--text-dim);">Generating...</span>';
 
-  try {{
+  try {
     const settings = getVoiceSettings();
-    const response = await fetch('/api/voice/generate', {{
+    const response = await fetch('/api/voice/generate', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ text: text, settings: settings }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, settings: settings })
+    });
     const result = await response.json();
 
-    if (result.success) {{
+    if (result.success) {
       statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Generated!</span>';
 
       // Add to history
       const historyDiv = document.getElementById('voice-history');
       const audioHtml = `<div style="background:var(--bg-dim);padding:0.5rem;border-radius:4px;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;">
         <div style="flex:1;overflow:hidden;">
-          <div style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${{text}}</div>
-          <div style="font-size:0.7rem;color:var(--text-dim);">${{result.timestamp || new Date().toISOString()}}</div>
+          <div style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${text}</div>
+          <div style="font-size:0.7rem;color:var(--text-dim);">${result.timestamp || new Date().toISOString()}</div>
         </div>
-        <audio controls src="${{result.url}}" style="height:30px;margin-left:0.5rem;"></audio>
+        <audio controls src="${result.url}" style="height:30px;margin-left:0.5rem;"></audio>
       </div>`;
 
       // Prepend to history
       const existing = historyDiv.innerHTML;
-      if (existing.includes('No voice generated')) {{
+      if (existing.includes('No voice generated')) {
         historyDiv.innerHTML = audioHtml;
-      }} else {{
+      } else {
         // Keep only last 5 items
         const items = [audioHtml];
         const existingItems = historyDiv.querySelectorAll('div[style*="background"]');
-        existingItems.forEach((item, i) => {{
+        existingItems.forEach((item, i) => {
           if (i < 4) items.push(item.outerHTML);
-        }});
+        });
         historyDiv.innerHTML = items.join('');
-      }}
-    }} else {{
+      }
+    } else {
       statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + (result.error || 'Unknown') + '</span>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // The Vault Tab - Phase 21
 // ---------------------------------------------------------------------------
-async function loadVaultData() {{
-  try {{
+async function loadVaultData() {
+  try {
     const response = await fetch('/api/vault/status');
     const result = await response.json();
 
     // Check for new transactions
     const lastTxId = localStorage.getItem('vault_last_tx_id');
     const transactions = result.transactions || [];
-    if (transactions.length > 0) {{
+    if (transactions.length > 0) {
       const latest = transactions[0];
-      if (lastTxId && lastTxId !== latest.id) {{
-        showToast(`<strong>Trade Executed</strong><br>${{latest.type.toUpperCase()}} ${{latest.amount}} ${{latest.symbol}} @ $${{latest.price.toFixed(2)}}`, 'success');
-      }}
+      if (lastTxId && lastTxId !== latest.id) {
+        showToast(`<strong>Trade Executed</strong><br>${latest.type.toUpperCase()} ${latest.amount} ${latest.symbol} @ $${latest.price.toFixed(2)}`, 'success');
+      }
       localStorage.setItem('vault_last_tx_id', latest.id);
-    }}
+    }
 
     // Update mode display
     const modeEl = document.getElementById('vault-mode');
-    if (modeEl && result.mode) {{
+    if (modeEl && result.mode) {
       modeEl.textContent = result.mode === 'paper' ? 'Paper Trading (Sandbox)' : 'Live Trading';
-    }}
+    }
 
     // Populate config fields
     if (result.provider) document.getElementById('vault-provider').value = result.provider;
@@ -5306,181 +5501,181 @@ async function loadVaultData() {{
 
     // Update portfolio
     const portfolioDiv = document.getElementById('vault-portfolio');
-    if (portfolioDiv) {{
+    if (portfolioDiv) {
       const balances = result.balances || {};
       const positions = result.positions || {};
 
-      if (Object.keys(balances).length === 0 && Object.keys(positions).length === 0) {{
+      if (Object.keys(balances).length === 0 && Object.keys(positions).length === 0) {
         portfolioDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No holdings. Deposit funds to start trading.</p>';
-      }} else {{
+      } else {
         let html = '<div style="background:var(--bg-dim);padding:0.75rem;border-radius:4px;margin-bottom:0.5rem;">';
         html += '<h4 style="margin:0 0 0.5rem 0;">Balances</h4>';
-        for (const [asset, amount] of Object.entries(balances)) {{
-          html += `<div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.25rem;"><span>${{asset}}</span><span>${{typeof amount === 'number' ? amount.toFixed(4) : amount}}</span></div>`;
-        }}
+        for (const [asset, amount] of Object.entries(balances)) {
+          html += `<div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.25rem;"><span>${asset}</span><span>${typeof amount === 'number' ? amount.toFixed(4) : amount}</span></div>`;
+        }
         html += '</div>';
 
-        if (Object.keys(positions).length > 0) {{
+        if (Object.keys(positions).length > 0) {
           html += '<div style="background:var(--bg-dim);padding:0.75rem;border-radius:4px;"><h4 style="margin:0.5rem 0 0.5rem 0;">Positions</h4>';
-          for (const [symbol, pos] of Object.entries(positions)) {{
+          for (const [symbol, pos] of Object.entries(positions)) {
             const p = pos;
-            html += `<div style="font-size:0.85rem;margin-bottom:0.25rem;"><strong>${{symbol}}</strong>: ${{p.amount}} @ ${{p.avg_price.toFixed(2)}}</div>`;
-          }}
+            html += `<div style="font-size:0.85rem;margin-bottom:0.25rem;"><strong>${symbol}</strong>: ${p.amount} @ ${p.avg_price.toFixed(2)}</div>`;
+          }
           html += '</div>';
-        }}
+        }
         portfolioDiv.innerHTML = html;
-      }}
-    }}
+      }
+    }
 
     // Update transactions
     const txDiv = document.getElementById('vault-transactions');
-    if (txDiv) {{
-      if (transactions.length === 0) {{
+    if (txDiv) {
+      if (transactions.length === 0) {
         txDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No transactions yet.</p>';
-      }} else {{
+      } else {
         txDiv.innerHTML = transactions.slice(0, 20).map(tx => `
-          <div style="background:var(--bg-dim);padding:0.5rem;border-radius:4px;margin-bottom:0.5rem;font-size:0.85rem;border-left:3px solid ${{tx.type === 'buy' ? 'var(--growth)' : 'var(--core)'}};">
+          <div style="background:var(--bg-dim);padding:0.5rem;border-radius:4px;margin-bottom:0.5rem;font-size:0.85rem;border-left:3px solid ${tx.type === 'buy' ? 'var(--growth)' : 'var(--core)'};">
             <div style="display:flex;justify-content:space-between;">
-              <strong>${{tx.type.toUpperCase()}} ${{tx.symbol}}</strong>
-              <span>$${{tx.total.toFixed(2)}}</span>
+              <strong>${tx.type.toUpperCase()} ${tx.symbol}</strong>
+              <span>$${tx.total.toFixed(2)}</span>
             </div>
             <div style="color:var(--text-dim);font-size:0.75rem;">
-              ${{tx.amount}} @ $${{tx.price.toFixed(2)}} · ${{new Date(tx.timestamp).toLocaleString()}}
+              ${tx.amount} @ $${tx.price.toFixed(2)} · ${new Date(tx.timestamp).toLocaleString()}
             </div>
           </div>
         `).join('');
-      }}
-    }}
+      }
+    }
 
     // Update reports
     const reportsDiv = document.getElementById('vault-reports');
-    if (reportsDiv) {{
+    if (reportsDiv) {
       const reports = result.market_reports || [];
-      if (reports.length === 0) {{
+      if (reports.length === 0) {
         reportsDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Waiting for AI morning report...</p>';
-      }} else {{
+      } else {
         const latest = reports[0];
         reportsDiv.innerHTML = `
-          <div style="margin-bottom:0.5rem;color:var(--accent);font-size:0.75rem;text-transform:uppercase;">Latest: ${{latest.date}}</div>
-          <div>"${{esc(latest.content)}}"</div>
-          ${{reports.length > 1 ? `<div style="margin-top:0.5rem;font-size:0.7rem;color:var(--text-dim);">+ ${{reports.length - 1}} older reports</div>` : ''}}
+          <div style="margin-bottom:0.5rem;color:var(--accent);font-size:0.75rem;text-transform:uppercase;">Latest: ${latest.date}</div>
+          <div>"${esc(latest.content)}"</div>
+          ${reports.length > 1 ? `<div style="margin-top:0.5rem;font-size:0.7rem;color:var(--text-dim);">+ ${reports.length - 1} older reports</div>` : ''}
         `;
-      }}
-    }}
-  }} catch (e) {{
+      }
+    }
+  } catch (e) {
     console.log('Could not load vault data:', e);
-  }}
-}}
+  }
+}
 
-async function saveVaultConfig() {{
+async function saveVaultConfig() {
   const provider = document.getElementById('vault-provider').value;
   const mode = document.getElementById('vault-mode-select').value;
   const apiKey = document.getElementById('vault-api-key').value;
   const apiSecret = document.getElementById('vault-api-secret').value;
   const statusDiv = document.getElementById('vault-config-status');
 
-  try {{
-    const response = await fetch('/api/vault/config', {{
+  try {
+    const response = await fetch('/api/vault/config', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ provider, mode, api_key: apiKey, api_secret: apiSecret }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, mode, api_key: apiKey, api_secret: apiSecret })
+    });
     const result = await response.json();
 
-    if (result.success) {{
+    if (result.success) {
       statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Config saved!</span>';
       setTimeout(() => statusDiv.innerHTML = '', 3000);
       loadVaultData();
-    }} else {{
+    } else {
       statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.error + '</span>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }}
-}}
+  }
+}
 
-async function depositVault() {{
+async function depositVault() {
   const amount = parseFloat(document.getElementById('vault-deposit-amount').value);
   const statusDiv = document.getElementById('vault-deposit-status');
 
-  if (!amount || amount <= 0) {{
+  if (!amount || amount <= 0) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter a valid amount.</span>';
     return;
-  }}
+  }
 
   statusDiv.innerHTML = '<span style="color:var(--text-dim);">Processing...</span>';
 
-  try {{
-    const response = await fetch('/api/vault/deposit', {{
+  try {
+    const response = await fetch('/api/vault/deposit', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ amount: amount }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: amount })
+    });
     const result = await response.json();
 
-    if (result.success) {{
+    if (result.success) {
       statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Deposited $' + amount.toFixed(2) + '! Total: $' + result.total_balance.toFixed(2) + '</span>';
       loadVaultData();
-    }} else {{
+    } else {
       statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.error + '</span>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }}
-}}
+  }
+}
 
-async function executeTrade() {{
+async function executeTrade() {
   const symbol = document.getElementById('vault-trade-symbol').value.trim().toUpperCase();
   const amount = parseFloat(document.getElementById('vault-trade-amount').value);
   const tradeType = document.getElementById('vault-trade-type').value;
   const statusDiv = document.getElementById('vault-trade-status');
 
-  if (!symbol || !amount || amount <= 0) {{
+  if (!symbol || !amount || amount <= 0) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter symbol and amount.</span>';
     return;
-  }}
+  }
 
   statusDiv.innerHTML = '<span style="color:var(--text-dim);">Executing trade...</span>';
 
-  try {{
-    const response = await fetch('/api/vault/trade', {{
+  try {
+    const response = await fetch('/api/vault/trade', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ action: 'trade', symbol: symbol, amount: amount, type: tradeType }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'trade', symbol: symbol, amount: amount, type: tradeType })
+    });
     const result = await response.json();
 
-    if (result.success) {{
+    if (result.success) {
       const tx = result.transaction;
       statusDiv.innerHTML = '<span style="color:var(--growth);">✓ ' + tx.type.toUpperCase() + ' ' + tx.amount + ' ' + tx.symbol + ' @ $' + tx.price.toFixed(2) + '</span>';
       loadVaultData();
-    }} else {{
+    } else {
       statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.error + '</span>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Economy Engine State (Phase 37)
 // ---------------------------------------------------------------------------
-async function loadEconomyState() {{
-  try {{
+async function loadEconomyState() {
+  try {
     const response = await fetch('/api/economy/state');
     const state = await response.json();
 
     // Update status
     const statusEl = document.getElementById('economy-status');
-    if (statusEl) {{
+    if (statusEl) {
       statusEl.textContent = state.isActive ? 'Active' : 'Inactive';
       statusEl.style.color = state.isActive ? 'var(--growth)' : 'var(--text-dim)';
-    }}
+    }
 
     // Update strategy
     const strategyEl = document.getElementById('economy-strategy');
-    if (strategyEl) {{
-      const strategyNames = {{
+    if (strategyEl) {
+      const strategyNames = {
         'observe': 'Observing',
         'hold': 'Holding',
         'panic_sell': 'Panic Sell',
@@ -5490,197 +5685,244 @@ async function loadEconomyState() {{
         'dollar_cost_average': 'DCA',
         'stop_loss': 'Stop Loss',
         'day_trade': 'Day Trade'
-      }};
+      };
       strategyEl.textContent = strategyNames[state.currentStrategy] || state.currentStrategy || '-';
-    }}
+    }
 
     // Update mood
     const moodEl = document.getElementById('economy-mood');
-    if (moodEl) {{
-      const moodColors = {{ 'bullish': 'var(--growth)', 'bearish': 'var(--danger)', 'neutral': 'var(--core)' }};
+    if (moodEl) {
+      const moodColors = { 'bullish': 'var(--growth)', 'bearish': 'var(--danger)', 'neutral': 'var(--core)' };
       moodEl.textContent = (state.marketMood || 'neutral').charAt(0).toUpperCase() + (state.marketMood || 'neutral').slice(1);
       moodEl.style.color = moodColors[state.marketMood] || 'var(--text)';
-    }}
+    }
 
     // Update trade count
     const tradesEl = document.getElementById('economy-trades');
-    if (tradesEl) {{
+    if (tradesEl) {
       tradesEl.textContent = state.totalTrades || 0;
-    }}
+    }
 
     // Update last trade time
     const lastTradeEl = document.getElementById('economy-last-trade');
-    if (lastTradeEl) {{
-      if (state.lastTradeTime) {{
+    if (lastTradeEl) {
+      if (state.lastTradeTime) {
         const date = new Date(state.lastTradeTime);
         lastTradeEl.textContent = date.toLocaleTimeString();
-      }} else {{
+      } else {
         lastTradeEl.textContent = '-';
-      }}
-    }}
-  }} catch (e) {{
+      }
+    }
+  } catch (e) {
     console.log('Economy state error:', e);
-  }}
-}}
+  }
+}
 
 // Load economy state when vault tab is loaded
 window._economyPolling = null;
-function startEconomyPolling() {{
+function startEconomyPolling() {
   if (window._economyPolling) clearInterval(window._economyPolling);
   loadEconomyState();
   window._economyPolling = setInterval(loadEconomyState, 5000);
-}}
+}
 
 // Start polling when vault tab becomes active
+// Consolidating switchTab functionality
 const originalSwitchTab = window.switchTab;
-window.switchTab = function(tabId) {{
-  if (originalSwitchTab) originalSwitchTab(tabId);
-  if (tabId === 'vault') {{
-    startEconomyPolling();
-  }}
-  if (tabId === 'stream') {{
-    startPresencePolling();
-  }}
-  if (tabId === 'analytics') {{
-    loadAnalyticsData();
-  }}
-  if (tabId === 'config') {{
-    loadConfig();
-  }}
-  if (tabId === 'diagnostics') {{
+window.switchTab = function(tabId) {
+  // Call original logic if it exists (the one defined in the first script tag)
+  if (typeof originalSwitchTab === 'function') {
+    originalSwitchTab(tabId);
+  }
+
+  // Handle diagnostics specifically
+  if (tabId === 'diagnostics') {
     loadDiagnostics();
-  }}
-}};
+  }
+
+  // Handle other tab-specific polls/logic
+  if (tabId === 'vault') startEconomyPolling();
+  if (tabId === 'stream') startPresencePolling();
+  if (tabId === 'analytics') loadAnalyticsData();
+  if (tabId === 'config') loadConfig();
+
+  // Avatar initialization fallback
+  if (tabId === 'avatar' && typeof vrmModel !== 'undefined' && !vrmModel) {
+    if (typeof initAvatar === 'function') initAvatar();
+  }
+};
+
 
 // ---------------------------------------------------------------------------
 // Presence Engine State (Phase 39)
 // ---------------------------------------------------------------------------
-async function loadPresenceState() {{
-  try {{
+async function loadPresenceState() {
+  try {
     const response = await fetch('/api/presence/state');
     const state = await response.json();
 
     // Update status
     const statusEl = document.getElementById('presence-status');
-    if (statusEl) {{
+    if (statusEl) {
       statusEl.textContent = state.isActive ? 'Active' : 'Inactive';
       statusEl.style.color = state.isActive ? '#10b981' : 'var(--text-dim)';
-    }}
+    }
 
     // Update mood
     const moodEl = document.getElementById('presence-mood');
-    if (moodEl) {{
-      const moodColors = {{ 'euphoric': '#10b981', 'happy': '#10b981', 'content': '#10b981', 'neutral': 'var(--core)', 'stressed': '#ef4444', 'anxious': '#f59e0b', 'tired': '#6b7280' }};
+    if (moodEl) {
+      const moodColors = { 'euphoric': '#10b981', 'happy': '#10b981', 'content': '#10b981', 'neutral': 'var(--core)', 'stressed': '#ef4444', 'anxious': '#f59e0b', 'tired': '#6b7280' };
       moodEl.textContent = (state.currentMood || 'neutral').charAt(0).toUpperCase() + (state.currentMood || 'neutral').slice(1);
       moodEl.style.color = moodColors[state.currentMood] || 'var(--text)';
-    }}
+    }
 
     // Update counts
     const totalEl = document.getElementById('presence-total-posts');
-    if (totalEl) {{
+    if (totalEl) {
       totalEl.textContent = state.totalPosts || 0;
-    }}
+    }
 
     const todayEl = document.getElementById('presence-posts-today');
-    if (todayEl) {{
+    if (todayEl) {
       todayEl.textContent = state.postsToday || 0;
-    }}
+    }
 
     // Update feed
     const feedEl = document.getElementById('social-feed');
-    if (feedEl && state.feed) {{
-      if (state.feed.length === 0) {{
-        feedEl.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No posts yet. Q will post when significant events occur.</p>';
-      }} else {{
+    if (feedEl && state.feed) {
+      if (state.feed.length === 0) {
+        feedEl.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No posts yet. The entity will post when significant events occur.</p>';
+      } else {
         let html = '';
-        for (const post of state.feed.slice(0, 10)) {{
-          const sentimentColors = {{ 'joy': '#10b981', 'excitement': '#10b981', 'neutral': 'var(--text-dim)', 'melancholy': '#6b7280', 'frustration': '#ef4444' }};
+        for (const post of state.feed.slice(0, 10)) {
+          const sentimentColors = { 'joy': '#10b981', 'excitement': '#10b981', 'neutral': 'var(--text-dim)', 'melancholy': '#6b7280', 'frustration': '#ef4444' };
           const icon = post.type === 'selfie' ? '📷' : post.type === 'milestone' ? '🎉' : '💭';
-          html += `<div style="padding:0.75rem;background:var(--bg-dim);border-radius:6px;margin-bottom:0.5rem;border-left:3px solid ${{sentimentColors[post.sentiment] || 'var(--border)'}}">`;
+          html += `<div style="padding:0.75rem;background:var(--bg-dim);border-radius:6px;margin-bottom:0.5rem;border-left:3px solid ${sentimentColors[post.sentiment] || 'var(--border)'}">`;
           html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">`;
-          html += `<span style="font-size:1.2rem;">${{icon}}</span>`;
-          html += `<span style="font-size:0.75rem;color:var(--text-dim);">${{new Date(post.timestamp).toLocaleTimeString()}}</span>`;
+          html += `<span style="font-size:1.2rem;">${icon}</span>`;
+          html += `<span style="font-size:0.75rem;color:var(--text-dim);">${new Date(post.timestamp).toLocaleTimeString()}</span>`;
           html += `</div>`;
-          html += `<div style="font-size:0.9rem;line-height:1.4;">${{post.content}}</div>`;
-          html += `<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem;">❤️ ${{post.likes}} · 🔄 ${{post.shares}}</div>`;
+          html += `<div style="font-size:0.9rem;line-height:1.4;">${post.content}</div>`;
+          html += `<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem;">❤️ ${post.likes} · 🔄 ${post.shares}</div>`;
           html += `</div>`;
-        }}
+        }
         feedEl.innerHTML = html;
-      }}
-    }}
-  }} catch (e) {{
+      }
+    }
+  } catch (e) {
     console.log('Presence state error:', e);
-  }}
-}}
+  }
+}
 
-function startPresencePolling() {{
+function startPresencePolling() {
   if (window._presencePolling) clearInterval(window._presencePolling);
   loadPresenceState();
   window._presencePolling = setInterval(loadPresenceState, 5000);
-}}
+}
 
 // ---------------------------------------------------------------------------
 // Hardware Resonance State (Phase 40)
 // ---------------------------------------------------------------------------
-async function loadHardwareState() {{
-  try {{
+async function loadHardwareState() {
+  try {
     const response = await fetch('/api/hardware/resonance');
     const state = await response.json();
 
     // Update CPU
     const cpuEl = document.getElementById('hardware-cpu');
-    if (cpuEl) {{
+    if (cpuEl) {
       cpuEl.textContent = (state.currentCpuLoad || 0).toFixed(0) + '%';
       cpuEl.style.color = state.currentCpuLoad > 80 ? '#ef4444' : state.currentCpuLoad > 50 ? '#f59e0b' : 'var(--accent)';
-    }}
+    }
 
     // Update RAM
     const ramEl = document.getElementById('hardware-ram');
-    if (ramEl) {{
+    if (ramEl) {
       ramEl.textContent = (state.currentMemoryUsage || 0).toFixed(0) + '%';
       ramEl.style.color = state.currentMemoryUsage > 85 ? '#ef4444' : state.currentMemoryUsage > 70 ? '#f59e0b' : 'var(--growth)';
-    }}
+    }
 
     // Update Temp
     const tempEl = document.getElementById('hardware-temp');
-    if (tempEl) {{
-      if (state.currentTemp) {{
+    if (tempEl) {
+      if (state.currentTemp) {
         tempEl.textContent = state.currentTemp.toFixed(0) + '°C';
         tempEl.style.color = state.currentTemp > 80 ? '#ef4444' : state.currentTemp > 60 ? '#f59e0b' : 'var(--core)';
-      }} else {{
+      } else {
         tempEl.textContent = 'N/A';
-      }}
-    }}
+      }
+    }
 
     // Update Resonance Level
     const resonanceEl = document.getElementById('hardware-resonance');
-    if (resonanceEl) {{
-      const levelColors = {{ 'calm': '#10b981', 'strained': '#f59e0b', 'overloaded': '#ef4444', 'resonant': '#8b5cf6' }};
+    if (resonanceEl) {
+      const levelColors = { 'calm': '#10b981', 'strained': '#f59e0b', 'overloaded': '#ef4444', 'resonant': '#8b5cf6' };
       resonanceEl.textContent = (state.resonanceLevel || 'calm').charAt(0).toUpperCase() + (state.resonanceLevel || 'calm').slice(1);
       resonanceEl.style.color = levelColors[state.resonanceLevel] || 'var(--accent)';
-    }}
+    }
 
     // Update Audio
     const audioEl = document.getElementById('hardware-audio');
-    if (audioEl) {{
+    if (audioEl) {
       audioEl.textContent = state.isAudioPlaying ? 'Playing 🎵' : 'Silent';
       audioEl.style.color = state.isAudioPlaying ? '#10b981' : 'var(--text-dim)';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     console.log('Hardware state error:', e);
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Diagnostics Tab (Phase 41)
 // ---------------------------------------------------------------------------
-async function loadDiagnostics() {{
+async function loadDiagnostics() {
   loadLogStream();
   loadSystemHealth();
-}}
+  loadModelDiagnostics();
+}
 
-async function loadSystemHealth() {{
-  try {{
+function loadModelDiagnostics() {
+  if (typeof DATA === 'undefined' || !DATA.system_config) return;
+  const cfg = DATA.system_config;
+
+  const setStatus = (id, isConfigured) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = isConfigured ? 'OK' : 'Missing';
+      el.style.color = isConfigured ? 'var(--growth)' : 'var(--core)';
+    }
+  };
+
+  setStatus('model-status-openai', cfg.openai_ok);
+  setStatus('model-status-anthropic', cfg.anthropic_ok);
+  setStatus('model-status-venice', cfg.venice_ok);
+  setStatus('model-status-xai', cfg.xai_ok);
+  setStatus('model-status-gemini', cfg.gemini_ok);
+  setStatus('model-status-fal', cfg.fal_ok);
+  setStatus('model-status-mem0', cfg.mem0_configured);
+  setStatus('model-status-vault', cfg.vault_configured);
+  setStatus('model-status-browser', cfg.browser_tool_ok);
+  setStatus('model-status-desktop', cfg.desktop_tool_ok);
+  setStatus('model-status-weather', cfg.weather_engine_ok);
+}
+
+function jumpToConfig(id) {
+  switchTab('config');
+  setTimeout(() => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus();
+      const origBg = el.style.backgroundColor;
+      el.style.transition = 'background-color 0.5s ease';
+      el.style.backgroundColor = 'var(--accent-glow)';
+      setTimeout(() => { el.style.backgroundColor = origBg; }, 1500);
+    }
+  }, 100);
+}
+
+async function loadSystemHealth() {
+  try {
     // Check logging
     const logHealth = document.getElementById('health-logging');
     if (logHealth) logHealth.textContent = 'Active';
@@ -5712,17 +5954,17 @@ async function loadSystemHealth() {{
     const vaultHealth = document.getElementById('health-vault');
     if (vaultHealth) vaultHealth.textContent = vault.mode || 'Unknown';
     if (vaultHealth) vaultHealth.style.color = 'var(--accent)';
-  }} catch (e) {{
+  } catch (e) {
     console.log('Health check error:', e);
-  }}
-}}
+  }
+}
 
-async function loadLogStream() {{
+async function loadLogStream() {
   const level = document.getElementById('log-filter-level')?.value || '';
   const module = document.getElementById('log-filter-module')?.value || '';
   const count = 100;
 
-  try {{
+  try {
     let url = '/api/logs/recent?count=' + count;
     if (level) url += '&level=' + level;
     if (module) url += '&module=' + module;
@@ -5735,48 +5977,48 @@ async function loadLogStream() {{
 
     if (logCount) logCount.textContent = logs.length + ' entries';
 
-    if (logStream) {{
-      if (!logs || logs.length === 0) {{
+    if (logStream) {
+      if (!logs || logs.length === 0) {
         logStream.innerHTML = '<div style="color:var(--text-dim);font-style:italic;">No log entries yet.</div>';
         return;
-      }}
+      }
 
       let html = '';
-      for (const entry of logs) {{
-        const levelColors = {{
+      for (const entry of logs) {
+        const levelColors = {
           'DEBUG': '#6b7280',
           'INFO': '#10b981',
           'WARN': '#f59e0b',
           'ERROR': '#ef4444'
-        }};
+        };
         const color = levelColors[entry.level] || 'var(--text)';
         const time = new Date(entry.timestamp).toLocaleTimeString();
         html += `<div style="padding:0.25rem 0;border-bottom:1px solid var(--border-dim);">`;
-        html += `<span style="color:var(--text-dim);font-size:0.7rem;">${{time}}</span> `;
-        html += `<span style="color:${{color}};font-weight:bold;font-size:0.75rem;">${{entry.level}}</span> `;
-        html += `<span style="color:var(--accent);font-size:0.75rem;">[${{entry.module}}]</span> `;
-        html += `<span style="color:var(--text);">${{entry.message}}</span>`;
-        if (entry.data) {{
-          html += `<span style="color:var(--text-dim);font-size:0.7rem;"> ${{JSON.stringify(entry.data)}}</span>`;
-        }}
+        html += `<span style="color:var(--text-dim);font-size:0.7rem;">${time}</span> `;
+        html += `<span style="color:${color};font-weight:bold;font-size:0.75rem;">${entry.level}</span> `;
+        html += `<span style="color:var(--accent);font-size:0.75rem;">[${entry.module}]</span> `;
+        html += `<span style="color:var(--text);">${entry.message}</span>`;
+        if (entry.data) {
+          html += `<span style="color:var(--text-dim);font-size:0.7rem;"> ${JSON.stringify(entry.data)}</span>`;
+        }
         html += `</div>`;
-      }}
+      }
       logStream.innerHTML = html;
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     console.log('Log load error:', e);
     const logStream = document.getElementById('log-stream');
     if (logStream) logStream.innerHTML = '<div style="color:var(--danger);">Error loading logs: ' + e.message + '</div>';
-  }}
-}}
+  }
+}
 
-function clearLogFilter() {{
+function clearLogFilter() {
   const levelSelect = document.getElementById('log-filter-level');
   const moduleSelect = document.getElementById('log-filter-module');
   if (levelSelect) levelSelect.value = '';
   if (moduleSelect) moduleSelect.value = '';
   loadLogStream();
-}}
+}
 
 // Start hardware polling on load
 setInterval(loadHardwareState, 5000);
@@ -5785,91 +6027,91 @@ loadHardwareState();
 // ---------------------------------------------------------------------------
 // Analytics Tab (v5.1.0)
 // ---------------------------------------------------------------------------
-async function loadAnalyticsData() {{
-  try {{
+async function loadAnalyticsData() {
+  try {
     // Load vitals telemetry
     const vitalsResponse = await fetch('/api/telemetry/vitals');
     const vitals = await vitalsResponse.json();
 
     const vitalsEl = document.getElementById('analytics-vitals');
-   El && vitals.length > 0) {{
+    if (vitalsEl && vitals.length > 0) {
       let html = '<div style="display:flex;gap:2px;height:100px;align-items:flex-end;">';
       const recent = vitals.slice(-48); // Last 48 entries
-      for (const v of recent) {{
+      for (const v of recent) {
         const stressH = (v.needs?.stress || 50);
         const energyH = (v.needs?.energy || 50);
         html += `<div style="flex:1;display:flex;flex-direction:column;gap:1px;">`;
-        html += `<div style="height:${{stressH}}%;background:var(--danger);min-height:1px;" title="Stress: ${{stressH}}"></div>`;
-        html += `<div style="height:${{energyH}}%;background:var(--growth);min-height:1px;" title="Energy: ${{energyH}}"></div>`;
+        html += `<div style="height:${stressH}%;background:var(--danger);min-height:1px;" title="Stress: ${stressH}"></div>`;
+        html += `<div style="height:${energyH}%;background:var(--growth);min-height:1px;" title="Energy: ${energyH}"></div>`;
         html += `</div>`;
-      }}
+      }
       html += '</div><div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-dim);margin-top:0.25rem;"><span>24h ago</span><span>Now</span></div>';
       vitalsEl.innerHTML = html;
-    }} else if (vitalsEl) {{
+    } else if (vitalsEl) {
       vitalsEl.innerHTML = '<div style="color:var(--text-dim);font-style:italic;">No vitals data yet. Data accumulates over time.</div>';
-    }}
+    }
 
     // Load hardware telemetry
     const hwResponse = await fetch('/api/telemetry/hardware');
     const hw = await hwResponse.json();
 
     const hwEl = document.getElementById('analytics-hardware');
-    if (hwEl && hw.length > 0) {{
+    if (hwEl && hw.length > 0) {
       let html = '<div style="display:flex;gap:2px;height:80px;align-items:flex-end;">';
       const recent = hw.slice(-48);
-      for (const h of recent) {{
+      for (const h of recent) {
         const cpuH = h.cpu || 0;
         const stressH = Math.min(100, (h.stress_impact || 0) * 10 + 20);
         html += `<div style="flex:1;display:flex;flex-direction:column;gap:1px;">`;
-        html += `<div style="height:${{cpuH}}%;background:#8b5cf6;min-height:1px;" title="CPU: ${{cpuH}}%"></div>`;
-        html += `<div style="height:${{stressH}}%;background:var(--danger);min-height:1px;" title="Stress Impact"></div>`;
+        html += `<div style="height:${cpuH}%;background:#8b5cf6;min-height:1px;" title="CPU: ${cpuH}%"></div>`;
+        html += `<div style="height:${stressH}%;background:var(--danger);min-height:1px;" title="Stress Impact"></div>`;
         html += `</div>`;
-      }}
+      }
       html += '</div><div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-dim);margin-top:0.25rem;"><span>CPU %</span><span>Stress</span></div>';
       hwEl.innerHTML = html;
-    }} else if (hwEl) {{
+    } else if (hwEl) {
       hwEl.innerHTML = '<div style="color:var(--text-dim);font-style:italic;">No hardware data yet.</div>';
-    }}
+    }
 
     // Load economy data
     const vaultResponse = await fetch('/api/vault/status');
     const vault = await vaultResponse.json();
 
     const econEl = document.getElementById('analytics-economy');
-    if (econEl) {{
+    if (econEl) {
       const totalValue = vault.balances?.USD || 0;
-      const positions = Object.keys(vault.positions || {{}}).length;
+      const positions = Object.keys(vault.positions || {}).length;
       econEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
         <div style="text-align:center;padding:1rem;background:var(--bg);border-radius:8px;">
-          <div style="font-size:2rem;color:var(--growth);">$${{totalValue.toFixed(2)}}</div>
+          <div style="font-size:2rem;color:var(--growth);">$${totalValue.toFixed(2)}</div>
           <div style="font-size:0.8rem;color:var(--text-dim);">Total Value</div>
         </div>
         <div style="text-align:center;padding:1rem;background:var(--bg);border-radius:8px;">
-          <div style="font-size:2rem;color:var(--accent);">${{vault.transactions?.length || 0}}</div>
+          <div style="font-size:2rem;color:var(--accent);">${vault.transactions?.length || 0}</div>
           <div style="font-size:0.8rem;color:var(--text-dim);">Total Trades</div>
         </div>
       </div>`;
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     console.log('Analytics load error:', e);
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Config Tab (v5.1.0)
 // ---------------------------------------------------------------------------
-async function loadConfig() {{
-  try {{
+async function loadConfig() {
+  try {
     const response = await fetch('/api/config/all');
     const config = await response.json();
 
     // Character
-    if (config.character) {{
+    if (config.character) {
       document.getElementById('config-character-name').value = config.character.name || 'Q';
-    }}
+    }
 
     // Metabolism
-    if (config.metabolism) {{
+    if (config.metabolism) {
       document.getElementById('config-hunger-rate').value = config.metabolism.hunger_rate || 0.5;
       document.getElementById('config-hunger-rate-val').textContent = config.metabolism.hunger_rate || 0.5;
       document.getElementById('config-thirst-rate').value = config.metabolism.thirst_rate || 0.5;
@@ -5878,178 +6120,178 @@ async function loadConfig() {{
       document.getElementById('config-energy-rate-val').textContent = config.metabolism.energy_rate || 0.5;
       document.getElementById('config-stress-rate').value = config.metabolism.stress_accumulation || 0.3;
       document.getElementById('config-stress-rate-val').textContent = config.metabolism.stress_accumulation || 0.3;
-    }}
+    }
 
     // Hardware
-    if (config.hardware_resonance) {{
+    if (config.hardware_resonance) {
       document.getElementById('config-cpu-threshold').value = config.hardware_resonance.cpu_threshold_high || 80;
       document.getElementById('config-ram-threshold').value = config.hardware_resonance.memory_threshold_high || 85;
       document.getElementById('config-temp-threshold').value = config.hardware_resonance.temp_threshold_high || 80;
       document.getElementById('config-audio-sensitivity').value = config.hardware_resonance.audio_sensitivity || 0.5;
       document.getElementById('config-audio-sensitivity-val').textContent = config.hardware_resonance.audio_sensitivity || 0.5;
-    }}
+    }
 
     // Social
-    if (config.social) {{
+    if (config.social) {
       document.getElementById('config-autopost').checked = config.social.autonomous_posting !== false;
       document.getElementById('config-post-frequency').value = config.social.post_frequency || 'medium';
       document.getElementById('config-npc-interact').checked = config.social.npc_interactions !== false;
       document.getElementById('config-interaction-frequency').value = config.social.interaction_frequency || 'medium';
-    }}
+    }
 
     // Connectivity
-    if (config.connectivity) {{
+    if (config.connectivity) {
       document.getElementById('config-vmc-enabled').checked = config.connectivity.vmc_enabled === true;
       document.getElementById('config-osc-enabled').checked = config.connectivity.osc_enabled === true;
       document.getElementById('config-vmc-ip').value = config.connectivity.vmc_ip || '127.0.0.1';
       document.getElementById('config-vmc-port').value = config.connectivity.vmc_port || 8000;
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     console.log('Config load error:', e);
-  }}
-}}
+  }
+}
 
-async function saveAllConfig() {{
-  const config = {{
-    character: {{
+async function saveAllConfig() {
+  const config = {
+    character: {
       name: document.getElementById('config-character-name').value
-    }},
-    metabolism: {{
+    },
+    metabolism: {
       hunger_rate: parseFloat(document.getElementById('config-hunger-rate').value),
       thirst_rate: parseFloat(document.getElementById('config-thirst-rate').value),
       energy_rate: parseFloat(document.getElementById('config-energy-rate').value),
       stress_accumulation: parseFloat(document.getElementById('config-stress-rate').value)
-    }},
-    hardware_resonance: {{
+    },
+    hardware_resonance: {
       enabled: true,
       cpu_threshold_high: parseInt(document.getElementById('config-cpu-threshold').value),
       memory_threshold_high: parseInt(document.getElementById('config-ram-threshold').value),
       temp_threshold_high: parseInt(document.getElementById('config-temp-threshold').value),
       audio_sensitivity: parseFloat(document.getElementById('config-audio-sensitivity').value)
-    }},
-    social: {{
+    },
+    social: {
       autonomous_posting: document.getElementById('config-autopost').checked,
       post_frequency: document.getElementById('config-post-frequency').value,
       npc_interactions: document.getElementById('config-npc-interact').checked,
       interaction_frequency: document.getElementById('config-interaction-frequency').value
-    }},
-    connectivity: {{
+    },
+    connectivity: {
       vmc_enabled: document.getElementById('config-vmc-enabled').checked,
       osc_enabled: document.getElementById('config-osc-enabled').checked,
       vmc_ip: document.getElementById('config-vmc-ip').value,
       vmc_port: parseInt(document.getElementById('config-vmc-port').value)
-    }}
-  }};
+    }
+  };
 
-  try {{
-    const response = await fetch('/api/config/save', {{
+  try {
+    const response = await fetch('/api/config/save', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config)
-    }});
+    });
     const result = await response.json();
     const statusEl = document.getElementById('config-save-status');
-    if (result.success) {{
+    if (result.success) {
       statusEl.textContent = '✓ Saved!';
       statusEl.style.color = 'var(--growth)';
-      setTimeout(() => {{ statusEl.textContent = ''; }}, 3000);
-    }} else {{
+      setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    } else {
       statusEl.textContent = '✗ Error: ' + result.error;
       statusEl.style.color = 'var(--danger)';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     document.getElementById('config-save-status').textContent = '✗ Error: ' + e.message;
-  }}
-}}
+  }
+}
 
 // Slider value displays
-['hunger-rate', 'thirst-rate', 'energy-rate', 'stress-rate', 'audio-sensitivity'].forEach(id => {{
+['hunger-rate', 'thirst-rate', 'energy-rate', 'stress-rate', 'audio-sensitivity'].forEach(id => {
   const slider = document.getElementById('config-' + id);
-  if (slider) {{
-    slider.addEventListener('input', function() {{
+  if (slider) {
+    slider.addEventListener('input', function() {
       const valEl = document.getElementById('config-' + id + '-val');
       if (valEl) valEl.textContent = this.value;
-    }});
-  }}
-}});
+    });
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Genesis Lab Tab
 // ---------------------------------------------------------------------------
-async function toggleGenesis(enabled) {{
+async function toggleGenesis(enabled) {
   const statusDiv = document.getElementById('genesis-status');
-  try {{
-    const response = await fetch('/api/genesis/toggle', {{
+  try {
+    const response = await fetch('/api/genesis/toggle', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ enabled: enabled }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: enabled })
+    });
     const result = await response.json();
 
-    if (result.success) {{
+    if (result.success) {
       statusDiv.innerHTML = enabled
         ? '<span style="color:var(--growth);">✓ Origin Engine enabled. Restart the agent to activate.</span>'
         : '<span style="color:var(--text-dim);">Origin Engine disabled.</span>';
-    }} else {{
+    } else {
       statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
-    }}
-  }} catch (error) {{
+    }
+  } catch (error) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + error.message + '</span>';
-  }}
-}}
+  }
+}
 
-async function toggleVoice(enabled) {{
+async function toggleVoice(enabled) {
   const statusDiv = document.getElementById('voice-status');
-  try {{
-    const response = await fetch('/api/voice/toggle', {{
+  try {
+    const response = await fetch('/api/voice/toggle', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ enabled: enabled }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: enabled })
+    });
     const result = await response.json();
 
-    if (result.success) {{
+    if (result.success) {
       statusDiv.innerHTML = enabled
         ? '<span style="color:var(--growth);">✓ Voice synthesis enabled.</span>'
         : '<span style="color:var(--text-dim);">Voice synthesis disabled.</span>';
-    }} else {{
+    } else {
       statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
-    }}
-  }} catch (error) {{
+    }
+  } catch (error) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + error.message + '</span>';
-  }}
-}}
+  }
+}
 
-async function loadVoiceStatus() {{
-  try {{
+async function loadVoiceStatus() {
+  try {
     const response = await fetch('/api/voice/status');
     const result = await response.json();
     const checkbox = document.getElementById('voice-enabled');
     if (checkbox) checkbox.checked = result.enabled || false;
 
     const statusDiv = document.getElementById('voice-status');
-    if (statusDiv) {{
+    if (statusDiv) {
       statusDiv.innerHTML = result.enabled
         ? '<span style="color:var(--growth);">✓ Voice synthesis is enabled</span>'
         : '<span style="color:var(--text-dim);">Voice synthesis is disabled</span>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     console.log('Could not load voice status:', e);
-  }}
-}}
+  }
+}
 
-async function loadGenesisStatus() {{
-  try {{
+async function loadGenesisStatus() {
+  try {
     const response = await fetch('/api/genesis/status');
     const result = await response.json();
     document.getElementById('genesis-enabled').checked = result.enabled || false;
 
     const statusDiv = document.getElementById('genesis-status');
-    if (result.enabled) {{
+    if (result.enabled) {
       statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Origin Engine is enabled</span>';
-    }} else {{
+    } else {
       statusDiv.innerHTML = '<span style="color:var(--text-dim);">Origin Engine is disabled</span>';
-    }}
+    }
 
     // Load model configuration
     loadModelConfig();
@@ -6065,22 +6307,22 @@ async function loadGenesisStatus() {{
 
     // Load Mem0 config
     loadMem0Config();
-  }} catch (e) {{
+  } catch (e) {
     console.log('Could not load genesis status:', e);
-  }}
-}}
+  }
+}
 
-async function loadModelConfig() {{
-  try {{
+async function loadModelConfig() {
+  try {
     const response = await fetch('/api/model/config');
     const config = await response.json();
 
-    if (config.models) {{
+    if (config.models) {
       if (config.models.persona) document.getElementById('model-persona').value = config.models.persona;
       if (config.models.limbic) document.getElementById('model-limbic').value = config.models.limbic;
       if (config.models.analyst) document.getElementById('model-analyst').value = config.models.analyst;
       if (config.models.world_engine) document.getElementById('model-world').value = config.models.world_engine;
-    }}
+    }
     if (config.image_provider) document.getElementById('provider-image').value = config.image_provider;
     if (config.vision_provider) document.getElementById('provider-vision').value = config.vision_provider;
     
@@ -6089,325 +6331,326 @@ async function loadModelConfig() {{
     if (config.key_fal) document.getElementById('key-fal').value = config.key_fal;
     if (config.key_xai) document.getElementById('key-xai').value = config.key_xai;
     if (config.key_gemini_img) document.getElementById('key-gemini-img').value = config.key_gemini_img;
-  }} catch (e) {{
+  } catch (e) {
     console.log('Could not load model config:', e);
-  }}
-}}
+  }
+}
 
-async function saveAdvancedConfig() {{
-  const payload = {{
+async function saveAdvancedConfig() {
+  const payload = {
     image_provider: document.getElementById('provider-image').value,
     vision_provider: document.getElementById('provider-vision').value,
     key_venice: document.getElementById('key-venice').value,
     key_fal: document.getElementById('key-fal').value,
     key_xai: document.getElementById('key-xai').value,
     key_gemini_img: document.getElementById('key-gemini-img').value,
-  }};
+  };
 
-  try {{
-    const response = await fetch('/api/model/config', {{
+  try {
+    const response = await fetch('/api/model/config', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }});
+    });
     const result = await response.json();
     const statusEl = document.getElementById('adv-config-status');
-    if (result.success) {{
+    if (result.success) {
       statusEl.innerHTML = '<span style="color:var(--growth);">✓ Saved!</span>';
       setTimeout(() => statusEl.innerHTML = '', 2000);
-    }} else {{
+    } else {
       statusEl.innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     document.getElementById('adv-config-status').innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }}
-}}
+  }
+}
 
-async function saveModelConfig() {{
-  const models = {{
-    persona: document.getElementById('model-persona').value,
-    limbic: document.getElementById('model-limbic').value,
-    analyst: document.getElementById('model-analyst').value,
-    world_engine: document.getElementById('model-world').value,
-  }};
-  const apiKey = document.getElementById('api-key').value;
+async function saveModelConfig() {
+  try {
+    const models = {
+      persona: document.getElementById('model-persona').value,
+      limbic: document.getElementById('model-limbic').value,
+      analyst: document.getElementById('model-analyst').value,
+      world_engine: document.getElementById('model-world').value,
+    };
+    const apiKey = document.getElementById('model-api-key').value;
+    const keyAnthropic = document.getElementById('key-anthropic').value;
 
-  try {{
-    const response = await fetch('/api/model/config', {{
+    const response = await fetch('/api/model/config', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ models, api_key: apiKey }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ models, api_key: apiKey, key_anthropic: keyAnthropic })
+    });
     const result = await response.json();
 
     const statusEl = document.getElementById('model-config-status');
-    if (result.success) {{
+    if (result.success) {
       statusEl.innerHTML = '<span style="color:var(--growth);">✓ Saved!</span>';
       setTimeout(() => statusEl.innerHTML = '', 2000);
-    }} else {{
+    } else {
       statusEl.innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     document.getElementById('model-config-status').innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }}
-}}
+  }
+}
 
-async function loadProfiles() {{
-  try {{
+async function loadProfiles() {
+  try {
     const response = await fetch('/api/profiles/list');
     const profiles = await response.json();
 
     const container = document.getElementById('profile-list');
-    if (!profiles || profiles.length === 0) {{
+    if (!profiles || profiles.length === 0) {
       container.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No profiles saved yet.</p>';
       return;
-    }}
+    }
 
     container.innerHTML = profiles.map(p => `
       <div style="background:var(--bg);padding:0.5rem;border-radius:4px;display:flex;justify-content:space-between;align-items:center;">
-        <span><strong>${{p}}</strong></span>
+        <span><strong>${p}</strong></span>
         <div>
-          <button onclick="loadProfile('${{p}}')" style="background:var(--growth);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;margin-right:0.25rem;">Load</button>
-          <button onclick="deleteProfile('${{p}}')" style="background:var(--danger);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;">Del</button>
+          <button onclick="loadProfile('${p}')" style="background:var(--growth);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;margin-right:0.25rem;">Load</button>
+          <button onclick="deleteProfile('${p}')" style="background:var(--danger);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;">Del</button>
         </div>
       </div>
     `).join('');
-  }} catch (e) {{
+  } catch (e) {
     console.log('Could not load profiles:', e);
-  }}
-}}
+  }
+}
 
-async function loadBackups() {{
-  try {{
+async function loadBackups() {
+  try {
     const response = await fetch('/api/backups/list');
     const backups = await response.json();
 
     const container = document.getElementById('backup-list');
-    if (!backups || backups.length === 0) {{
+    if (!backups || backups.length === 0) {
       container.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No backups available yet.</p>';
       return;
-    }}
+    }
 
     container.innerHTML = backups.map(b => `
       <div style="background:var(--bg);padding:0.5rem;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
-        <span><strong>${{b}}</strong></span>
-        <button onclick="rollbackTo('${{b}}')" style="background:var(--accent);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;">Rollback</button>
+        <span><strong>${b}</strong></span>
+        <button onclick="rollbackTo('${b}')" style="background:var(--accent);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;">Rollback</button>
       </div>
     `).join('');
-  }} catch (e) {{
+  } catch (e) {
     console.log('Could not load backups:', e);
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Memory Tab Functions
 // ---------------------------------------------------------------------------
-async function saveMem0Config() {{
-  const apiKey = document.getElementById('mem0-api-key').value.trim();
-  const userId = document.getElementById('mem0-user-id').value.trim() || 'genesis_agent';
+async function saveMem0Config() {
+  try {
+    const apiKey = document.getElementById('mem0-api-key').value.trim();
+    const userId = document.getElementById('mem0-user-id').value.trim() || 'genesis_agent';
 
-  if (!apiKey) {{
-    document.getElementById('mem0-config-status').innerHTML = '<span style="color:var(--danger);">Please enter an API key.</span>';
-    return;
-  }}
+    if (!apiKey) {
+      document.getElementById('mem0-config-status').innerHTML = '<span style="color:var(--danger);">Please enter an API key.</span>';
+      return;
+    }
 
-  try {{
-    const response = await fetch('/api/mem0/config', {{
+    const response = await fetch('/api/mem0/config', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ api_key: apiKey, user_id: userId }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey, user_id: userId })
+    });
     const result = await response.json();
 
-    if (result.success) {{
+    if (result.success) {
       document.getElementById('mem0-config-status').innerHTML = '<span style="color:var(--growth);">✓ Config saved!</span>';
-      setTimeout(() => {{
+      setTimeout(() => {
         document.getElementById('mem0-config-status').innerHTML = '';
-      }}, 3000);
-    }} else {{
+      }, 3000);
+    } else {
       document.getElementById('mem0-config-status').innerHTML = '<span style="color:var(--danger);">Error: ' + result.message + '</span>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     document.getElementById('mem0-config-status').innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }}
-}}
+  }
+}
 
-async function loadMem0Config() {{
-  try {{
+async function loadMem0Config() {
+  try {
     const response = await fetch('/api/mem0/config');
     const config = await response.json();
 
-    if (config.api_key) {{
+    if (config.api_key) {
       document.getElementById('mem0-api-key').value = config.api_key;
-    }}
-    if (config.user_id) {{
+    }
+    if (config.user_id) {
       document.getElementById('mem0-user-id').value = config.user_id;
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     console.log('Could not load Mem0 config:', e);
-  }}
-}}
+  }
+}
 
-async function searchMemories() {{
+async function searchMemories() {
   const query = document.getElementById('memory-search-query').value.trim();
   const lang = document.getElementById('memory-lang').value;
   const resultsDiv = document.getElementById('memory-results');
 
-  if (!query) {{
+  if (!query) {
     resultsDiv.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">Please enter a search query.</p>';
     return;
-  }}
+  }
 
   resultsDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">Searching...</p>';
 
-  try {{
-    const response = await fetch('/api/mem0/search', {{
+  try {
+    const response = await fetch('/api/mem0/search', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ query: query }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query })
+    });
     const result = await response.json();
 
-    if (result.error) {{
+    if (result.error) {
       resultsDiv.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">' + result.error + '</p>';
       return;
-    }}
+    }
 
-    if (result.memories && result.memories.length > 0) {{
+    if (result.memories && result.memories.length > 0) {
       const memories = result.memories;
       resultsDiv.innerHTML = '<h4 style="margin:0.5rem 0;">' + (lang === 'de' ? 'Gefundene Erinnerungen:' : 'Found Memories:') + '</h4>' + memories.map(m => `
         <div style="background:var(--bg);padding:0.75rem;border-radius:4px;margin-bottom:0.5rem;border-left:3px solid var(--core);">
-          <p style="margin:0;font-size:0.9rem;">${{m.memory || m.text || JSON.stringify(m)}}</p>
-          <small style="color:var(--text-dim);">ID: ${{m.id || 'N/A'}}</small>
+          <p style="margin:0;font-size:0.9rem;">${m.memory || m.text || JSON.stringify(m)}</p>
+          <small style="color:var(--text-dim);">ID: ${m.id || 'N/A'}</small>
         </div>
       `).join('');
-    }} else {{
+    } else {
       resultsDiv.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">' + (lang === 'de' ? 'Keine Erinnerungen gefunden.' : 'No memories found.') + '</p>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     resultsDiv.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">Error: ' + e.message + '</p>';
-  }}
-}}
+  }
+}
 
-async function storeMemory() {{
+async function storeMemory() {
   const memory = document.getElementById('memory-store-text').value.trim();
   const lang = document.getElementById('memory-lang').value;
   const statusDiv = document.getElementById('memory-store-status');
 
-  if (!memory) {{
+  if (!memory) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter a memory to store.</span>';
     return;
-  }}
+  }
 
   statusDiv.innerHTML = '<span style="color:var(--text-dim);">Storing...</span>';
 
-  try {{
-    const response = await fetch('/api/mem0/store', {{
+  try {
+    const response = await fetch('/api/mem0/store', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ memory: memory }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memory: memory })
+    });
     const result = await response.json();
 
-    if (result.error) {{
+    if (result.error) {
       statusDiv.innerHTML = '<span style="color:var(--danger);">' + result.error + '</span>';
       return;
-    }}
+    }
 
     statusDiv.innerHTML = '<span style="color:var(--growth);">' + (lang === 'de' ? '✓ Erinnerung gespeichert!' : '✓ Memory stored!') + '</span>';
     document.getElementById('memory-store-text').value = '';
 
-    setTimeout(() => {{
+    setTimeout(() => {
       statusDiv.innerHTML = '';
-    }}, 3000);
-  }} catch (e) {{
+    }, 3000);
+  } catch (e) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }}
-}}
+  }
+}
 
-async function saveProfile() {{
+async function saveProfile() {
   const name = document.getElementById('profile-name').value.trim();
-  if (!name) {{
+  if (!name) {
     alert('Please enter a profile name.');
     return;
-  }}
+  }
 
   // Sanitize name
   const safeName = name.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50);
-  if (!safeName) {{
+  if (!safeName) {
     alert('Invalid profile name.');
     return;
-  }}
+  }
 
-  try {{
-    const response = await fetch('/api/profiles/save', {{
+  try {
+    const response = await fetch('/api/profiles/save', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ name: safeName }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: safeName })
+    });
     const result = await response.json();
     alert(result.success ? 'Profile saved!' : 'Error: ' + result.message);
     loadProfiles();
-  }} catch (e) {{
+  } catch (e) {
     alert('Error: ' + e.message);
-  }}
-}}
+  }
+}
 
-async function loadProfile(name) {{
+async function loadProfile(name) {
   if (!confirm('Load profile "' + name + '"? This will overwrite current state.')) return;
 
-  try {{
-    const response = await fetch('/api/profiles/load', {{
+  try {
+    const response = await fetch('/api/profiles/load', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ name: name }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name })
+    });
     const result = await response.json();
     alert(result.success ? 'Profile loaded!' : 'Error: ' + result.message);
-  }} catch (e) {{
+  } catch (e) {
     alert('Error: ' + e.message);
-  }}
-}}
+  }
+}
 
-async function deleteProfile(name) {{
+async function deleteProfile(name) {
   if (!confirm('Delete profile "' + name + '"? This cannot be undone.')) return;
 
-  try {{
-    const response = await fetch('/api/profiles/delete', {{
+  try {
+    const response = await fetch('/api/profiles/delete', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ name: name }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name })
+    });
     const result = await response.json();
     alert(result.success ? 'Profile deleted!' : 'Error: ' + result.message);
     loadProfiles();
-  }} catch (e) {{
+  } catch (e) {
     alert('Error: ' + e.message);
-  }}
-}}
+  }
+}
 
-async function rollbackTo(date) {{
+async function rollbackTo(date) {
   if (!confirm('Rollback to ' + date + '? This will overwrite current state.')) return;
 
-  try {{
-    const response = await fetch('/api/backups/rollback', {{
+  try {
+    const response = await fetch('/api/backups/rollback', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ date: date }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: date })
+    });
     const result = await response.json();
     alert(result.success ? 'Rollback complete!' : 'Error: ' + result.message);
-  }} catch (e) {{
+  } catch (e) {
     alert('Error: ' + e.message);
-  }}
-}}
+  }
+}
 
-async function runPatch() {{
+async function runPatch() {
   const instructions = document.getElementById('patch-prompt').value.trim();
-  if (!instructions) {{
+  if (!instructions) {
     alert('Please enter patch instructions.');
     return;
-  }}
+  }
 
   if (!confirm('This will modify your current character traits. Proceed?')) return;
 
@@ -6422,13 +6665,13 @@ async function runPatch() {{
   loading.style.display = 'flex';
   progress.style.width = '10%';
 
-  try {{
+  try {
     progress.style.width = '40%';
-    const response = await fetch('/api/genesis/request', {{
+    const response = await fetch('/api/genesis/request', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ prompt: prefix + instructions }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: prefix + instructions })
+    });
     const result = await response.json();
     
     if (!result.success) throw new Error(result.message);
@@ -6447,30 +6690,30 @@ async function runPatch() {{
 
     // Poll for completion
     let attempts = 0;
-    const poll = setInterval(async () => {{
+    const poll = setInterval(async () => {
       attempts++;
       const statusRes = await fetch('/api/genesis/request-status');
       const status = await statusRes.json();
       
-      if (!status.pending || attempts > 30) {{
+      if (!status.pending || attempts > 30) {
         clearInterval(poll);
         progress.style.width = '100%';
         setTimeout(() => location.reload(), 2000);
-      }}
-    }}, 2000);
+      }
+    }, 2000);
 
-  }} catch (e) {{
+  } catch (e) {
     alert('Error: ' + e.message);
     loading.style.display = 'none';
-  }}
-}}
+  }
+}
 
-async function runGenesis() {{
+async function runGenesis() {
   const prompt = document.getElementById('genesis-prompt').value.trim();
-  if (!prompt) {{
+  if (!prompt) {
     alert('Please enter a life description.');
     return;
-  }}
+  }
 
   if (!confirm('DANGER: This will overwrite your entire simulation. Are you sure?')) return;
 
@@ -6480,15 +6723,15 @@ async function runGenesis() {{
   loading.style.display = 'flex';
   progress.style.width = '10%';
 
-  try {{
+  try {
     progress.style.width = '30%';
 
     // Send the prompt to the backend to be picked up by the agent
-    const response = await fetch('/api/genesis/request', {{
+    const response = await fetch('/api/genesis/request', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ prompt: prompt }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: prompt })
+    });
     const result = await response.json();
 
     if (!result.success) throw new Error(result.message);
@@ -6509,84 +6752,84 @@ async function runGenesis() {{
 
     // Poll for completion (check if request file is gone)
     let attempts = 0;
-    const poll = setInterval(async () => {{
+    const poll = setInterval(async () => {
       attempts++;
       const statusRes = await fetch('/api/genesis/request-status');
       const status = await statusRes.json();
       
-      if (!status.pending || attempts > 30) {{
+      if (!status.pending || attempts > 30) {
         clearInterval(poll);
         progress.style.width = '100%';
         resultTitle.textContent = '✅ Generation Complete';
         resultTitle.style.color = 'var(--growth)';
         resultContent.textContent = 'The agent has finished the life bootstrap. Reloading...';
         setTimeout(() => location.reload(), 2000);
-      }}
-    }}, 2000);
+      }
+    }, 2000);
 
-  }} catch (error) {{
+  } catch (error) {
     alert('Error: ' + error.message);
     loading.style.display = 'none';
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Phase 35: Social Engine - Load Pending Events
 // ---------------------------------------------------------------------------
-async function loadPendingSocialEvents() {{
-  try {{
+async function loadPendingSocialEvents() {
+  try {
     const res = await fetch('/api/social/pending');
     const data = await res.json();
 
     const container = document.getElementById('pending-social-events');
     if (!container) return;
 
-    if (!data.pending || data.pending.length === 0) {{
+    if (!data.pending || data.pending.length === 0) {
       container.innerHTML = '<div style="color:var(--text-dim);font-size:0.9rem;">No pending messages from NPCs.</div>';
       return;
-    }}
+    }
 
     const pending = data.pending.filter(e => !e.processed);
-    if (pending.length === 0) {{
+    if (pending.length === 0) {
       container.innerHTML = '<div style="color:var(--text-dim);font-size:0.9rem;">No pending messages. All caught up!</div>';
       return;
-    }}
+    }
 
-    container.innerHTML = pending.map(e => {{
-      const categoryColors = {{
+    container.innerHTML = pending.map(e => {
+      const categoryColors = {
         'chat': '#60a5fa',
         'support': '#22c55e',
         'request': '#fbbf24',
         'conflict': '#ef4444',
         'invitation': '#a855f7',
         'gossip': '#ec4899'
-      }};
+      };
       const color = categoryColors[e.category] || '#6b7280';
       const time = new Date(e.timestamp).toLocaleTimeString();
 
-      return `<div style="background:var(--bg);padding:0.75rem;border-radius:8px;margin-bottom:0.5rem;border-left:3px solid ${{color}};">
+      return `<div style="background:var(--bg);padding:0.75rem;border-radius:8px;margin-bottom:0.5rem;border-left:3px solid ${color};">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
-            <div style="font-weight:bold;">${{esc(e.sender_name)}}</div>
-            <div style="font-size:0.85rem;color:var(--text-dim);">${{esc(e.message)}}</div>
+            <div style="font-weight:bold;">${esc(e.sender_name)}</div>
+            <div style="font-size:0.85rem;color:var(--text-dim);">${esc(e.message)}</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:0.75rem;color:${{color}};font-weight:bold;text-transform:uppercase;">${{e.category}}</div>
-            <div style="font-size:0.7rem;color:var(--text-dim);">${{time}}</div>
+            <div style="font-size:0.75rem;color:${color};font-weight:bold;text-transform:uppercase;">${e.category}</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">${time}</div>
           </div>
         </div>
       </div>`;
-    }}).join('');
-  }} catch (e) {{
+    }).join('');
+  } catch (e) {
     console.log('Failed to load social events:', e);
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Social Standing Tab
 // ---------------------------------------------------------------------------
-function renderReputationPanel() {{
-  const rep = DATA.reputation || {{}};
+function renderReputationPanel() {
+  const rep = DATA.reputation || {};
   const globalScore = rep.global_score || 0;
   const circles = rep.circles || [];
   const events = rep.events || [];
@@ -6596,7 +6839,7 @@ function renderReputationPanel() {{
   const text = document.getElementById('rep-text');
   const score = document.getElementById('rep-score');
 
-  if (bar && text && score) {{
+  if (bar && text && score) {
     const pct = (globalScore + 100) / 2; // Convert -100..100 to 0..100
     bar.style.width = pct + '%';
     score.textContent = (globalScore >= 0 ? '+' : '') + globalScore;
@@ -6604,101 +6847,101 @@ function renderReputationPanel() {{
     // Color and label based on score
     let rank = 'Neutral';
     let color = '#888';
-    if (globalScore >= 80) {{ rank = 'Icon'; color = '#4a4'; }}
-    else if (globalScore >= 50) {{ rank = 'Respected'; color = '#8c4'; }}
-    else if (globalScore >= 20) {{ rank = 'Known'; color = '#ac8'; }}
-    else if (globalScore >= -20) {{ rank = 'Neutral'; color = '#888'; }}
-    else if (globalScore >= -50) {{ rank = 'Controversial'; color = '#c84'; }}
-    else {{ rank = 'Pariah'; color = '#e44'; }}
+    if (globalScore >= 80) { rank = 'Icon'; color = '#4a4'; }
+    else if (globalScore >= 50) { rank = 'Respected'; color = '#8c4'; }
+    else if (globalScore >= 20) { rank = 'Known'; color = '#ac8'; }
+    else if (globalScore >= -20) { rank = 'Neutral'; color = '#888'; }
+    else if (globalScore >= -50) { rank = 'Controversial'; color = '#c84'; }
+    else { rank = 'Pariah'; color = '#e44'; }
 
     text.textContent = rank;
     bar.style.background = `linear-gradient(90deg, ${color}, ${color})`;
-  }}
+  }
 
   // Render circles
   const circlesList = document.getElementById('circles-list');
-  if (circlesList) {{
-    if (circles.length === 0) {{
+  if (circlesList) {
+    if (circles.length === 0) {
       circlesList.innerHTML = '<p style="color:var(--text-dim);">No circles defined</p>';
-    }} else {{
+    } else {
       const sortedCircles = [...circles].sort((a, b) => b.score - a.score);
-      circlesList.innerHTML = sortedCircles.map(c => {{
+      circlesList.innerHTML = sortedCircles.map(c => {
         const score = c.score || 0;
         const color = score >= 0 ? (score > 50 ? '#4a4' : '#8c4') : (score < -50 ? '#e44' : '#c84');
         return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem;margin-bottom:0.5rem;background:var(--bg-dim);border-radius:6px;">
-          <span>${{c.name}}</span>
-          <span style="color:${{color}};font-weight:bold;">${{score >= 0 ? '+' : ''}}${{score}}</span>
+          <span>${c.name}</span>
+          <span style="color:${color};font-weight:bold;">${score >= 0 ? '+' : ''}${score}</span>
         </div>`;
-      }}).join('');
-    }}
-  }}
+      }).join('');
+    }
+  }
 
   // Render events
   const eventsList = document.getElementById('events-list');
-          if (eventsList) {{
-            if (events.length === 0) {{
+          if (eventsList) {
+            if (events.length === 0) {
               eventsList.innerHTML = '<p style="color:var(--text-dim);">No recent events</p>';
-            }} else {{
-              eventsList.innerHTML = events.slice(0, 20).map(e => {{
+            } else {
+              eventsList.innerHTML = events.slice(0, 20).map(e => {
       
             const change = e.change || 0;
             const color = change >= 0 ? '#4a4' : '#e44';
             const date = e.timestamp ? new Date(e.timestamp).toLocaleDateString() : '';
             return `<div style="padding:0.5rem;margin-bottom:0.5rem;background:var(--bg-dim);border-radius:4px;font-size:0.85rem;">
               <div style="display:flex;justify-content:space-between;">
-                <strong>${{e.circle || 'Public'}}</strong>
-                <span style="color:${{color}};">${{change >= 0 ? '+' : ''}}${{change}}</span>
+                <strong>${e.circle || 'Public'}</strong>
+                <span style="color:${color};">${change >= 0 ? '+' : ''}${change}</span>
               </div>
-              <div style="color:var(--text-dim);font-size:0.75rem;">${{e.reason || ''}}</div>
-              <div style="color:var(--text-dim);font-size:0.7rem;">${{date}}</div>
+              <div style="color:var(--text-dim);font-size:0.75rem;">${e.reason || ''}</div>
+              <div style="color:var(--text-dim);font-size:0.7rem;">${date}</div>
             </div>`;
-          }}).join('');
-        }}
-      }}
-}}
+          }).join('');
+        }
+      }
+}
 
 // ---------------------------------------------------------------------------
 // Contact CRM Functions - Phase 19
 // ---------------------------------------------------------------------------
-async function loadContactCRM() {{
+async function loadContactCRM() {
   // Get language from memory-lang select or default to English
   const langSelect = document.getElementById('memory-lang');
   const CRM_LANG = langSelect ? langSelect.value : (localStorage.getItem('genesis_lang') || 'en');
 
-  const LABELS = {{
-    en: {{
+  const LABELS = {
+    en: {
       noContacts: 'No contacts yet. Add your first contact above.',
       external: 'External',
       noCircle: 'No circle',
       noVisual: 'No visual description yet',
       reimag: 'Re-imagine',
       errorLoading: 'Error loading contacts'
-    }},
-    de: {{
+    },
+    de: {
       noContacts: 'Noch keine Kontakte. Füge oben deinen ersten Kontakt hinzu.',
       external: 'Extern',
       noCircle: 'Kein Kreis',
       noVisual: 'Noch keine visuelle Beschreibung',
       reimag: 'Neu gestalten',
       errorLoading: 'Fehler beim Laden der Kontakte'
-    }}
-  }};
+    }
+  };
 
   const T = LABELS[CRM_LANG] || LABELS.en;
 
-  try {{
+  try {
     const response = await fetch('/api/social/entities');
     const data = await response.json();
 
     const container = document.getElementById('contact-crm-list');
     if (!container) return;
 
-    if (!data.entities || data.entities.length === 0) {{
+    if (!data.entities || data.entities.length === 0) {
       container.innerHTML = '<p style="color:var(--text-dim);">' + T.noContacts + '</p>';
       return;
-    }}
+    }
 
-    container.innerHTML = data.entities.map(entity => {{
+    container.innerHTML = data.entities.map(entity => {
       const avatar = entity.portrait_url || '';
       const hasVisual = entity.visual_description && entity.visual_description.length > 0;
       const isExternal = entity.is_external ? '<span style="background:var(--accent);color:#fff;padding:0.1rem 0.3rem;border-radius:3px;font-size:0.7rem;margin-left:0.3rem;">' + T.external + '</span>' : '';
@@ -6706,157 +6949,157 @@ async function loadContactCRM() {{
       return `
         <div style="background:var(--bg);padding:1rem;border-radius:8px;border:1px solid var(--border);">
           <div style="display:flex;gap:1rem;align-items:start;">
-            ${{avatar ? `<img src="${{avatar}}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;">` : `<div style="width:60px;height:60px;border-radius:50%;background:var(--bg-dim);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">👤</div>`}}
+            ${avatar ? `<img src="${avatar}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;">` : `<div style="width:60px;height:60px;border-radius:50%;background:var(--bg-dim);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">👤</div>`}
             <div style="flex:1;min-width:0;">
               <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
-                <strong>${{entity.name}}</strong>
-                ${{isExternal}}
+                <strong>${entity.name}</strong>
+                ${isExternal}
               </div>
               <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.5rem;">
-                ${{entity.relationship_type}} · ${{entity.circle || T.noCircle}} · Bond: ${{entity.bond}}
+                ${entity.relationship_type} · ${entity.circle || T.noCircle} · Bond: ${entity.bond}
               </div>
-              ${{hasVisual ? `
+              ${hasVisual ? `
                 <div style="font-size:0.75rem;background:var(--bg-dim);padding:0.5rem;border-radius:4px;margin-bottom:0.5rem;max-height:60px;overflow-y:auto;">
-                  ${{entity.visual_description}}
+                  ${entity.visual_description}
                 </div>
               ` : `
                 <div style="font-size:0.75rem;color:var(--text-dim);font-style:italic;margin-bottom:0.5rem;">
-                  ${{T.noVisual}}
+                  ${T.noVisual}
                 </div>
-              `}}
-              <button onclick="reImagineNPC('${{entity.id}}', '${{encodeURIComponent(entity.name)}}')" style="background:var(--core);color:#fff;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">🎨 ${{T.reimag}}</button>
+              `}
+              <button onclick="reImagineNPC('${entity.id}', '${encodeURIComponent(entity.name)}')" style="background:var(--core);color:#fff;border:none;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;">🎨 ${T.reimag}</button>
             </div>
           </div>
         </div>
       `;
-    }}).join('');
+    }).join('');
 
-  }} catch (e) {{
+  } catch (e) {
     console.log('Could not load contacts:', e);
     const container = document.getElementById('contact-crm-list');
     if (container) container.innerHTML = '<p style="color:var(--danger);">' + T.errorLoading + '</p>';
-  }}
-}}
+  }
+}
 
-async function addManualContact() {{
+async function addManualContact() {
   const name = document.getElementById('new-contact-name').value.trim();
   const circle = document.getElementById('new-contact-circle').value;
   const statusDiv = document.getElementById('add-contact-status');
 
-  if (!name) {{
+  if (!name) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Please enter a name.</span>';
     return;
-  }}
+  }
 
-  try {{
-    const response = await fetch('/api/social/add-entity', {{
+  try {
+    const response = await fetch('/api/social/add-entity', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ entity_name: name, circle: circle, relationship_type: 'acquaintance' }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entity_name: name, circle: circle, relationship_type: 'acquaintance' })
+    });
     const result = await response.json();
 
-    if (result.success) {{
+    if (result.success) {
       statusDiv.innerHTML = '<span style="color:var(--growth);">✓ Contact added!</span>';
       document.getElementById('new-contact-name').value = '';
       loadContactCRM();
-    }} else {{
+    } else {
       statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + (result.error || 'Unknown error') + '</span>';
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     statusDiv.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }}
-}}
+  }
+}
 
-async function reImagineNPC(entityId, encodedName) {{
+async function reImagineNPC(entityId, encodedName) {
   const name = decodeURIComponent(encodedName);
   const prompt = prompt('Enter new visual description for ' + name + ' (e.g., "A tall man with short black hair, brown eyes, sharp jawline"):');
 
   if (!prompt || !prompt.trim()) return;
 
-  try {{
-    const response = await fetch('/api/social/update-entity', {{
+  try {
+    const response = await fetch('/api/social/update-entity', {
       method: 'POST',
-      headers: {{ 'Content-Type': 'application/json' }},
-      body: JSON.stringify({{ entity_id: entityId, visual_description: prompt.trim() }})
-    }});
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entity_id: entityId, visual_description: prompt.trim() })
+    });
     const result = await response.json();
 
-    if (result.success) {{
+    if (result.success) {
       alert('Visual description updated! A portrait will be generated on next photo.');
       loadContactCRM();
-    }} else {{
+    } else {
       alert('Error: ' + (result.error || 'Unknown error'));
-    }}
-  }} catch (e) {{
+    }
+  } catch (e) {
     alert('Error: ' + e.message);
-  }}
-}}
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Psychology Tab
 // ---------------------------------------------------------------------------
-  function renderPsychPanel() {{
-    const psych = DATA.psychology || {{}};
+  function renderPsychPanel() {
+    const psych = DATA.psychology || {};
 
     // Resilience
     const res = psych.resilience || 0;
     const resColor = res > 70 ? 'var(--growth)' : (res < 30 ? 'var(--danger)' : 'var(--text)');
     document.getElementById('psych-resilience').innerHTML = `
       <div style="width:100%;height:20px;background:var(--border);border-radius:10px;overflow:hidden;">
-        <div style="width:${{res}}%;height:100%;background:${{resColor}};transition:width 0.5s;"></div>
+        <div style="width:${res}%;height:100%;background:${resColor};transition:width 0.5s;"></div>
       </div>
-      <p style="text-align:center;margin-top:0.5rem;">${{res}}/100</p>`;
+      <p style="text-align:center;margin-top:0.5rem;">${res}/100</p>`;
 
     // Traumas
     const traumas = psych.traumas || [];
-    if (traumas.length === 0) {{
+    if (traumas.length === 0) {
       document.getElementById('psych-traumas').innerHTML = '<p style="color:var(--text-dim);">No active traumas</p>';
-    }} else {{
+    } else {
       document.getElementById('psych-traumas').innerHTML = traumas.map(t => `
         <div style="padding:0.5rem;margin-bottom:0.5rem;background:rgba(224,80,80,0.1);border-left:3px solid var(--danger);border-radius:4px;">
           <div style="display:flex;justify-content:space-between;">
-            <strong>${{t.description?.slice(0, 50) || 'Trauma'}}${{t.description?.length > 50 ? '...' : ''}}</strong>
-            <span style="color:var(--danger);">${{t.severity}}/100</span>
+            <strong>${t.description?.slice(0, 50) || 'Trauma'}${t.description?.length > 50 ? '...' : ''}</strong>
+            <span style="color:var(--danger);">${t.severity}/100</span>
           </div>
           <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.2rem;">
-            Trigger: ${{t.trigger || 'unknown'}} · Decay: ${{t.decay_rate}}/day
+            Trigger: ${t.trigger || 'unknown'} · Decay: ${t.decay_rate}/day
           </div>
         </div>`).join('');
-    }}
+    }
 
     // Phobias
     const phobias = psych.phobias || [];
     document.getElementById('psych-phobias').innerHTML = phobias.length > 0
-      ? phobias.map(p => `<span style="display:inline-block;padding:0.2rem 0.5rem;margin:0.2rem;background:var(--border);border-radius:4px;font-size:0.85rem;">${{p}}</span>`).join('')
+      ? phobias.map(p => `<span style="display:inline-block;padding:0.2rem 0.5rem;margin:0.2rem;background:var(--border);border-radius:4px;font-size:0.85rem;">${p}</span>`).join('')
       : '<p style="color:var(--text-dim);">No phobias recorded</p>';
 
     // Joys
     const joys = psych.joys || [];
     document.getElementById('psych-joys').innerHTML = joys.length > 0
-      ? joys.map(j => `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);">${{j}}</div>`).join('')
+      ? joys.map(j => `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);">${j}</div>`).join('')
       : '<p style="color:var(--text-dim);">No joys recorded</p>';
-  }}
+  }
 
   // --- Life Stream ---
-  function renderPhotoStream() {{
+  function renderPhotoStream() {
     const container = document.getElementById('photo-stream');
     const photos = DATA.photos || [];
 
-    if (photos.length === 0) {{
+    if (photos.length === 0) {
       container.innerHTML = '<div class="empty-state">No photos captured yet. Use reality_camera to take a photo.</div>';
       return;
-    }}
+    }
 
     container.innerHTML = photos.map(p => `
       <div class="panel-card" style="padding:0.5rem;overflow:hidden;">
-        <img src="/media/photos/${{p}}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;" onclick="window.open(this.src)">
+        <img src="/media/photos/${p}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;" onclick="window.open(this.src)">
         <div style="padding:0.5rem;font-size:0.75rem;color:var(--text-dim);">
-          ${{p.replace('photo_', '').replace('.png', '').replace(/_/g, ' ')}}
+          ${p.replace('photo_', '').replace('.png', '').replace(/_/g, ' ')}
         </div>
       </div>
     `).join('');
-  }}
+  }
 
 </script>
 
@@ -7888,16 +8131,6 @@ window.initAvatar = async function() {
 
 window.syncAvatarWardrobe = syncWardrobe;
 
-// Initialize when tab is shown
-const originalSwitchTab = window.switchTab;
-window.switchTab = function(tab) {
-  originalSwitchTab(tab);
-
-  if (tab === 'avatar' && !vrmModel && !animationId) {
-    initAvatar();
-  }
-};
-
 // ============================================================
 // Phase 31: Interests & Dreams Tab Functions
 // ============================================================
@@ -8010,18 +8243,6 @@ async function loadDreamsTab() {
     console.error('Failed to load dreams:', e);
   }
 }
-
-// Override switchTab to load tab data on switch
-const originalSwitchTab = window.switchTab;
-window.switchTab = function(tab) {
-  originalSwitchTab(tab);
-
-  if (tab === 'interests') {
-    loadInterestsTab();
-  } else if (tab === 'dreams') {
-    loadDreamsTab();
-  }
-};
 
 // Load on page load if tabs are visible
 if (document.getElementById('tab-interests').classList.contains('active')) {
@@ -8186,24 +8407,26 @@ if (document.getElementById('tab-avatar').classList.contains('active')) {
 </script>
 </body>
 </html>"""
+    return html.replace("{data_json}", data_json).replace("{", "{").replace("}", "}")
+    return html.replace("{data_json}", data_json).replace("{", "{").replace("}", "}")
 
 
 def generate_mindmap_html(data: dict) -> str:
     """Generate the interactive canvas mindmap page."""
     data_json = json.dumps(data, indent=None, default=str)
 
-    return f"""<!DOCTYPE html>
+    html = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Soul Evolution — Soul Mindmap</title>
+<title>Project Genesis — Soul Mindmap</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap');
 
-* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-:root {{
+:root {
   --bg: #060610;
   --text: #c8c8d8;
   --text-dim: #5a5a70;
@@ -8211,58 +8434,58 @@ def generate_mindmap_html(data: dict) -> str:
   --accent: #7c6ff0;
   --core: #e05050;
   --mutable: #50c878;
-}}
+}
 
-body {{
+body {
   background: var(--bg);
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
   overflow: hidden;
   height: 100vh;
   cursor: grab;
-}}
-body.dragging {{ cursor: grabbing; }}
+}
+body.dragging { cursor: grabbing; }
 
-canvas {{
+canvas {
   display: block;
   position: absolute;
   top: 0; left: 0;
-}}
+}
 
 /* HUD overlay */
-.hud {{
+.hud {
   position: fixed;
   z-index: 100;
   pointer-events: none;
-}}
-.hud > * {{ pointer-events: auto; }}
+}
+.hud > * { pointer-events: auto; }
 
-.hud-top {{
+.hud-top {
   top: 1.2rem; left: 50%;
   transform: translateX(-50%);
   text-align: center;
-}}
-.hud-top h1 {{
+}
+.hud-top h1 {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 300;
   font-size: 1.1rem;
   letter-spacing: 0.15em;
   color: var(--text-dim);
-}}
-.hud-top h1 .evolution {{ color: var(--accent); }}
-.hud-top h1 .soul {{ color: var(--text-dim); }}
-.hud-top .back-link {{
+}
+.hud-top h1 .evolution { color: var(--accent); }
+.hud-top h1 .soul { color: var(--text-dim); }
+.hud-top .back-link {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.65rem;
   color: var(--text-dim);
   text-decoration: none;
   letter-spacing: 0.05em;
   transition: color 0.2s;
-}}
-.hud-top .back-link:hover {{ color: var(--mutable); }}
+}
+.hud-top .back-link:hover { color: var(--mutable); }
 
 /* Controls bar */
-.controls {{
+.controls {
   position: fixed;
   bottom: 1.5rem; left: 50%; transform: translateX(-50%);
   z-index: 100;
@@ -8272,8 +8495,8 @@ canvas {{
   border: 1px solid rgba(30, 30, 48, 0.6);
   border-radius: 40px;
   padding: 0.5rem 1.2rem;
-}}
-.controls button {{
+}
+.controls button {
   background: none;
   border: 1px solid rgba(30, 30, 48, 0.8);
   color: var(--text);
@@ -8283,47 +8506,47 @@ canvas {{
   cursor: pointer;
   transition: all 0.2s;
   display: flex; align-items: center; justify-content: center;
-}}
-.controls button:hover {{
+}
+.controls button:hover {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
-}}
-.controls button.active {{
+}
+.controls button.active {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
-}}
-.controls .slider-wrap {{
+}
+.controls .slider-wrap {
   display: flex; align-items: center; gap: 0.5rem;
   min-width: 240px;
-}}
-.controls input[type=range] {{
+}
+.controls input[type=range] {
   -webkit-appearance: none;
   flex: 1;
   height: 3px;
   border-radius: 2px;
   background: rgba(30, 30, 48, 0.8);
   outline: none;
-}}
-.controls input[type=range]::-webkit-slider-thumb {{
+}
+.controls input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px; height: 14px;
   border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
   box-shadow: 0 0 10px rgba(124, 111, 240, 0.4);
-}}
-.controls .step-label {{
+}
+.controls .step-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.65rem;
   color: var(--text-dim);
   min-width: 50px;
   text-align: center;
-}}
+}
 
 /* Tooltip */
-.tooltip {{
+.tooltip {
   position: fixed;
   z-index: 200;
   background: rgba(12, 12, 22, 0.95);
@@ -8339,28 +8562,28 @@ canvas {{
   opacity: 0;
   transform: translateY(4px);
   transition: opacity 0.2s, transform 0.2s;
-}}
-.tooltip.show {{
+}
+.tooltip.show {
   opacity: 1;
   transform: translateY(0);
-}}
-.tooltip .tt-tag {{
+}
+.tooltip .tt-tag {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   margin-bottom: 0.3rem;
-}}
-.tooltip .tt-tag.core {{ color: var(--core); }}
-.tooltip .tt-tag.mutable {{ color: var(--mutable); }}
-.tooltip .tt-section {{
+}
+.tooltip .tt-tag.core { color: var(--core); }
+.tooltip .tt-tag.mutable { color: var(--mutable); }
+.tooltip .tt-section {
   font-size: 0.65rem;
   color: var(--text-dim);
   margin-bottom: 0.2rem;
-}}
+}
 
 /* Legend */
-.hud-legend {{
+.hud-legend {
   position: fixed;
   bottom: 5rem; left: 50%; transform: translateX(-50%);
   z-index: 100;
@@ -8369,16 +8592,16 @@ canvas {{
   font-size: 0.6rem;
   color: var(--text-dim);
   letter-spacing: 0.04em;
-}}
-.hud-legend .l-item {{
+}
+.hud-legend .l-item {
   display: flex; align-items: center; gap: 0.35rem;
-}}
-.hud-legend .l-dot {{
+}
+.hud-legend .l-dot {
   width: 7px; height: 7px; border-radius: 50%;
-}}
+}
 
 /* Change notification */
-.change-toast {{
+.change-toast {
   position: fixed;
   top: 4rem; right: 1.5rem;
   z-index: 150;
@@ -8393,12 +8616,12 @@ canvas {{
   opacity: 0;
   transform: translateX(20px);
   transition: all 0.4s;
-}}
-.change-toast.show {{
+}
+.change-toast.show {
   opacity: 1;
   transform: translateX(0);
-}}
-.change-toast .ct-label {{
+}
+.change-toast .ct-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
   font-weight: 700;
@@ -8406,7 +8629,7 @@ canvas {{
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 0.3rem;
-}}
+}
 </style>
 </head>
 <body>
@@ -8442,151 +8665,151 @@ canvas {{
 <canvas id="canvas"></canvas>
 
 <script>
-const DATA = {data_json};
+const DATA =  {data_json};
 
 // --- Color palette ---
-const SECTION_COLORS = {{
+const SECTION_COLORS = {
   'Personality': '#f0a050',
   'Philosophy': '#7c6ff0',
   'Boundaries': '#e05050',
   'Continuity': '#50b8e0',
-}};
-function secColor(name) {{
-  for (const [k, v] of Object.entries(SECTION_COLORS)) {{
+};
+function secColor(name) {
+  for (const [k, v] of Object.entries(SECTION_COLORS)) {
     if (name && name.includes(k)) return v;
-  }}
+  }
   return '#888';
-}}
-function hexToRgb(hex) {{
+}
+function hexToRgb(hex) {
   const r = parseInt(hex.slice(1,3),16);
   const g = parseInt(hex.slice(3,5),16);
   const b = parseInt(hex.slice(5,7),16);
   return [r, g, b];
-}}
+}
 
 // --- Build node tree ---
-function buildNodes() {{
+function buildNodes() {
   const nodes = [];
   const edges = [];
   let id = 0;
 
   // Root
-  const root = {{ id: id++, type: 'root', label: 'SOUL', x: 0, y: 0, r: 28, color: '#7c6ff0', depth: 0, growStep: -1 }};
+  const root = { id: id++, type: 'root', label: 'SOUL', x: 0, y: 0, r: 28, color: '#7c6ff0', depth: 0, growStep: -1 };
   nodes.push(root);
 
   let growIdx = 0;
 
-  DATA.soul_tree.forEach((sec, si) => {{
+  DATA.soul_tree.forEach((sec, si) => {
     const color = secColor(sec.text);
-    const sNode = {{ id: id++, type: 'section', label: sec.text, x: 0, y: 0, r: 18, color, depth: 1, growStep: growIdx++, parentId: root.id }};
+    const sNode = { id: id++, type: 'section', label: sec.text, x: 0, y: 0, r: 18, color, depth: 1, growStep: growIdx++, parentId: root.id };
     nodes.push(sNode);
-    edges.push({{ from: root.id, to: sNode.id, color }});
+    edges.push({ from: root.id, to: sNode.id, color });
 
-    sec.children.forEach((child, ci) => {{
-      if (child.type === 'subsection') {{
-        const subNode = {{ id: id++, type: 'subsection', label: child.text, x: 0, y: 0, r: 12, color, depth: 2, growStep: growIdx++, parentId: sNode.id }};
+    sec.children.forEach((child, ci) => {
+      if (child.type === 'subsection') {
+        const subNode = { id: id++, type: 'subsection', label: child.text, x: 0, y: 0, r: 12, color, depth: 2, growStep: growIdx++, parentId: sNode.id };
         nodes.push(subNode);
-        edges.push({{ from: sNode.id, to: subNode.id, color }});
+        edges.push({ from: sNode.id, to: subNode.id, color });
 
-        (child.children || []).forEach((b, bi) => {{
+        (child.children || []).forEach((b, bi) => {
           const isAdded = DATA.changes.some(c => c.after && c.after.trim() === b.raw.trim());
-          const bNode = {{
+          const bNode = {
             id: id++, type: 'bullet', label: b.text, tag: b.tag,
             x: 0, y: 0, r: b.tag === 'CORE' ? 7 : 6,
             color: b.tag === 'CORE' ? '#e05050' : (b.tag === 'MUTABLE' ? '#50c878' : '#666'),
             depth: 3, growStep: growIdx++, parentId: subNode.id,
             raw: b.raw, isChangeAdded: isAdded,
             section: sec.text, subsection: child.text,
-          }};
+          };
           nodes.push(bNode);
-          edges.push({{ from: subNode.id, to: bNode.id, color: bNode.color }});
-        }});
-      }} else if (child.type === 'bullet') {{
+          edges.push({ from: subNode.id, to: bNode.id, color: bNode.color });
+        });
+      } else if (child.type === 'bullet') {
         const b = child;
-        const bNode = {{
+        const bNode = {
           id: id++, type: 'bullet', label: b.text, tag: b.tag,
           x: 0, y: 0, r: b.tag === 'CORE' ? 7 : 6,
           color: b.tag === 'CORE' ? '#e05050' : (b.tag === 'MUTABLE' ? '#50c878' : '#666'),
           depth: 2, growStep: growIdx++, parentId: sNode.id,
           raw: b.raw, isChangeAdded: false,
           section: sec.text, subsection: '',
-        }};
+        };
         nodes.push(bNode);
-        edges.push({{ from: sNode.id, to: bNode.id, color: bNode.color }});
-      }}
-    }});
-  }});
+        edges.push({ from: sNode.id, to: bNode.id, color: bNode.color });
+      }
+    });
+  });
 
   // Mark change-added nodes with the change index
-  DATA.changes.forEach((c, ci) => {{
-    if (c.after) {{
+  DATA.changes.forEach((c, ci) => {
+    if (c.after) {
       const match = nodes.find(n => n.raw && n.raw.trim() === c.after.trim());
       if (match) match.changeIdx = ci;
-    }}
-  }});
+    }
+  });
 
-  return {{ nodes, edges, totalGrowSteps: growIdx }};
-}}
+  return { nodes, edges, totalGrowSteps: growIdx };
+}
 
 // --- Layout: radial tree ---
-function layoutRadial(nodes, edges) {{
-  const childrenOf = {{}};
-  edges.forEach(e => {{
+function layoutRadial(nodes, edges) {
+  const childrenOf = {};
+  edges.forEach(e => {
     if (!childrenOf[e.from]) childrenOf[e.from] = [];
     childrenOf[e.from].push(e.to);
-  }});
+  });
 
-  const nodeMap = {{}};
+  const nodeMap = {};
   nodes.forEach(n => nodeMap[n.id] = n);
 
-  function countLeaves(nid) {{
+  function countLeaves(nid) {
     const kids = childrenOf[nid] || [];
     if (kids.length === 0) return 1;
     return kids.reduce((s, k) => s + countLeaves(k), 0);
-  }}
+  }
 
-  function layout(nid, angleStart, angleEnd, radius) {{
+  function layout(nid, angleStart, angleEnd, radius) {
     const node = nodeMap[nid];
     const kids = childrenOf[nid] || [];
     const mid = (angleStart + angleEnd) / 2;
 
-    if (nid !== 0) {{
+    if (nid !== 0) {
       node.x = Math.cos(mid) * radius;
       node.y = Math.sin(mid) * radius;
-    }}
+    }
 
     if (kids.length === 0) return;
 
     const totalLeaves = countLeaves(nid);
     let cursor = angleStart;
 
-    kids.forEach(kid => {{
+    kids.forEach(kid => {
       const kidNode = nodeMap[kid];
       const leaves = countLeaves(kid);
       const share = (leaves / totalLeaves) * (angleEnd - angleStart);
       const extra = radiusBonus(kidNode);
       layout(kid, cursor, cursor + share, radius + radiusStep(kidNode.depth) + extra);
       cursor += share;
-    }});
-  }}
+    });
+  }
 
-  function radiusStep(depth) {{
+  function radiusStep(depth) {
     if (depth === 1) return 160;
     if (depth === 2) return 130;
     return 110;
-  }}
+  }
 
   // Push change-added nodes further out from the core
-  function radiusBonus(node) {{
-    if (node.changeIdx !== undefined) {{
+  function radiusBonus(node) {
+    if (node.changeIdx !== undefined) {
       // Each successive change gets pushed further out
       return 60 + node.changeIdx * 40;
-    }}
+    }
     return 0;
-  }}
+  }
 
   layout(0, -Math.PI, Math.PI, 0);
-}}
+}
 
 // --- Canvas renderer ---
 const canvas = document.getElementById('canvas');
@@ -8599,7 +8822,7 @@ let isDragging = false, dragStartX, dragStartY, camStartX, camStartY;
 let hoveredNode = null;
 let animTime = 0;
 
-const {{ nodes, edges, totalGrowSteps }} = buildNodes();
+const { nodes, edges, totalGrowSteps } = buildNodes();
 layoutRadial(nodes, edges);
 
 // Current visible step
@@ -8610,23 +8833,23 @@ slider.max = DATA.changes.length;
 slider.value = DATA.changes.length;
 
 // Determine which growSteps are visible at each timeline step
-function getVisibleGrowStep(timelineStep) {{
+function getVisibleGrowStep(timelineStep) {
   // All nodes visible except those added by changes AFTER timelineStep
   const hiddenChanges = new Set();
-  for (let i = DATA.changes.length - 1; i >= timelineStep; i--) {{
+  for (let i = DATA.changes.length - 1; i >= timelineStep; i--) {
     if (DATA.changes[i].after) hiddenChanges.add(DATA.changes[i].after.trim());
-  }}
+  }
   return hiddenChanges;
-}}
+}
 
 // Particles for celebrations
 let particles = [];
-function spawnParticles(x, y, color) {{
+function spawnParticles(x, y, color) {
   const [r, g, b] = hexToRgb(color);
-  for (let i = 0; i < 20; i++) {{
+  for (let i = 0; i < 20; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 1 + Math.random() * 3;
-    particles.push({{
+    particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
@@ -8634,11 +8857,11 @@ function spawnParticles(x, y, color) {{
       decay: 0.01 + Math.random() * 0.02,
       r, g, b,
       size: 2 + Math.random() * 3,
-    }});
-  }}
-}}
+    });
+  }
+}
 
-function resize() {{
+function resize() {
   W = window.innerWidth;
   H = window.innerHeight;
   canvas.width = W * devicePixelRatio;
@@ -8646,42 +8869,42 @@ function resize() {{
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-}}
+}
 window.addEventListener('resize', resize);
 resize();
 
 // Node grow animation state
-const nodeAnim = {{}};
-nodes.forEach(n => {{
-  nodeAnim[n.id] = {{ scale: 0, targetScale: 1, visible: true }};
-}});
+const nodeAnim = {};
+nodes.forEach(n => {
+  nodeAnim[n.id] = { scale: 0, targetScale: 1, visible: true };
+});
 
-function setVisibility() {{
+function setVisibility() {
   const hidden = getVisibleGrowStep(currentStep);
-  nodes.forEach(n => {{
-    if (n.raw && hidden.has(n.raw.trim())) {{
+  nodes.forEach(n => {
+    if (n.raw && hidden.has(n.raw.trim())) {
       nodeAnim[n.id].targetScale = 0;
       nodeAnim[n.id].visible = false;
-    }} else {{
+    } else {
       nodeAnim[n.id].targetScale = 1;
       nodeAnim[n.id].visible = true;
-    }}
-  }});
-}}
+    }
+  });
+}
 setVisibility();
 // Start fully visible
-nodes.forEach(n => {{ nodeAnim[n.id].scale = nodeAnim[n.id].targetScale; }});
+nodes.forEach(n => { nodeAnim[n.id].scale = nodeAnim[n.id].targetScale; });
 
-function screenToWorld(sx, sy) {{
+function screenToWorld(sx, sy) {
   return [(sx - W/2) / camZoom + camX, (sy - H/2) / camZoom + camY];
-}}
+}
 
-function worldToScreen(wx, wy) {{
+function worldToScreen(wx, wy) {
   return [(wx - camX) * camZoom + W/2, (wy - camY) * camZoom + H/2];
-}}
+}
 
 // --- Drawing ---
-function draw() {{
+function draw() {
   animTime += 0.016;
 
   // Smooth camera
@@ -8690,21 +8913,21 @@ function draw() {{
   camZoom += (targetCamZoom - camZoom) * camSmooth;
 
   // Animate node scales
-  nodes.forEach(n => {{
+  nodes.forEach(n => {
     const a = nodeAnim[n.id];
     a.scale += (a.targetScale - a.scale) * 0.08;
     if (Math.abs(a.scale - a.targetScale) < 0.001) a.scale = a.targetScale;
-  }});
+  });
 
   // Update particles
-  particles = particles.filter(p => {{
+  particles = particles.filter(p => {
     p.x += p.vx;
     p.y += p.vy;
     p.vx *= 0.97;
     p.vy *= 0.97;
     p.life -= p.decay;
     return p.life > 0;
-  }});
+  });
 
   ctx.clearRect(0, 0, W, H);
 
@@ -8720,11 +8943,11 @@ function draw() {{
   ctx.scale(camZoom, camZoom);
   ctx.translate(-camX, -camY);
 
-  const nodeMap = {{}};
+  const nodeMap = {};
   nodes.forEach(n => nodeMap[n.id] = n);
 
   // Draw edges (organic bezier curves)
-  edges.forEach(e => {{
+  edges.forEach(e => {
     const from = nodeMap[e.from];
     const to = nodeMap[e.to];
     const aFrom = nodeAnim[from.id];
@@ -8751,13 +8974,13 @@ function draw() {{
     ctx.moveTo(from.x, from.y);
     ctx.quadraticCurveTo(cpx, cpy, to.x, to.y);
 
-    ctx.strokeStyle = `rgba(${{r}},${{g}},${{b}},${{alpha * 0.25}})`;
+    ctx.strokeStyle = `rgba(${r},${g},${b},${alpha * 0.25})`;
     ctx.lineWidth = to.depth <= 1 ? 2.5 : (to.depth === 2 ? 1.5 : 1);
     ctx.stroke();
-  }});
+  });
 
   // Draw nodes
-  nodes.forEach(n => {{
+  nodes.forEach(n => {
     const a = nodeAnim[n.id];
     if (a.scale < 0.01) return;
 
@@ -8767,109 +8990,109 @@ function draw() {{
     const isHov = hoveredNode && hoveredNode.id === n.id;
 
     // Glow
-    if (n.type !== 'bullet' || isHov) {{
+    if (n.type !== 'bullet' || isHov) {
       const glowR = r * (isHov ? 4 : 2.5);
       const glow = ctx.createRadialGradient(n.x, n.y, r * 0.5, n.x, n.y, glowR);
-      glow.addColorStop(0, `rgba(${{cr}},${{cg}},${{cb}},${{s * (isHov ? 0.25 : 0.12)}})`);
+      glow.addColorStop(0, `rgba(${cr},${cg},${cb},${s * (isHov ? 0.25 : 0.12)})`);
       glow.addColorStop(1, 'transparent');
       ctx.fillStyle = glow;
       ctx.fillRect(n.x - glowR, n.y - glowR, glowR * 2, glowR * 2);
-    }}
+    }
 
     // Node circle
     ctx.beginPath();
     ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${{cr}},${{cg}},${{cb}},${{s * (isHov ? 0.9 : 0.7)}})`;
+    ctx.fillStyle = `rgba(${cr},${cg},${cb},${s * (isHov ? 0.9 : 0.7)})`;
     ctx.fill();
 
     // Border ring
-    if (n.type === 'root' || n.type === 'section' || isHov) {{
+    if (n.type === 'root' || n.type === 'section' || isHov) {
       ctx.beginPath();
       ctx.arc(n.x, n.y, r + 1.5, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(${{cr}},${{cg}},${{cb}},${{s * 0.5}})`;
+      ctx.strokeStyle = `rgba(${cr},${cg},${cb},${s * 0.5})`;
       ctx.lineWidth = 1;
       ctx.stroke();
-    }}
+    }
 
     // Pulse ring for change-added nodes at current step
-    if (n.changeIdx !== undefined && n.changeIdx === currentStep - 1) {{
+    if (n.changeIdx !== undefined && n.changeIdx === currentStep - 1) {
       const pulse = (Math.sin(animTime * 3) + 1) * 0.5;
       ctx.beginPath();
       ctx.arc(n.x, n.y, r + 4 + pulse * 6, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(${{cr}},${{cg}},${{cb}},${{0.3 + pulse * 0.3}})`;
+      ctx.strokeStyle = `rgba(${cr},${cg},${cb},${0.3 + pulse * 0.3})`;
       ctx.lineWidth = 1.5;
       ctx.stroke();
-    }}
+    }
 
     // Labels
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    if (n.type === 'root') {{
-      ctx.font = `700 ${{14 * s}}px 'JetBrains Mono', monospace`;
-      ctx.fillStyle = `rgba(255,255,255,${{s}})`;
+    if (n.type === 'root') {
+      ctx.font = `700 ${14 * s}px 'JetBrains Mono', monospace`;
+      ctx.fillStyle = `rgba(255,255,255,${s})`;
       ctx.fillText(n.label, n.x, n.y);
-    }} else if (n.type === 'section') {{
-      ctx.font = `500 ${{11 * s}}px 'JetBrains Mono', monospace`;
-      ctx.fillStyle = `rgba(255,255,255,${{s * 0.9}})`;
+    } else if (n.type === 'section') {
+      ctx.font = `500 ${11 * s}px 'JetBrains Mono', monospace`;
+      ctx.fillStyle = `rgba(255,255,255,${s * 0.9})`;
       ctx.fillText(n.label, n.x, n.y + r + 14);
-    }} else if (n.type === 'subsection' && camZoom > 0.5) {{
-      ctx.font = `400 ${{9 * s}}px 'DM Sans', sans-serif`;
-      ctx.fillStyle = `rgba(200,200,216,${{s * 0.7}})`;
+    } else if (n.type === 'subsection' && camZoom > 0.5) {
+      ctx.font = `400 ${9 * s}px 'DM Sans', sans-serif`;
+      ctx.fillStyle = `rgba(200,200,216,${s * 0.7})`;
       const maxW = 100;
       ctx.fillText(n.label.length > 18 ? n.label.slice(0, 16) + '…' : n.label, n.x, n.y + r + 12);
-    }}
-  }});
+    }
+  });
 
   // Particles
-  particles.forEach(p => {{
+  particles.forEach(p => {
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${{p.r}},${{p.g}},${{p.b}},${{p.life * 0.6}})`;
+    ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${p.life * 0.6})`;
     ctx.fill();
-  }});
+  });
 
   ctx.restore();
   requestAnimationFrame(draw);
-}}
+}
 
 // --- Interaction ---
-canvas.addEventListener('mousedown', e => {{
+canvas.addEventListener('mousedown', e => {
   isDragging = true;
   dragStartX = e.clientX;
   dragStartY = e.clientY;
   camStartX = camX;
   camStartY = camY;
   document.body.classList.add('dragging');
-}});
-window.addEventListener('mousemove', e => {{
-  if (isDragging) {{
+});
+window.addEventListener('mousemove', e => {
+  if (isDragging) {
     const nx = camStartX - (e.clientX - dragStartX) / camZoom;
     const ny = camStartY - (e.clientY - dragStartY) / camZoom;
     camX = targetCamX = nx;
     camY = targetCamY = ny;
-  }}
+  }
 
   // Hover detection
   const [wx, wy] = screenToWorld(e.clientX, e.clientY);
   let found = null;
   // Check in reverse (top nodes last drawn = on top)
-  for (let i = nodes.length - 1; i >= 0; i--) {{
+  for (let i = nodes.length - 1; i >= 0; i--) {
     const n = nodes[i];
     const a = nodeAnim[n.id];
     if (a.scale < 0.1) continue;
     const dx = wx - n.x;
     const dy = wy - n.y;
     const hitR = Math.max(n.r * a.scale, 10);
-    if (dx*dx + dy*dy < hitR * hitR) {{
+    if (dx*dx + dy*dy < hitR * hitR) {
       found = n;
       break;
-    }}
-  }}
+    }
+  }
 
   hoveredNode = found;
   const tooltip = document.getElementById('tooltip');
-  if (found && (found.type === 'bullet' || found.type === 'subsection')) {{
+  if (found && (found.type === 'bullet' || found.type === 'subsection')) {
     tooltip.classList.add('show');
     tooltip.style.left = (e.clientX + 16) + 'px';
     tooltip.style.top = (e.clientY - 10) + 'px';
@@ -8881,25 +9104,25 @@ window.addEventListener('mousemove', e => {{
     const secEl = document.getElementById('tt-section');
     const textEl = document.getElementById('tt-text');
 
-    if (found.tag) {{
+    if (found.tag) {
       tagEl.textContent = found.tag;
       tagEl.className = 'tt-tag ' + found.tag.toLowerCase();
       tagEl.style.display = '';
-    }} else {{
+    } else {
       tagEl.style.display = 'none';
-    }}
+    }
     secEl.textContent = (found.section || '') + (found.subsection ? ' › ' + found.subsection : '');
     textEl.textContent = found.label;
-  }} else {{
+  } else {
     tooltip.classList.remove('show');
-  }}
-}});
-window.addEventListener('mouseup', () => {{
+  }
+});
+window.addEventListener('mouseup', () => {
   isDragging = false;
   document.body.classList.remove('dragging');
-}});
+});
 
-canvas.addEventListener('wheel', e => {{
+canvas.addEventListener('wheel', e => {
   e.preventDefault();
   const factor = e.deltaY > 0 ? 0.9 : 1.1;
   const [wx, wy] = screenToWorld(e.clientX, e.clientY);
@@ -8910,37 +9133,37 @@ canvas.addEventListener('wheel', e => {{
   targetCamX = camX;
   targetCamY = camY;
   targetCamZoom = camZoom;
-}}, {{ passive: false }});
+}, { passive: false });
 
 // --- Touch support ---
 let lastTouchDist = 0;
-canvas.addEventListener('touchstart', e => {{
+canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  if (e.touches.length === 1) {{
+  if (e.touches.length === 1) {
     isDragging = true;
     dragStartX = e.touches[0].clientX;
     dragStartY = e.touches[0].clientY;
     camStartX = camX;
     camStartY = camY;
-  }} else if (e.touches.length === 2) {{
+  } else if (e.touches.length === 2) {
     isDragging = false;
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     lastTouchDist = Math.sqrt(dx * dx + dy * dy);
-  }}
-}}, {{ passive: false }});
-canvas.addEventListener('touchmove', e => {{
+  }
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
   e.preventDefault();
-  if (e.touches.length === 1 && isDragging) {{
+  if (e.touches.length === 1 && isDragging) {
     const nx = camStartX - (e.touches[0].clientX - dragStartX) / camZoom;
     const ny = camStartY - (e.touches[0].clientY - dragStartY) / camZoom;
     camX = targetCamX = nx;
     camY = targetCamY = ny;
-  }} else if (e.touches.length === 2) {{
+  } else if (e.touches.length === 2) {
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    if (lastTouchDist > 0) {{
+    if (lastTouchDist > 0) {
       const factor = dist / lastTouchDist;
       const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
@@ -8952,44 +9175,44 @@ canvas.addEventListener('touchmove', e => {{
       targetCamX = camX;
       targetCamY = camY;
       targetCamZoom = camZoom;
-    }}
+    }
     lastTouchDist = dist;
-  }}
-}}, {{ passive: false }});
-canvas.addEventListener('touchend', e => {{
+  }
+}, { passive: false });
+canvas.addEventListener('touchend', e => {
   isDragging = false;
   lastTouchDist = 0;
-}});
+});
 
 // --- Timeline controls ---
 const stepLabel = document.getElementById('step-label');
 
-function setStep(s) {{
+function setStep(s) {
   currentStep = s;
   slider.value = s;
   setVisibility();
-  if (s === 0) {{
+  if (s === 0) {
     stepLabel.textContent = 'origin';
-  }} else {{
+  } else {
     const c = DATA.changes[s - 1];
     stepLabel.textContent = (c.timestamp || '').slice(11, 16) || '#' + s;
-  }}
-}}
+  }
+}
 
 slider.oninput = () => setStep(parseInt(slider.value));
 
 // Play
 let playing = false;
 let playTimer = null;
-document.getElementById('btn-play').onclick = () => {{
+document.getElementById('btn-play').onclick = () => {
   const btn = document.getElementById('btn-play');
-  if (playing) {{
+  if (playing) {
     clearInterval(playTimer);
     playing = false;
     btn.textContent = '▶';
     btn.classList.remove('active');
     return;
-  }}
+  }
   playing = true;
   btn.textContent = '⏸';
   btn.classList.add('active');
@@ -8998,12 +9221,12 @@ document.getElementById('btn-play').onclick = () => {{
   setStep(0);
 
   // Instantly grow all base (non-change) nodes with a quick stagger
-  nodes.forEach(n => {{
+  nodes.forEach(n => {
     const a = nodeAnim[n.id];
-    if (n.changeIdx === undefined && a.visible) {{
-      setTimeout(() => {{ a.targetScale = 1; }}, n.growStep * 25);
-    }}
-  }});
+    if (n.changeIdx === undefined && a.visible) {
+      setTimeout(() => { a.targetScale = 1; }, n.growStep * 25);
+    }
+  });
 
   // Fit tight on the base tree first
   setTimeout(() => fitToVisible(false), 200);
@@ -9013,73 +9236,73 @@ document.getElementById('btn-play').onclick = () => {{
   const changePause = 2000; // 2 seconds per change
 
   let changeIdx = 0;
-  setTimeout(() => {{
+  setTimeout(() => {
     if (!playing) return;
     // Fit to base tree before changes start
     fitToVisible(false);
 
-    playTimer = setInterval(() => {{
+    playTimer = setInterval(() => {
       changeIdx++;
-      if (changeIdx <= DATA.changes.length) {{
+      if (changeIdx <= DATA.changes.length) {
         setStep(changeIdx);
         // Smoothly zoom out to include the new node
         fitToVisible(false);
         // Celebrate the new node
         const c = DATA.changes[changeIdx - 1];
-        if (c && c.after) {{
+        if (c && c.after) {
           const match = nodes.find(n => n.raw && n.raw.trim() === c.after.trim());
-          if (match) {{
+          if (match) {
             spawnParticles(match.x, match.y, match.color);
             const toast = document.getElementById('change-toast');
             document.getElementById('ct-text').textContent =
               c.after.replace(/\\s*\\[(CORE|MUTABLE)\\]\\s*/g, '').replace(/^- /, '').slice(0, 120);
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), changePause - 300);
-          }}
-        }}
-      }} else {{
+          }
+        }
+      } else {
         clearInterval(playTimer);
         playing = false;
         btn.textContent = '▶';
         btn.classList.remove('active');
-      }}
-    }}, changePause);
-  }}, baseGrowTime);
-}};
+      }
+    }, changePause);
+  }, baseGrowTime);
+};
 
-document.getElementById('btn-reset').onclick = () => {{
-  if (playing) {{
+document.getElementById('btn-reset').onclick = () => {
+  if (playing) {
     clearInterval(playTimer);
     playing = false;
     document.getElementById('btn-play').textContent = '▶';
     document.getElementById('btn-play').classList.remove('active');
-  }}
+  }
   // Reset all scales to 0, then grow
-  nodes.forEach(n => {{
+  nodes.forEach(n => {
     nodeAnim[n.id].scale = 0;
     nodeAnim[n.id].targetScale = 0;
-  }});
+  });
   setStep(0);
   // Quick regrow
-  setTimeout(() => {{
-    nodes.forEach(n => {{
-      if (!n.raw || !getVisibleGrowStep(0).has(n.raw.trim())) {{
-        setTimeout(() => {{ nodeAnim[n.id].targetScale = 1; }}, n.growStep * 40);
-      }}
-    }});
+  setTimeout(() => {
+    nodes.forEach(n => {
+      if (!n.raw || !getVisibleGrowStep(0).has(n.raw.trim())) {
+        setTimeout(() => { nodeAnim[n.id].targetScale = 1; }, n.growStep * 40);
+      }
+    });
     fitToVisible(false);
-  }}, 200);
-}};
+  }, 200);
+};
 
 // Fit camera to visible nodes, always centered on SOUL (0,0)
-function fitToVisible(instant) {{
+function fitToVisible(instant) {
   let maxDist = 0;
-  nodes.forEach(n => {{
-    if (nodeAnim[n.id].scale > 0.1 || nodeAnim[n.id].targetScale > 0.5) {{
+  nodes.forEach(n => {
+    if (nodeAnim[n.id].scale > 0.1 || nodeAnim[n.id].targetScale > 0.5) {
       const dist = Math.sqrt(n.x * n.x + n.y * n.y) + n.r + 40;
       if (dist > maxDist) maxDist = dist;
-    }}
-  }});
+    }
+  });
   maxDist = Math.max(maxDist, 80); // minimum extent
   const padding = 1.15;
   const halfExtent = maxDist * padding;
@@ -9088,33 +9311,34 @@ function fitToVisible(instant) {{
   targetCamX = 0;
   targetCamY = 0;
   targetCamZoom = zoom;
-  if (instant) {{
+  if (instant) {
     camX = targetCamX;
     camY = targetCamY;
     camZoom = targetCamZoom;
-  }}
-}}
+  }
+}
 
 document.getElementById('btn-fit').onclick = () => fitToVisible(false);
 
 // Legend
 document.getElementById('legend').innerHTML = [
-  {{ c: '#e05050', l: 'CORE' }},
-  {{ c: '#50c878', l: 'MUTABLE' }},
-  ...Object.entries(SECTION_COLORS).map(([k, v]) => ({{ c: v, l: k }})),
-].map(i => `<div class="l-item"><div class="l-dot" style="background:${{i.c}}"></div>${{i.l}}</div>`).join('');
+  { c: '#e05050', l: 'CORE' },
+  { c: '#50c878', l: 'MUTABLE' },
+  ...Object.entries(SECTION_COLORS).map(([k, v]) => ({ c: v, l: k })),
+].map(i => `<div class="l-item"><div class="l-dot" style="background:${i.c}"></div>${i.l}</div>`).join('');
 
 // Init
 // Start fully grown
-nodes.forEach(n => {{
+nodes.forEach(n => {
   nodeAnim[n.id].scale = nodeAnim[n.id].targetScale;
-}});
+});
 setStep(DATA.changes.length);
 setTimeout(() => fitToVisible(true), 100);
 draw();
 </script>
 </body>
 </html>"""
+    return html.replace("{data_json}", data_json)
 
 
 def main():
@@ -9225,7 +9449,7 @@ def main():
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps({{"enabled": enabled}}).encode())
+                    self.wfile.write(json.dumps({"enabled": enabled}).encode())
 
                 elif self.path == "/api/model/config":
                     # Get or set model configuration
@@ -9233,7 +9457,7 @@ def main():
 
                     if self.command == 'GET':
                         # Return current config
-                        config = {{"models": {{}}}}
+                        config = {"models": {}}
                         if os.path.exists(model_config_path):
                             try:
                                 with open(model_config_path) as f:
@@ -9243,7 +9467,7 @@ def main():
                         
                         # Return config with placeholder for existing keys
                         config_ui = config.copy()
-                        for key in ["api_key", "key_venice", "key_fal", "key_xai", "key_gemini_img"]:
+                        for key in ["api_key", "key_anthropic", "key_venice", "key_fal", "key_xai", "key_gemini_img"]:
                             if config.get(key):
                                 config_ui[key] = "****"
                         
@@ -9259,7 +9483,7 @@ def main():
                             new_data = json.loads(body)
                             
                             # Load existing
-                            config = {{}}
+                            config = {}
                             if os.path.exists(model_config_path):
                                 with open(model_config_path) as f:
                                     config = json.load(f)
@@ -9268,7 +9492,7 @@ def main():
                             for k, v in new_data.items():
                                 if v == "****": continue # Don't overwrite with placeholder
                                 if k == "models" and isinstance(v, dict):
-                                    if "models" not in config: config["models"] = {{}}
+                                    if "models" not in config: config["models"] = {}
                                     config["models"].update(v)
                                 else:
                                     config[k] = v
@@ -9280,13 +9504,13 @@ def main():
                             self.send_response(200)
                             self.send_header("Content-Type", "application/json")
                             self.end_headers()
-                            self.wfile.write(json.dumps({{"success": True}}).encode())
+                            self.wfile.write(json.dumps({"success": True}).encode())
                             print(f"  ✓ Model config updated")
                         except Exception as e:
                             self.send_response(500)
                             self.send_header("Content-Type", "application/json")
                             self.end_headers()
-                            self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+                            self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
 
                 elif self.path == "/api/genesis/request-status":
                     request_path = os.path.join(workspace, "memory", "reality", "genesis_request.json")
@@ -9294,7 +9518,7 @@ def main():
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps({{"pending": pending}}).encode())
+                    self.wfile.write(json.dumps({"pending": pending}).encode())
 
                 elif self.path == "/api/profiles/list":
                     # List all saved profiles
@@ -9672,17 +9896,17 @@ def main():
                         genesis_enabled_path = os.path.join(workspace, "memory", "reality", "genesis_enabled.json")
                         os.makedirs(os.path.dirname(genesis_enabled_path), exist_ok=True)
                         with open(genesis_enabled_path, "w") as f:
-                            json.dump({{"enabled": enabled, "updated_at": datetime.now().isoformat()}}, f, indent=2)
+                            json.dump({"enabled": enabled, "updated_at": datetime.now().isoformat()}, f, indent=2)
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": True, "enabled": enabled}}).encode())
+                        self.wfile.write(json.dumps({"success": True, "enabled": enabled}).encode())
                         print(f"  \u2713 Genesis enabled: {enabled}")
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
 
                 elif self.path == "/api/voice/toggle":
                     length = int(self.headers.get("Content-Length", 0))
@@ -9693,17 +9917,17 @@ def main():
                         voice_enabled_path = os.path.join(workspace, "memory", "reality", "voice_enabled.json")
                         os.makedirs(os.path.dirname(voice_enabled_path), exist_ok=True)
                         with open(voice_enabled_path, "w") as f:
-                            json.dump({{"enabled": enabled, "updated_at": datetime.now().isoformat()}}, f, indent=2)
+                            json.dump({"enabled": enabled, "updated_at": datetime.now().isoformat()}, f, indent=2)
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": True, "enabled": enabled}}).encode())
+                        self.wfile.write(json.dumps({"success": True, "enabled": enabled}).encode())
                         print(f"  \u2713 Voice enabled: {enabled}")
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
 
                 elif self.path == "/api/voice/status":
                     try:
@@ -9717,12 +9941,12 @@ def main():
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"enabled": enabled}}).encode())
+                        self.wfile.write(json.dumps({"enabled": enabled}).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"enabled": False, "error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"enabled": False, "error": str(e)}).encode())
 
                 elif self.path == "/api/voice/generate":
                     try:
@@ -9730,13 +9954,13 @@ def main():
                         body = self.rfile.read(length).decode("utf-8")
                         data = json.loads(body)
                         text = data.get("text", "")
-                        settings = data.get("settings", {{}})
+                        settings = data.get("settings", {})
 
                         if not text:
                             self.send_response(400)
                             self.send_header("Content-Type", "application/json")
                             self.end_headers()
-                            self.wfile.write(json.dumps({{"success": False, "error": "Text is required"}}).encode())
+                            self.wfile.write(json.dumps({"success": False, "error": "Text is required"}).encode())
                             return
 
                         # Call voice bridge
@@ -9748,7 +9972,7 @@ def main():
                         cmd = [
                             sys.executable,
                             voice_bridge,
-                            json.dumps({{"text": text, "settings": settings}})
+                            json.dumps({"text": text, "settings": settings})
                         ]
 
                         result = subprocess.run(
@@ -9765,12 +9989,12 @@ def main():
                                     self.send_response(200)
                                     self.send_header("Content-Type", "application/json")
                                     self.end_headers()
-                                    self.wfile.write(json.dumps({{
+                                    self.wfile.write(json.dumps({
                                         "success": True,
                                         "url": voice_result.get("url"),
                                         "text": text,
                                         "timestamp": voice_result.get("timestamp")
-                                    }}).encode())
+                                    }).encode())
                                 else:
                                     raise Exception(voice_result.get("error", "Generation failed"))
                             except json.JSONDecodeError:
@@ -9782,12 +10006,12 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "error": "Generation timed out"}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "error": "Generation timed out"}).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
                 # Phase 21: The Vault API
                 elif self.path == "/api/vault/status":
@@ -9811,7 +10035,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 elif self.path == "/api/vault/config":
                     try:
@@ -9827,7 +10051,7 @@ def main():
                             with open(vault_state_path, "r") as f:
                                 state = json.load(f)
                         else:
-                            state = {{}}
+                            state = {}
 
                         # Update config
                         state["mode"] = data.get("mode", "paper")
@@ -9844,7 +10068,7 @@ def main():
                             with open(model_config_path, "r") as f:
                                 mc = json.load(f)
                         else:
-                            mc = {{}}
+                            mc = {}
 
                         mc["vault_provider"] = data.get("provider", "kraken")
                         mc["vault_api_key"] = data.get("api_key", "")
@@ -9856,12 +10080,12 @@ def main():
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": True}}).encode())
+                        self.wfile.write(json.dumps({"success": True}).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
                 elif self.path == "/api/vault/deposit":
                     try:
@@ -9872,7 +10096,7 @@ def main():
 
                         vault_bridge = os.path.join(os.path.dirname(__file__), "vault_bridge.py")
                         result = subprocess.run(
-                            [sys.executable, vault_bridge, json.dumps({{"action": "deposit", "amount": amount}})],
+                            [sys.executable, vault_bridge, json.dumps({"action": "deposit", "amount": amount})],
                             capture_output=True,
                             text=True,
                             timeout=30
@@ -9889,7 +10113,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
                 elif self.path == "/api/vault/trade":
                     try:
@@ -9916,7 +10140,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
                 # Phase 37: Economy Engine State
                 elif self.path == "/api/economy/state":
@@ -9926,13 +10150,13 @@ def main():
                             with open(economy_state_path, "r") as f:
                                 state = json.load(f)
                         else:
-                            state = {{
+                            state = {
                                 "isActive": False,
                                 "currentStrategy": "observe",
                                 "marketMood": "neutral",
                                 "totalTrades": 0,
                                 "lastTradeTime": None
-                            }}
+                            }
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
@@ -9941,7 +10165,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 # Phase 39: Presence Engine State
                 elif self.path == "/api/presence/state":
@@ -9951,14 +10175,14 @@ def main():
                             with open(presence_state_path, "r") as f:
                                 state = json.load(f)
                         else:
-                            state = {{
+                            state = {
                                 "isActive": False,
                                 "totalPosts": 0,
                                 "postsToday": 0,
                                 "lastPostTime": None,
                                 "currentMood": "neutral",
                                 "feed": []
-                            }}
+                            }
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
@@ -9967,7 +10191,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 # Phase 40: Hardware Resonance State
                 elif self.path == "/api/hardware/resonance":
@@ -9977,7 +10201,7 @@ def main():
                             with open(resonance_state_path, "r") as f:
                                 state = json.load(f)
                         else:
-                            state = {{
+                            state = {
                                 "isActive": False,
                                 "currentCpuLoad": 0,
                                 "currentMemoryUsage": 0,
@@ -9985,7 +10209,7 @@ def main():
                                 "isAudioPlaying": False,
                                 "resonanceLevel": "calm",
                                 "totalResonanceEvents": 0
-                            }}
+                            }
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
@@ -9994,7 +10218,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 # v5.1.0: Centralized Config API
                 elif self.path == "/api/config/all":
@@ -10004,7 +10228,7 @@ def main():
                             with open(config_path, "r") as f:
                                 config = json.load(f)
                         else:
-                            config = {{"version": "5.1.0", "character": {{"name": "Q"}}}}
+                            config = {"version": "5.1.0", "character": {"name": "Q"}}
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
@@ -10013,7 +10237,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 elif self.path == "/api/config/save":
                     try:
@@ -10028,12 +10252,12 @@ def main():
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": True}}).encode())
+                        self.wfile.write(json.dumps({"success": True}).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
                 # v5.1.0: Telemetry API
                 elif self.path == "/api/telemetry/vitals":
@@ -10058,7 +10282,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 elif self.path == "/api/telemetry/hardware":
                     try:
@@ -10080,7 +10304,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 # Phase 41: Debug Logs API
                 elif self.path == "/api/logs/recent":
@@ -10116,7 +10340,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 elif self.path == "/api/mem0/config":
                     try:
@@ -10126,7 +10350,7 @@ def main():
                                 with open(mem0_config_path, "r") as f:
                                     config = json.load(f)
                             else:
-                                config = {{"api_key": "", "user_id": "genesis_agent"}}
+                                config = {"api_key": "", "user_id": "genesis_agent"}
                             self.send_response(200)
                             self.send_header("Content-Type", "application/json")
                             self.end_headers()
@@ -10137,20 +10361,20 @@ def main():
                             data = json.loads(body)
                             os.makedirs(os.path.dirname(mem0_config_path), exist_ok=True)
                             with open(mem0_config_path, "w") as f:
-                                json.dump({{
+                                json.dump({
                                     "api_key": data.get("api_key", ""),
                                     "user_id": data.get("user_id", "genesis_agent"),
                                     "updated_at": datetime.now().isoformat()
-                                }}, f, indent=2)
+                                }, f, indent=2)
                             self.send_response(200)
                             self.send_header("Content-Type", "application/json")
                             self.end_headers()
-                            self.wfile.write(json.dumps({{"success": True}}).encode())
+                            self.wfile.write(json.dumps({"success": True}).encode())
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
 
                 elif self.path == "/api/mem0/search":
                     try:
@@ -10169,7 +10393,7 @@ def main():
                         # Search via local memory bridge
                         bridge = os.path.join(os.path.dirname(__file__), "memory_bridge.py")
                         res = subprocess.run(
-                            [sys.executable, bridge, json.dumps({{"action": "search", "query": query, "user_id": user_id}})],
+                            [sys.executable, bridge, json.dumps({"action": "search", "query": query, "user_id": user_id})],
                             capture_output=True, text=True, timeout=30
                         )
                         
@@ -10186,7 +10410,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 elif self.path == "/api/mem0/store":
                     try:
@@ -10205,7 +10429,7 @@ def main():
                         # Store via local memory bridge
                         bridge = os.path.join(os.path.dirname(__file__), "memory_bridge.py")
                         res = subprocess.run(
-                            [sys.executable, bridge, json.dumps({{"action": "add", "text": memory, "user_id": user_id}})],
+                            [sys.executable, bridge, json.dumps({"action": "add", "text": memory, "user_id": user_id})],
                             capture_output=True, text=True, timeout=30
                         )
                         
@@ -10214,7 +10438,7 @@ def main():
                             self.send_response(200)
                             self.send_header("Content-Type", "application/json")
                             self.end_headers()
-                            self.wfile.write(json.dumps({{"success": True, "result": result}}).encode())
+                            self.wfile.write(json.dumps({"success": True, "result": result}).encode())
                         else:
                             raise Exception(res.stderr)
 
@@ -10222,7 +10446,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 # Phase 19: Contact CRM API
                 elif self.path == "/api/social/entities":
@@ -10232,7 +10456,7 @@ def main():
                             with open(social_path, "r") as f:
                                 social_data = json.load(f)
                         else:
-                            social_data = {{"entities": [], "circles": [], "last_network_search": None}}
+                            social_data = {"entities": [], "circles": [], "last_network_search": None}
 
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
@@ -10242,7 +10466,7 @@ def main():
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 elif self.path == "/api/social/add-entity":
                     try:
@@ -10262,12 +10486,12 @@ def main():
                             with open(social_path, "r") as f:
                                 social_data = json.load(f)
                         else:
-                            social_data = {{"entities": [], "circles": [], "last_network_search": None}}
+                            social_data = {"entities": [], "circles": [], "last_network_search": None}
 
                         # Create new entity
                         now = datetime.now().isoformat()
-                        new_entity = {{
-                            "id": f"social_{{int(datetime.now().timestamp())}}",
+                        new_entity = {
+                            "id": f"social_{int(datetime.now().timestamp())}",
                             "name": entity_name,
                             "relationship_type": relationship_type,
                             "bond": 0,
@@ -10282,7 +10506,7 @@ def main():
                             "visual_description": "",
                             "portrait_url": "",
                             "is_external": False
-                        }}
+                        }
 
                         social_data.setdefault("entities", []).append(new_entity)
 
@@ -10293,13 +10517,13 @@ def main():
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": True}}).encode())
+                        self.wfile.write(json.dumps({"success": True}).encode())
 
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
                 elif self.path == "/api/social/update-entity":
                     try:
@@ -10337,18 +10561,18 @@ def main():
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": True}}).encode())
+                        self.wfile.write(json.dumps({"success": True}).encode())
 
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "error": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
                 # Phase 35: Social Engine - Get Pending Events
                 elif self.path == "/api/social/pending":
                     events_path = os.path.join(workspace, "memory", "reality", "social_events.json")
-                    events = {{"pending": []}}
+                    events = {"pending": []}
                     if os.path.exists(events_path):
                         try:
                             with open(events_path, "r") as f:
@@ -10579,17 +10803,17 @@ def main():
                         request_path = os.path.join(workspace, "memory", "reality", "genesis_request.json")
                         os.makedirs(os.path.dirname(request_path), exist_ok=True)
                         with open(request_path, "w") as f:
-                            json.dump({{"prompt": prompt_text, "requested_at": datetime.now().isoformat()}}, f, indent=2)
+                            json.dump({"prompt": prompt_text, "requested_at": datetime.now().isoformat()}, f, indent=2)
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": True}}).encode())
+                        self.wfile.write(json.dumps({"success": True}).encode())
                         print(f"  \u2713 Genesis request saved")
                     except Exception as e:
                         self.send_response(500)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({{"success": False, "message": str(e)}}).encode())
+                        self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
 
                 elif self.path == "/api/genesis/request-status":
                     request_path = os.path.join(workspace, "memory", "reality", "genesis_request.json")
@@ -10597,7 +10821,7 @@ def main():
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps({{"pending": pending}}).encode())
+                    self.wfile.write(json.dumps({"pending": pending}).encode())
 
                 elif self.path == "/api/avatar/update":
                     # Handle avatar pose/emote/wardrobe/interaction updates

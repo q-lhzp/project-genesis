@@ -36,13 +36,40 @@ def check(workspace_root='.'):
 
     # ========================================
     # 1. Soul Evolution installation marker
+    # Support multiple locations for Soul Evolution:
+    #   - ./soul-evolution/SKILL.md (standalone installation)
+    #   - ./project-genesis/skills/soul-evolution/SKILL.md (plugin-bundle installation)
+    #   - Symlinks to any of the above
     # ========================================
-    skill_path = os.path.join(workspace_root, 'soul-evolution', 'SKILL.md')
-    if not os.path.exists(skill_path):
+    possible_paths = [
+        os.path.join(workspace_root, 'soul-evolution', 'SKILL.md'),
+        os.path.join(workspace_root, 'project-genesis', 'skills', 'soul-evolution', 'SKILL.md'),
+    ]
+
+    skill_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            skill_path = path
+            break
+
+    # Also check if soul-evolution is a symlink pointing to a valid location
+    if not skill_path:
+        soul_evo_symlink = os.path.join(workspace_root, 'soul-evolution')
+        if os.path.islink(soul_evo_symlink):
+            real_path = os.path.realpath(soul_evo_symlink)
+            if os.path.exists(os.path.join(real_path, 'SKILL.md')):
+                skill_path = os.path.join(real_path, 'SKILL.md')
+                warnings.append({
+                    'check': 'soul_evolution_symlink',
+                    'message': f'Soul Evolution found via symlink: {soul_evo_symlink} -> {real_path}'
+                })
+
+    if not skill_path:
         errors.append({
             'check': 'soul_evolution_installed',
             'message': (
                 f'soul-evolution/SKILL.md not found in workspace "{workspace_name}" ({workspace_root}). '
+                f'Searched paths: {possible_paths}. '
                 f'Soul Evolution is NOT installed here. '
                 f'STOP — do not run the Soul Evolution pipeline in this workspace. '
                 f'You may be running under the wrong agent.'
@@ -59,28 +86,19 @@ def check(workspace_root='.'):
         }
 
     # ========================================
-    # 1b. Symlink target validation
+    # 1b. Determine actual soul-evolution directory
     # ========================================
-    soul_evo_dir = os.path.join(workspace_root, 'soul-evolution')
-    if os.path.islink(soul_evo_dir):
-        link_target = os.path.realpath(soul_evo_dir)
-        if not os.path.isdir(link_target):
-            warnings.append({
-                'check': 'soul_evolution_symlink',
-                'message': (
-                    f'soul-evolution is a symlink but its target does not exist: {link_target}. '
-                    f'Plugin config sync will write to a different location than the workspace.'
-                )
-            })
+    soul_evo_dir = os.path.dirname(skill_path)  # Parent of SKILL.md
+    soul_evo_rel_path = os.path.relpath(soul_evo_dir, workspace_root)
 
     # ========================================
     # 2. Config exists and is valid
     # ========================================
-    config_path = os.path.join(workspace_root, 'soul-evolution', 'config.json')
+    config_path = os.path.join(soul_evo_dir, 'config.json')
     if not os.path.exists(config_path):
         errors.append({
             'check': 'config',
-            'message': 'soul-evolution/config.json not found'
+            'message': f'{soul_evo_rel_path}/config.json not found'
         })
     else:
         try:
@@ -89,12 +107,12 @@ def check(workspace_root='.'):
             if not isinstance(cfg, dict):
                 errors.append({
                     'check': 'config',
-                    'message': 'soul-evolution/config.json is not a valid JSON object'
+                    'message': f'{soul_evo_rel_path}/config.json is not a valid JSON object'
                 })
         except json.JSONDecodeError as e:
             errors.append({
                 'check': 'config',
-                'message': f'soul-evolution/config.json is invalid JSON: {e}'
+                'message': f'{soul_evo_rel_path}/config.json is invalid JSON: {e}'
             })
 
     # ========================================
@@ -509,11 +527,34 @@ def check(workspace_root='.'):
     # ========================================
     # 7. Validators present
     # ========================================
-    validators_dir = os.path.join(workspace_root, 'soul-evolution', 'validators')
-    if not os.path.isdir(validators_dir):
+    # Check multiple possible locations (like we do for SKILL.md)
+    possible_validators = [
+        os.path.join(workspace_root, 'soul-evolution', 'validators'),
+        os.path.join(workspace_root, 'project-genesis', 'skills', 'soul-evolution', 'validators'),
+    ]
+
+    validators_dir = None
+    for path in possible_validators:
+        if os.path.isdir(path):
+            validators_dir = path
+            break
+
+    # Also check symlink
+    if not validators_dir:
+        soul_evo_symlink = os.path.join(workspace_root, 'soul-evolution')
+        if os.path.islink(soul_evo_symlink):
+            real_path = os.path.realpath(soul_evo_symlink)
+            if os.path.isdir(os.path.join(real_path, 'validators')):
+                validators_dir = os.path.join(real_path, 'validators')
+                warnings.append({
+                    'check': 'validators',
+                    'message': f'Validators found via symlink: {soul_evo_symlink} -> {real_path}'
+                })
+
+    if not validators_dir:
         warnings.append({
             'check': 'validators',
-            'message': 'soul-evolution/validators/ directory not found'
+            'message': f'soul-evolution/validators/ directory not found. Searched: {possible_validators}'
         })
 
     status = 'FAIL' if errors else 'PASS'

@@ -1,0 +1,1 @@
+{"version":3,"file":"economy.d.ts","sourceRoot":"","sources":["../../../src/tools/economy.ts"],"names":[],"mappings":"AASA,OAAO,KAAK,EAAE,eAAe,EAAE,WAAW,EAAE,MAAM,mBAAmB,CAAC;AACtE,OAAO,KAAK,EAAE,iBAAiB,EAAE,MAAM,qBAAqB,CAAC;AAE7D,wBAAgB,oBAAoB,CAClC,GAAG,EAAE,iBAAiB,EACtB,KAAK,EAAE,eAAe,EACtB,UAAU,EAAE,eAAe,EAC3B,OAAO,EAAE,WAAW,EACpB,aAAa,EAAE,MAAM,GACpB,IAAI,CAgIN"}

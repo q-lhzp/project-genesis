@@ -1,0 +1,1 @@
+{"version":3,"file":"reflex-lock.d.ts","sourceRoot":"","sources":["../../../src/hooks/reflex-lock.ts"],"names":[],"mappings":"AACA,OAAO,KAAK,EAAE,iBAAiB,EAAE,MAAM,qBAAqB,CAAC;AAG7D,OAAO,KAAK,EAAE,eAAe,EAAE,MAAM,mBAAmB,CAAC;AAoBzD,wBAAgB,sBAAsB,CACpC,GAAG,EAAE,iBAAiB,EACtB,KAAK,EAAE,eAAe,EACtB,eAAe,GAAE,MAAW,QA4E7B"}

@@ -1,0 +1,4 @@
+  File "/home/leo/Schreibtisch/project-genesis/skills/soul-evolution/tools/soul-viz.py", line 6877
+    };
+    ^
+SyntaxError: f-string: single '}' is not allowed

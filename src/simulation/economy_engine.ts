@@ -7,6 +7,7 @@ import { readJson, writeJson, appendJsonl } from "../utils/persistence.js";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { execFilePromise } from "../utils/bridge-executor.js";
+import { log } from "../utils/logger.js";
 import type { Physique } from "../types/index.js";
 
 /**
@@ -257,16 +258,20 @@ export async function processEconomy(
   mood: string;
   lastTrade: string | null;
 }> {
+  log.debug("economy", "Processing economy tick", { isResearching, stress: physique.needs.stress });
+
   const state = await loadEconomyState(workspacePath);
 
   // Determine current risk tolerance based on Q's state
   const riskTolerance = determineRiskTolerance(physique);
+  log.debug("economy", "Risk tolerance determined", { riskTolerance });
 
   // Analyze market mood
   const mood = analyzeMarketMood(physique, isResearching);
 
   // Select strategy
   const strategy = selectStrategy(mood, riskTolerance);
+  log.debug("economy", "Strategy selected", { strategy, mood });
   state.currentStrategy = strategy;
   state.marketMood = mood;
 

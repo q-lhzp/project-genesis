@@ -13,6 +13,7 @@ export interface Needs {
   stress: number;
   arousal: number;
   libido: number;
+  joy?: number;
 }
 
 export interface Appearance {

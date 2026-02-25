@@ -14,6 +14,10 @@ export interface SimulationPaths {
   // Lifecycle
   lifecycle: string;
   telemetry: string;
+  backups: string;
+
+  // Internal Communication (for memos)
+  internalComm: string;
 
   // Social
   social: string;
@@ -30,6 +34,7 @@ export interface SimulationPaths {
 
   // Psychology
   psych: string;
+  psychology: string;
 
   // World
   world: string;

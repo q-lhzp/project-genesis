@@ -1,0 +1,4 @@
+  File "/home/leo/Schreibtisch/project-genesis/skills/soul-evolution/tools/soul-viz.py", line 6878
+    let targetBlendShapes = { ...currentBlendShapes };
+                              ^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: invalid syntax. Perhaps you forgot a comma?

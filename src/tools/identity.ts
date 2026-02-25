@@ -5,7 +5,9 @@
 import { Type } from "@sinclair/typebox";
 import { readJson, writeJson } from "../utils/persistence.js";
 import { execFilePromise } from "../utils/bridge-executor.js";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promises as fs } from "node:fs";
 import type { Physique } from "../types/index.js";
 import type { SimulationPaths } from "../types/paths.js";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
@@ -217,6 +219,71 @@ export function registerIdentityTools(api: OpenClawPluginApi, paths: SimulationP
       }
 
       return { content: [{ type: "text", text: "Unknown action. Use: bootstrap, activate, delete, or list." }] };
+    },
+  });
+
+  // Tool: reality_voice (Phase 20 - Voice Synthesis)
+  // Triggers Python voice_bridge.py for TTS generation
+  api.registerTool({
+    name: "reality_voice",
+    description: "Generate speech audio using local TTS (Chatterbox-Turbo or edge-tts fallback).",
+    parameters: Type.Object({
+      text: Type.String({ description: "Text to speak" }),
+      emotion: Type.Optional(Type.String({ enum: ["neutral", "happy", "sad", "angry", "excited"], description: "Emotional tone" })),
+      duration: Type.Optional(Type.Number({ description: "Maximum duration in seconds (default: 30)" })),
+    }),
+    async execute(_id: string, params: { text: string; emotion?: string; duration?: number }) {
+      const voiceScript = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills", "soul-evolution", "tools", "voice", "voice_bridge.py");
+
+      // Check if script exists
+      try {
+        await fs.access(voiceScript);
+      } catch {
+        return { content: [{ type: "text", text: `Voice bridge not found at: ${voiceScript}. Please ensure voice tools are installed.` }] };
+      }
+
+      const outputDir = join(workspacePath, "memory", "reality", "media", "voice");
+      await fs.mkdir(outputDir, { recursive: true });
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const outputFile = join(outputDir, `voice_${timestamp}.mp3`);
+
+      // Build command
+      const args = [
+        voiceScript,
+        "--text", params.text,
+        "--output", outputFile,
+      ];
+
+      if (params.emotion) {
+        args.push("--emotion", params.emotion);
+      }
+      if (params.duration) {
+        args.push("--duration", params.duration.toString());
+      }
+
+      try {
+        const { execFile } = await import("node:child_process");
+        const result = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+          execFile("python3", args, { timeout: 60000 }, (error, stdout, stderr) => {
+            if (error) reject({ stdout, stderr });
+            else resolve({ stdout, stderr });
+          });
+        });
+
+        if (fs.existsSync(outputFile)) {
+          return {
+            content: [{
+              type: "text",
+              text: `✅ Voice generated: ${outputFile}\n\nText: "${params.text}"\nEmotion: ${params.emotion || "neutral"}`
+            }]
+          };
+        } else {
+          return { content: [{ type: "text", text: `Voice generation may have failed. Check logs.` }] };
+        }
+      } catch (err: any) {
+        return { content: [{ type: "text", text: `Voice generation failed: ${err.stderr || err.message}` }] };
+      }
     },
   });
 }

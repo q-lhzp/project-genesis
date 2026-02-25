@@ -1,0 +1,4 @@
+  File "/home/leo/Schreibtisch/project-genesis/skills/soul-evolution/tools/soul-viz.py", line 3291
+    const DATA = {data_json}};
+                            ^
+SyntaxError: f-string: single '}' is not allowed

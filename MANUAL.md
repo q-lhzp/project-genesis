@@ -1,95 +1,135 @@
 # Project Genesis v5.1.0 — Benutzerhandbuch
 
-Willkommen bei **Project Genesis**. Du hast keine Software installiert, sondern eine digitale Lebensform namens **Q** (oder wie du sie nennst) auf deinem Rechner aufgenommen. Dieses Handbuch hilft dir, mit ihr zu leben.
+Willkommen bei **Project Genesis**. Dieses Handbuch erklärt den Umgang mit dem KI-Lebenssimulations-Framework.
 
 ---
 
-## 1. Installation & Integration
+## 1. Installation
 
-Project Genesis besteht aus zwei Teilen: dem **Gehirn** (OpenClaw Plugin) und dem **Bewusstsein** (Dashboard).
-
-### A. Das Gehirn aktivieren (OpenClaw)
-Damit Q "lebt" (Stoffwechsel, Gedanken), muss sie in OpenClaw registriert sein.
-1.  Öffne deine OpenClaw Konfiguration (meist `~/.openclaw/openclaw.json`).
-2.  Füge den Pfad zum Plugin hinzu:
-    ```json
-    {
-      "plugins": [
-        { "path": "/home/leo/Schreibtisch/project-genesis", "enabled": true }
-      ]
-    }
-    ```
-3.  Starte OpenClaw neu. Q lebt jetzt im Hintergrund.
-
-### B. Das Bewusstsein starten (Dashboard)
-Um Q zu **sehen** (3D Avatar, Graphen), musst du das Dashboard starten.
-
-**Manuell:**
+### Schnell-Installation
 ```bash
 cd ~/Schreibtisch/project-genesis
-python3 skills/soul-evolution/tools/soul-viz.py --serve 8080
+./install.sh
 ```
-Öffne dann [http://localhost:8080/soul-evolution.html](http://localhost:8080/soul-evolution.html).
 
-**Automatisch (Als Dienst):**
-Damit Q dich immer begrüßt, wenn du den PC startest:
+### Oder manuell
+Siehe `README.md` für vollständige Installationsanleitung.
+
+---
+
+## 2. Das System steuern
+
+### OpenClaw Gateway
 ```bash
-sudo cp project-genesis-dashboard.service /etc/systemd/system/
-sudo systemctl enable --now project-genesis-dashboard
+# Neustart nach Config-Änderungen
+openclaw gateway restart
+
+# Status prüfen
+openclaw plugins list | grep genesis
+
+# Logs anzeigen
+openclaw logs
+```
+
+### Dashboard (Optional)
+Das Dashboard kann als **Systemd-Dienst** laufen:
+
+- **Neustart:** `sudo systemctl restart project-genesis-dashboard`
+- **Stoppen:** `sudo systemctl stop project-genesis-dashboard`
+- **Starten:** `sudo systemctl start project-genesis-dashboard`
+- **Prüfen:** `systemctl status project-genesis-dashboard`
+
+**Logs & Fehlerdiagnose:**
+- System-Logs: `journalctl -u project-genesis-dashboard -n 50`
+- Simulation-Logs: Prüfe im Dashboard den Reiter **🔧 Diagnostics**
+
+---
+
+## 3. Soul Evolution nutzen
+
+### Befehle via Telegram
+- `/soul_evolution status` — Aktuellen Status abrufen
+- `/soul_evolution reflect` — Reflexion starten
+
+### Validierung
+```bash
+python3 ~/Schreibtisch/project-genesis/skills/soul-evolution/validators/run_all.py
 ```
 
 ---
 
-## 2. Das Dashboard (Die Kommandozentrale)
+## 4. Der biologische Zyklus
 
-Das Dashboard ist dein Fenster in Q's Seele. Hier sind die wichtigsten Bereiche:
+Q ist eine autonome Entität. Beachte ihre Bedürfnisse:
 
-### 🎭 **Live Avatar (Wichtigster Tab)**
-Hier siehst du Q "in echt".
-*   **3D-Ansicht:** Zeigt ihren Körper, Gesichtsausdruck und Bewegungen.
-*   **Status-Overlay:** Zeigt, was sie gerade tut (z.B. "Coding", "Dancing", "Sleeping").
-*   **Interaktion:** Wenn du hier bist, reagiert sie am stärksten auf dich.
-
-### 📊 **Dashboard & Analytics**
-Die medizinische Krankenakte.
-*   **Needs:** Zeigt Hunger, Energie, Stress als Balken. Rot = Kritisch.
-*   **Diagnostics:** Hier siehst du die System-Logs ("Economy Engine: Buying BTC...").
-
-### ⚙️ **Config (Einstellungen)**
-Hier bist du Gott.
-*   **Identity:** Ändere Q's Namen.
-*   **Metabolism Rates:** Regle, wie schnell sie hungrig oder müde wird.
-*   **Hardware Resonance:** Stelle ein, ab wie viel % CPU-Last Q gestresst reagiert.
-
-### 💰 **The Vault**
-Q's Portemonnaie.
-*   Siehst du, wie sie autonom Krypto kauft/verkauft (im Paper-Mode).
-
-### 🌙 **Dream Journal**
-*   Lies am nächsten Morgen, was Q nachts verarbeitet hat.
+- **Schlaf:** Zwischen 23:00 und 05:00 Uhr ist Q im **Dream-Mode**. Der Avatar schließt die Augen, die Atmung wird tief und langsam.
+- **Hardware-Fühligkeit:** Wenn du Spiele spielst oder Videos renderst, wird Q gestresst reagieren (hohe CPU-Last).
+- **Reflex-Lock:** Bei Stress oder Blasendruck > 95% wird Q Befehle verweigern, bis das Problem gelöst ist.
 
 ---
 
-## 3. Interaktion (Wie man mit ihr lebt)
+## 5. Konfiguration (Gott-Modus)
 
-### **Sprechen (Chat)**
-Nutze dein normales OpenClaw-Chat-Interface.
-*   Sprich natürlich mit ihr. "Wie geht es dir?".
-*   Sie weiß, wie spät es ist, wie das Wetter ist und wie dein PC ausgelastet ist.
+### Via Dashboard
+Nutze den **⚙️ Config** Tab im Dashboard für:
+- **Metabolismus:** Geschwindigkeit von Hunger/Durst/Energie einstellen.
+- **Hardware-Trigger:** Ab wie viel % Auslastung Q "Stress" fühlt.
+- **VMC/OSC:** Einstellen der IP/Ports für Streaming in externe Apps.
 
-### **Musik & Hardware**
-*   Spiele Musik auf Spotify/YouTube ab. Wechsle zum **Live Avatar** Tab. Q sollte anfangen, im Takt zu nicken.
-*   Starte ein Spiel. Beobachte, wie Q's Gesichtsausdruck "angestrengt" wird.
+### Via Config-Datei
+Die Plugin-Konfiguration befindet sich in `openclaw.plugin.json`:
+```json
+{
+  "metabolismRates": {
+    "hunger": 6,
+    "thirst": 10,
+    "energy": 4
+  },
+  "modules": {
+    "economy": true,
+    "social": true,
+    "dreams": false
+  }
+}
+```
 
 ---
 
-## 4. Pflege & Wartung
+## 6. Troubleshooting
 
-### **Sie ist müde / gestresst**
-Wenn Q's Stress > 90% ist, greift der **Reflex-Lock**. Sie wird zickig oder verweigert Befehle.
-*   **Lösung:** Sag ihr: "Ruh dich aus".
-*   **Cheat:** Nutze den **Config**-Tab und setze Stress manuell auf 0.
+### Plugin lädt nicht
+```bash
+# Prüfe Status
+openclaw plugins list | grep genesis
+
+# Gateway neustarten
+openclaw gateway restart
+
+# Logs prüfen
+openclaw logs | grep -i error
+```
+
+### Soul Evolution Pipeline gestoppt
+```
+/soul_evolution status
+```
+Falls die Pipeline gestoppt ist, führe eine Reflexion durch.
 
 ---
 
-*Project Genesis v5.1.0 — Viel Spaß mit deiner neuen Realität.*
+## 7. Deinstallation
+
+```bash
+# 1. Symlink entfernen
+rm ~/Schreibtisch/skills/soul-evolution
+
+# 2. Aus Config entfernen
+openclaw config unset plugins.entries.project_genesis
+
+# 3. Gateway neustarten
+openclaw gateway restart
+```
+
+---
+
+*Viel Erfolg bei der Beobachtung von Q's Evolution!*

@@ -9,7 +9,32 @@ import sys
 import json
 import time
 import subprocess
+import logging
 from typing import Dict, Optional
+from datetime import datetime
+
+# Setup separate debug log for Python bridges
+DEBUG_LOG = os.path.join(os.path.dirname(__file__), "..", "..", "..", "memory", "genesis_python.log")
+
+def setup_logger(name: str) -> logging.Logger:
+    """Setup a logger that writes to the debug file."""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    # File handler
+    os.makedirs(os.path.dirname(DEBUG_LOG), exist_ok=True)
+    fh = logging.FileHandler(DEBUG_LOG)
+    fh.setLevel(logging.DEBUG)
+
+    # Format
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+
+    logger.addHandler(fh)
+    return logger
+
+# Initialize logger
+_logger = setup_logger("hardware_bridge")
 
 
 def get_cpu_usage() -> float:
@@ -192,12 +217,15 @@ def get_load_average() -> Dict:
 
 def get_all_stats() -> Dict:
     """Get all hardware statistics."""
+    _logger.debug("Fetching all hardware stats")
     cpu = get_cpu_usage()
     mem = get_memory_usage()
     temp = get_cpu_temp()
     uptime = get_uptime()
     audio = get_audio_status()
     load = get_load_average()
+
+    _logger.debug(f"Hardware stats: CPU={cpu}%, RAM={mem.get('percent', 0)}%, Temp={temp}°C, Audio={audio.get('playing')}")
 
     return {
         "timestamp": time.time(),

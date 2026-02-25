@@ -1,0 +1,73 @@
+export interface SimulationPaths {
+    physique: string;
+    wardrobe: string;
+    locations: string;
+    interests: string;
+    diary: string;
+    experiences: string;
+    lifecycle: string;
+    telemetry: string;
+    backups: string;
+    internalComm: string;
+    social: string;
+    socialTelemetry: string;
+    reputation: string;
+    reputationEvents: string;
+    socialEvents: string;
+    finances: string;
+    economyTelemetry: string;
+    skills: string;
+    skillsConfig: string;
+    psych: string;
+    psychology: string;
+    world: string;
+    worldNews: string;
+    newsEvents: string;
+    dreams: string;
+    dreamState: string;
+    hobbies: string;
+    cycle: string;
+    cycleProfile: string;
+    identity: string;
+    emotions: string;
+    growth: string;
+    desires: string;
+    interior: string;
+    inventory: string;
+    media: string;
+    devManifest: string;
+    devProjects: string;
+    soulState: string;
+    pendingProposals: string;
+    genesisLog: string;
+    vaultState: string;
+    simulationConfig: string;
+    identityState: string;
+    hardwareState: string;
+    presenceState: string;
+    economyState: string;
+}
+export interface ToolModules {
+    eros: boolean;
+    cycle: boolean;
+    dreams: boolean;
+    hobbies: boolean;
+    economy: boolean;
+    social: boolean;
+    psychology: boolean;
+    skills: boolean;
+    world: boolean;
+    reputation: boolean;
+    desktop: boolean;
+    utility: boolean;
+    legacy: boolean;
+    genesis: boolean;
+    multi_model_optimization: boolean;
+    voice_enabled: boolean;
+    mem0: {
+        enabled: boolean;
+        apiKey: string;
+        userId: string;
+    };
+}
+//# sourceMappingURL=paths.d.ts.map
