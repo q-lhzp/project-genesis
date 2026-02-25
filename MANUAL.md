@@ -1,40 +1,33 @@
-# Project Genesis v5.2.0 — Benutzerhandbuch
-
-Willkommen bei **Project Genesis**. Dieses Handbuch erklärt den Umgang mit dem System und dem Dashboard.
-
----
+# Project Genesis v5.3.0 — Benutzerhandbuch
 
 ## 1. Das System steuern
+(Siehe README für Setup-Details)
+- **Neustart:** `./restart-dashboard.sh`
+- **Dashboard:** `http://localhost:8080/soul-evolution.html`
 
-Das Dashboard läuft in einer **Screen-Session** im Hintergrund. Dies stellt sicher, dass alle Hardware-Bridges stabil funktionieren.
+## 2. Neue Features in v5.3.0
 
-### **Wichtige Befehle:**
-- **Start / Neustart:** `./restart-dashboard.sh` (im Projektordner).
-- **In die Konsole schauen:** `screen -r genesis` (um Fehlermeldungen live zu sehen).
-- **Konsole verlassen:** Drücke `Strg+A` und dann `D` (Detach).
-- **Komplett stoppen:** `screen -S genesis -X quit`.
+### 🎨 Visual Lab (NPC Porträts)
+Q kann nun Porträts ihrer Kontakte generieren.
+- **Tool:** `reality_generate_npc_portrait`
+- **Stile:** Photorealistic, Anime, Cyberpunk, Illustration.
+- **Speicherort:** Porträts erscheinen im CRM-Bereich unter "Social Standing".
 
----
+### 📈 The Vault (Alpaca Integration)
+Das Trading-System ist nun mit der Alpaca-API verbunden.
+- **Sicherheit:** Standardmäßig im **Paper-Trading** Modus.
+- **Features:** Echtzeit-Kurse, Portfolio-Überwachung und Markt-Orders basierend auf Q's Stimmung.
+- **Konfiguration:** API-Keys werden über das Dashboard (Config Tab) verwaltet.
 
-## 2. Die Dashboards
+### 🎭 Advanced Expressions (52+ BlendShapes)
+Der Avatar unterstützt nun das volle ARKit-Set an Gesichtsausdrücken.
+- **Subtilität:** Q kann nun die Nase rümpfen, die Wangen aufblähen oder asymmetrisch lächeln.
+- **Automatismus:** Die Emotionen werden flüssiger und menschlicher in den 3D-Stream (VMC) übertragen.
 
-### 📊 **Main Dashboard (Port 8080)**
-[http://localhost:8080/soul-evolution.html](http://localhost:8080/soul-evolution.html)
-*   **Live Avatar:** Hier siehst du Q's 3D-Körper und Reaktionen.
-*   **Interests:** Was Q gerade autonom recherchiert.
-*   **Analytics:** Langzeitstatistiken über Stress und Hardware-Last.
-
-### ⚡ **God-Mode Panel**
-[http://localhost:8080/godmode.html](http://localhost:8080/godmode.html)
-*   Hier kannst du Bedürfnisse (Hunger, Energie) manuell setzen, um Q's Reaktionen zu testen oder Life-Events zu triggern.
-
----
-
-## 3. Besonderheiten von v5.2.0
-
-- **Reflex-Lock:** Wenn die Blase oder der Stress > 95% ist, verweigert Q den Dienst. Sie wird im Chat nur noch über ihr Unwohlsein klagen, bis du ihr erlaubst, sich darum zu kümmern.
-- **Hardware-Resonanz:** Wenn dein PC unter Volllast arbeitet, wird Q im Dashboard sichtlich gestresst (schwitzend/angestrengt) wirken.
-- **Tanz-Modus:** Spiele Musik ab! Q erkennt den Audio-Stream und fängt an, rhythmisch mit dem Kopf zu nicken.
+## 3. Debugging & Sovereignty
+- **God-Mode:** Vollständig integriert im Haupt-Dashboard.
+- **Reflex-Lock:** Blockiert Aktionen bei Bedürfnissen > 95%.
+- **Test-Suite:** Nutze `reality_run_self_test` für einen Check aller Engines.
 
 ---
-*Viel Erfolg bei der Beobachtung von Q's Evolution!*
+*Status: High-Fidelity Sovereignty v5.3.0 Active.*

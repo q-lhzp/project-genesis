@@ -9,6 +9,9 @@ import os
 import sys
 import json
 import time
+import urllib.request
+import urllib.error
+from urllib.parse import urlencode
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -185,13 +188,206 @@ class AlpacaBridge:
         self.api_key = api_key
         self.api_secret = api_secret
         self.paper = paper
+        # Alpaca API endpoints
+        self.base_url = "https://paper-api.alpaca.markets" if paper else "https://api.alpaca.markets"
+        self.data_url = "https://data.alpaca.markets"
 
-    def get_balance(self) -> Dict:
-        """Get account balance."""
+    def _headers(self) -> Dict:
+        """Get headers for Alpaca API requests."""
+        return {
+            "APCA-API-KEY-ID": self.api_key,
+            "APCA-API-SECRET-KEY": self.api_secret,
+            "Content-Type": "application/json"
+        }
+
+    def get_account(self) -> Dict:
+        """Get account information - REAL API."""
         if self.paper:
             state = ensure_state()
             return {"success": True, "balances": state.get("balances", {}), "mode": "paper"}
-        return {"success": False, "error": "Live trading not implemented"}
+
+        if not self.api_key or not self.api_secret:
+            return {"success": False, "error": "API keys required for live trading"}
+
+        import urllib.request
+        import json
+
+        url = f"{self.base_url}/v2/account"
+        req = urllib.request.Request(url, headers=self._headers())
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                data = json.load(response)
+                return {
+                    "success": True,
+                    "mode": "live",
+                    "account": {
+                        "id": data.get("id"),
+                        "cash": data.get("cash"),
+                        "portfolio_value": data.get("portfolio_value"),
+                        "equity": data.get("equity"),
+                        "buying_power": data.get("buying_power"),
+                        "status": data.get("status")
+                    }
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_positions(self) -> Dict:
+        """Get open positions - REAL API."""
+        if self.paper:
+            state = ensure_state()
+            return {"success": True, "positions": state.get("positions", {}), "mode": "paper"}
+
+        if not self.api_key or not self.api_secret:
+            return {"success": False, "error": "API keys required for live trading"}
+
+        import urllib.request
+        import json
+
+        url = f"{self.base_url}/v2/positions"
+        req = urllib.request.Request(url, headers=self._headers())
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                data = json.load(response)
+                positions = {}
+                for pos in data:
+                    positions[pos.get("symbol")] = {
+                        "qty": float(pos.get("qty", 0)),
+                        "avg_entry_price": float(pos.get("avg_entry_price", 0)),
+                        "market_value": float(pos.get("market_value", 0)),
+                        "unrealized_pl": float(pos.get("unrealized_pl", 0))
+                    }
+                return {"success": True, "positions": positions, "mode": "live"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def submit_order(self, symbol: str, qty: float, side: str, order_type: str = "market", limit_price: float = None, time_in_force: str = "day") -> Dict:
+        """Submit an order - REAL API."""
+        if self.paper:
+            # Use paper trading logic
+            return KrakenBridge(paper=self.paper).execute_trade(symbol, qty, side)
+
+        if not self.api_key or not self.api_secret:
+            return {"success": False, "error": "API keys required for live trading"}
+
+        import urllib.request
+        import json
+
+        url = f"{self.base_url}/v2/orders"
+        payload = {
+            "symbol": symbol.upper(),
+            "qty": str(int(qty)) if qty == int(qty) else str(qty),
+            "side": side.lower(),
+            "type": order_type.lower(),
+            "time_in_force": time_in_force
+        }
+        if limit_price:
+            payload["limit_price"] = str(limit_price)
+
+        data = bytes(json.dumps(payload), 'utf-8')
+        req = urllib.request.Request(url, data=data, headers=self._headers(), method="POST")
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                order_data = json.load(response)
+                return {
+                    "success": True,
+                    "mode": "live",
+                    "order": {
+                        "id": order_data.get("id"),
+                        "symbol": order_data.get("symbol"),
+                        "qty": order_data.get("qty"),
+                        "side": order_data.get("side"),
+                        "type": order_data.get("type"),
+                        "status": order_data.get("status")
+                    }
+                }
+        except urllib.error.HTTPError as e:
+            error_body = json.loads(e.read().decode())
+            return {"success": False, "error": error_body.get("message", str(e))}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def cancel_order(self, order_id: str) -> Dict:
+        """Cancel an order - REAL API."""
+        if self.paper:
+            return {"success": True, "mode": "paper", "message": "Paper trading - no orders to cancel"}
+
+        if not self.api_key or not self.api_secret:
+            return {"success": False, "error": "API keys required for live trading"}
+
+        import urllib.request
+
+        url = f"{self.base_url}/v2/orders/{order_id}"
+        req = urllib.request.Request(url, headers=self._headers(), method="DELETE")
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                return {"success": True, "mode": "live", "message": f"Order {order_id} cancelled"}
+        except urllib.error.HTTPError as e:
+            if e.code == 422:
+                return {"success": True, "mode": "live", "message": f"Order {order_id} already filled or cancelled"}
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_historical(self, symbol: str, timeframe: str = "1D", start: str = None, end: str = None) -> Dict:
+        """Get historical bar data - REAL API."""
+        if self.paper:
+            # Return mock data for paper trading
+            import random
+            base_prices = {
+                "AAPL": 175, "GOOGL": 140, "MSFT": 380,
+                "AMZN": 175, "NVDA": 450, "TSLA": 250,
+                "META": 350, "NFLX": 450
+            }
+            base = base_prices.get(symbol.upper(), 100.0)
+            return {
+                "success": True,
+                "mode": "paper",
+                "symbol": symbol,
+                "bars": [
+                    {"t": f"2024-01-{i+1:02d}", "o": base * (1 + random.uniform(-0.02, 0.02)),
+                     "h": base * 1.02, "l": base * 0.98, "c": base * (1 + random.uniform(-0.02, 0.02)), "v": 1000000}
+                    for i in range(30)
+                ]
+            }
+
+        if not self.api_key or not self.api_secret:
+            return {"success": False, "error": "API keys required for live trading"}
+
+        import urllib.request
+        import json
+        from urllib.parse import urlencode
+
+        params = {"symbols": symbol.upper(), "timeframe": timeframe}
+        if start:
+            params["start"] = start
+        if end:
+            params["end"] = end
+
+        url = f"{self.data_url}/v2/stocks/bars?{urlencode(params)}"
+        req = urllib.request.Request(url, headers=self._headers())
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                data = json.load(response)
+                bars = data.get("bars", {}).get(symbol.upper(), [])
+                return {
+                    "success": True,
+                    "mode": "live",
+                    "symbol": symbol,
+                    "bars": [{"t": b.get("t"), "o": b.get("o"), "h": b.get("h"),
+                              "l": b.get("l"), "c": b.get("c"), "v": b.get("v")} for b in bars]
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_balance(self) -> Dict:
+        """Get account balance."""
+        return self.get_account()
 
     def get_price(self, symbol: str) -> Dict:
         """Get current stock price."""
@@ -205,11 +401,37 @@ class AlpacaBridge:
             price = base_prices.get(symbol.upper(), 100.0)
             price *= (1 + random.uniform(-0.02, 0.02))
             return {"success": True, "price": price, "symbol": symbol, "mode": "paper"}
-        return {"success": False, "error": "Live trading not implemented"}
+        return self.get_quote(symbol)
+
+    def get_quote(self, symbol: str) -> Dict:
+        """Get real-time quote."""
+        if not self.api_key or not self.api_secret:
+            return {"success": False, "error": "API keys required"}
+
+        import urllib.request
+        import json
+
+        url = f"{self.data_url}/v2/stocks/{symbol.upper()}/quotes/latest"
+        req = urllib.request.Request(url, headers=self._headers())
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                data = json.load(response)
+                quote = data.get("quote", {})
+                return {
+                    "success": True,
+                    "symbol": symbol,
+                    "bid": quote.get("bp"),
+                    "ask": quote.get("ap"),
+                    "last": quote.get("lp"),
+                    "mode": "live"
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def execute_trade(self, symbol: str, amount: float, trade_type: str) -> Dict:
-        """Execute a stock trade."""
-        return KrakenBridge(paper=self.paper).execute_trade(symbol, amount, trade_type)
+        """Execute a stock trade (buy/sell)."""
+        return self.submit_order(symbol, amount, trade_type)
 
 
 # -------------------------------------------------------------------
@@ -279,6 +501,54 @@ def handle_action(action: str, params: Dict) -> Dict:
             "market_reports": state.get("market_reports", []),
             "transaction_count": len(state.get("transactions", []))
         }
+
+    # Alpaca-specific actions
+    elif action == "account":
+        return bridge.get_account()
+
+    elif action == "positions":
+        return bridge.get_positions()
+
+    elif action == "order":
+        symbol = params.get("symbol")
+        qty = params.get("qty") or params.get("amount")
+        side = params.get("side") or params.get("type", "buy")
+        order_type = params.get("order_type", "market")
+        limit_price = params.get("limit_price")
+
+        if not symbol or not qty:
+            return {"success": False, "error": "symbol and qty are required"}
+
+        return bridge.submit_order(symbol, float(qty), side, order_type, float(limit_price) if limit_price else None)
+
+    elif action == "cancel_order":
+        order_id = params.get("order_id")
+        if not order_id:
+            return {"success": False, "error": "order_id is required"}
+        return bridge.cancel_order(order_id)
+
+    elif action == "historical":
+        symbol = params.get("symbol")
+        if not symbol:
+            return {"success": False, "error": "symbol is required"}
+        timeframe = params.get("timeframe", "1D")
+        start = params.get("start")
+        end = params.get("end")
+        return bridge.get_historical(symbol, timeframe, start, end)
+
+    elif action == "quote":
+        symbol = params.get("symbol")
+        if not symbol:
+            return {"success": False, "error": "symbol is required"}
+        return bridge.get_quote(symbol)
+
+    elif action == "switch_mode":
+        new_mode = params.get("mode", "paper")
+        if new_mode not in ["paper", "live"]:
+            return {"success": False, "error": "mode must be 'paper' or 'live'"}
+        state["mode"] = new_mode
+        save_state(state)
+        return {"success": True, "mode": new_mode}
 
     return {"success": False, "error": f"Unknown action: {action}"}
 

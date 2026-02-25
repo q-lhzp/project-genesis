@@ -1,6 +1,7 @@
 import type { Physique } from "../types/index.js";
 /**
  * BlendShape weights for VRM expressions (0-1 range)
+ * Extended from 16 to 52+ expressions for comprehensive facial animation
  */
 export interface BlendShapeWeights {
     joy: number;
@@ -10,6 +11,7 @@ export interface BlendShapeWeights {
     surprise: number;
     neutral: number;
     relaxed: number;
+    disgusted: number;
     blinkLeft: number;
     blinkRight: number;
     blink: number;
@@ -17,7 +19,49 @@ export interface BlendShapeWeights {
     lookDown: number;
     lookLeft: number;
     lookRight: number;
+    eyeWiden: number;
+    eyeSquint: number;
+    eyeClose: number;
+    browUp: number;
+    browDown: number;
+    browOuterUp: number;
+    browInnerUp: number;
+    browLeft: number;
+    browRight: number;
+    noseSneer: number;
+    noseWrinkle: number;
+    mouthOpen: number;
+    mouthClose: number;
+    jawOpen: number;
+    jawClose: number;
+    jawLeft: number;
+    jawRight: number;
+    mouthFunnel: number;
+    mouthPucker: number;
+    mouthLeft: number;
+    mouthRight: number;
+    mouthSmileLeft: number;
+    mouthSmileRight: number;
+    mouthFrownLeft: number;
+    mouthFrownRight: number;
+    mouthGrimace: number;
+    mouthLaugh: number;
+    mouthShrugUpper: number;
+    mouthShrugLower: number;
+    mouthRoll: number;
+    tongueOut: number;
+    cheekPuff: number;
+    cheekSquintLeft: number;
+    cheekSquintRight: number;
+    cheekSuck: number;
+    chinUp: number;
+    chinDown: number;
+    chinSideLeft: number;
+    chinSideRight: number;
     sleeping: number;
+    breathing: number;
+    yawning: number;
+    swallowing: number;
 }
 /**
  * Default BlendShape weights (all neutral)

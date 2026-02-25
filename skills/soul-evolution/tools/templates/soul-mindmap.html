@@ -1,0 +1,915 @@
+    html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Genesis — Soul Mindmap</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #060610;
+  --text: #c8c8d8;
+  --text-dim: #5a5a70;
+  --text-bright: #eeeef4;
+  --accent: #7c6ff0;
+  --core: #e05050;
+  --mutable: #50c878;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  cursor: grab;
+}
+body.dragging { cursor: grabbing; }
+
+canvas {
+  display: block;
+  position: absolute;
+  top: 0; left: 0;
+}
+
+/* HUD overlay */
+.hud {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+}
+.hud > * { pointer-events: auto; }
+
+.hud-top {
+  top: 1.2rem; left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.hud-top h1 {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 300;
+  font-size: 1.1rem;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+}
+.hud-top h1 .evolution { color: var(--accent); }
+.hud-top h1 .soul { color: var(--text-dim); }
+.hud-top .back-link {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-decoration: none;
+  letter-spacing: 0.05em;
+  transition: color 0.2s;
+}
+.hud-top .back-link:hover { color: var(--mutable); }
+
+/* Controls bar */
+.controls {
+  position: fixed;
+  bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  z-index: 100;
+  display: flex; align-items: center; gap: 0.6rem;
+  background: rgba(12, 12, 20, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(30, 30, 48, 0.6);
+  border-radius: 40px;
+  padding: 0.5rem 1.2rem;
+}
+.controls button {
+  background: none;
+  border: 1px solid rgba(30, 30, 48, 0.8);
+  color: var(--text);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.controls button:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.controls button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.controls .slider-wrap {
+  display: flex; align-items: center; gap: 0.5rem;
+  min-width: 240px;
+}
+.controls input[type=range] {
+  -webkit-appearance: none;
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(30, 30, 48, 0.8);
+  outline: none;
+}
+.controls input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(124, 111, 240, 0.4);
+}
+.controls .step-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  min-width: 50px;
+  text-align: center;
+}
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  z-index: 200;
+  background: rgba(12, 12, 22, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(30, 30, 48, 0.8);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  max-width: 320px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.tooltip.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.tooltip .tt-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.3rem;
+}
+.tooltip .tt-tag.core { color: var(--core); }
+.tooltip .tt-tag.mutable { color: var(--mutable); }
+.tooltip .tt-section {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-bottom: 0.2rem;
+}
+
+/* Legend */
+.hud-legend {
+  position: fixed;
+  bottom: 5rem; left: 50%; transform: translateX(-50%);
+  z-index: 100;
+  display: flex; gap: 1.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+.hud-legend .l-item {
+  display: flex; align-items: center; gap: 0.35rem;
+}
+.hud-legend .l-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+}
+
+/* Change notification */
+.change-toast {
+  position: fixed;
+  top: 4rem; right: 1.5rem;
+  z-index: 150;
+  background: rgba(12, 12, 22, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(80, 200, 120, 0.3);
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  max-width: 300px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateX(20px);
+  transition: all 0.4s;
+}
+.change-toast.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+.change-toast .ct-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--mutable);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.3rem;
+}
+</style>
+</head>
+<body>
+
+<div class="hud hud-top">
+  <a href="soul-evolution.html" class="back-link">← back to dashboard</a>
+  <h1><span class="evolution">Soul</span><span class="soul"> Evolution</span> · mindmap</h1>
+</div>
+
+<div class="controls">
+  <button id="btn-play" title="Play growth">▶</button>
+  <button id="btn-reset" title="Reset to origin">⟲</button>
+  <div class="slider-wrap">
+    <span class="step-label" id="step-label">origin</span>
+    <input type="range" id="timeline" min="0" max="1" value="1" step="1">
+  </div>
+  <button id="btn-fit" title="Fit to view">⊡</button>
+</div>
+
+<div class="hud-legend" id="legend"></div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tt-tag" id="tt-tag"></div>
+  <div class="tt-section" id="tt-section"></div>
+  <div id="tt-text"></div>
+</div>
+
+<div class="change-toast" id="change-toast">
+  <div class="ct-label">soul change</div>
+  <div id="ct-text"></div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+const DATA =  {data_json};
+
+const SECTION_COLORS = {
+  'Personality': '#f0a050',
+  'Philosophy': '#7c6ff0',
+  'Boundaries': '#e05050',
+  'Continuity': '#50b8e0',
+};
+function secColor(name) {
+  for (const [k, v] of Object.entries(SECTION_COLORS)) {
+    if (name && name.includes(k)) return v;
+  }
+  return '#888';
+}
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return [r, g, b];
+}
+
+function buildNodes() {
+  const nodes = [];
+  const edges = [];
+  let id = 0;
+
+  // Root
+  const root = { id: id++, type: 'root', label: 'SOUL', x: 0, y: 0, r: 28, color: '#7c6ff0', depth: 0, growStep: -1 };
+  nodes.push(root);
+
+  let growIdx = 0;
+
+  DATA.soul_tree.forEach((sec, si) => {
+    const color = secColor(sec.text);
+    const sNode = { id: id++, type: 'section', label: sec.text, x: 0, y: 0, r: 18, color, depth: 1, growStep: growIdx++, parentId: root.id };
+    nodes.push(sNode);
+    edges.push({ from: root.id, to: sNode.id, color });
+
+    sec.children.forEach((child, ci) => {
+      if (child.type === 'subsection') {
+        const subNode = { id: id++, type: 'subsection', label: child.text, x: 0, y: 0, r: 12, color, depth: 2, growStep: growIdx++, parentId: sNode.id };
+        nodes.push(subNode);
+        edges.push({ from: sNode.id, to: subNode.id, color });
+
+        (child.children || []).forEach((b, bi) => {
+          const isAdded = DATA.changes.some(c => c.after && c.after.trim() === b.raw.trim());
+          const bNode = {
+            id: id++, type: 'bullet', label: b.text, tag: b.tag,
+            x: 0, y: 0, r: b.tag === 'CORE' ? 7 : 6,
+            color: b.tag === 'CORE' ? '#e05050' : (b.tag === 'MUTABLE' ? '#50c878' : '#666'),
+            depth: 3, growStep: growIdx++, parentId: subNode.id,
+            raw: b.raw, isChangeAdded: isAdded,
+            section: sec.text, subsection: child.text,
+          };
+          nodes.push(bNode);
+          edges.push({ from: subNode.id, to: bNode.id, color: bNode.color });
+        });
+      } else if (child.type === 'bullet') {
+        const b = child;
+        const bNode = {
+          id: id++, type: 'bullet', label: b.text, tag: b.tag,
+          x: 0, y: 0, r: b.tag === 'CORE' ? 7 : 6,
+          color: b.tag === 'CORE' ? '#e05050' : (b.tag === 'MUTABLE' ? '#50c878' : '#666'),
+          depth: 2, growStep: growIdx++, parentId: sNode.id,
+          raw: b.raw, isChangeAdded: false,
+          section: sec.text, subsection: '',
+        };
+        nodes.push(bNode);
+        edges.push({ from: sNode.id, to: bNode.id, color: bNode.color });
+      }
+    });
+  });
+
+  // Mark change-added nodes with the change index
+  DATA.changes.forEach((c, ci) => {
+    if (c.after) {
+      const match = nodes.find(n => n.raw && n.raw.trim() === c.after.trim());
+      if (match) match.changeIdx = ci;
+    }
+  });
+
+  return { nodes, edges, totalGrowSteps: growIdx };
+}
+
+function layoutRadial(nodes, edges) {
+  const childrenOf = {};
+  edges.forEach(e => {
+    if (!childrenOf[e.from]) childrenOf[e.from] = [];
+    childrenOf[e.from].push(e.to);
+  });
+
+  const nodeMap = {};
+  nodes.forEach(n => nodeMap[n.id] = n);
+
+  function countLeaves(nid) {
+    const kids = childrenOf[nid] || [];
+    if (kids.length === 0) return 1;
+    return kids.reduce((s, k) => s + countLeaves(k), 0);
+  }
+
+  function layout(nid, angleStart, angleEnd, radius) {
+    const node = nodeMap[nid];
+    const kids = childrenOf[nid] || [];
+    const mid = (angleStart + angleEnd) / 2;
+
+    if (nid !== 0) {
+      node.x = Math.cos(mid) * radius;
+      node.y = Math.sin(mid) * radius;
+    }
+
+    if (kids.length === 0) return;
+
+    const totalLeaves = countLeaves(nid);
+    let cursor = angleStart;
+
+    kids.forEach(kid => {
+      const kidNode = nodeMap[kid];
+      const leaves = countLeaves(kid);
+      const share = (leaves / totalLeaves) * (angleEnd - angleStart);
+      const extra = radiusBonus(kidNode);
+      layout(kid, cursor, cursor + share, radius + radiusStep(kidNode.depth) + extra);
+      cursor += share;
+    });
+  }
+
+  function radiusStep(depth) {
+    if (depth === 1) return 160;
+    if (depth === 2) return 130;
+    return 110;
+  }
+
+  // Push change-added nodes further out from the core
+  function radiusBonus(node) {
+    if (node.changeIdx !== undefined) {
+      // Each successive change gets pushed further out
+      return 60 + node.changeIdx * 40;
+    }
+    return 0;
+  }
+
+  layout(0, -Math.PI, Math.PI, 0);
+}
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+let camX = 0, camY = 0, camZoom = 1;
+let targetCamX = 0, targetCamY = 0, targetCamZoom = 1;
+let camSmooth = 0.06; // lerp speed
+let isDragging = false, dragStartX, dragStartY, camStartX, camStartY;
+let hoveredNode = null;
+let animTime = 0;
+
+const { nodes, edges, totalGrowSteps } = buildNodes();
+layoutRadial(nodes, edges);
+
+// Current visible step
+let currentStep = DATA.changes.length; // max
+let maxGrowStep = totalGrowSteps;
+const slider = document.getElementById('timeline');
+slider.max = DATA.changes.length;
+slider.value = DATA.changes.length;
+
+// Determine which growSteps are visible at each timeline step
+function getVisibleGrowStep(timelineStep) {
+  // All nodes visible except those added by changes AFTER timelineStep
+  const hiddenChanges = new Set();
+  for (let i = DATA.changes.length - 1; i >= timelineStep; i--) {
+    if (DATA.changes[i].after) hiddenChanges.add(DATA.changes[i].after.trim());
+  }
+  return hiddenChanges;
+}
+
+// Particles for celebrations
+let particles = [];
+function spawnParticles(x, y, color) {
+  const [r, g, b] = hexToRgb(color);
+  for (let i = 0; i < 20; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: 0.01 + Math.random() * 0.02,
+      r, g, b,
+      size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Node grow animation state
+const nodeAnim = {};
+nodes.forEach(n => {
+  nodeAnim[n.id] = { scale: 0, targetScale: 1, visible: true };
+});
+
+function setVisibility() {
+  const hidden = getVisibleGrowStep(currentStep);
+  nodes.forEach(n => {
+    if (n.raw && hidden.has(n.raw.trim())) {
+      nodeAnim[n.id].targetScale = 0;
+      nodeAnim[n.id].visible = false;
+    } else {
+      nodeAnim[n.id].targetScale = 1;
+      nodeAnim[n.id].visible = true;
+    }
+  });
+}
+setVisibility();
+// Start fully visible
+nodes.forEach(n => { nodeAnim[n.id].scale = nodeAnim[n.id].targetScale; });
+
+function screenToWorld(sx, sy) {
+  return [(sx - W/2) / camZoom + camX, (sy - H/2) / camZoom + camY];
+}
+
+function worldToScreen(wx, wy) {
+  return [(wx - camX) * camZoom + W/2, (wy - camY) * camZoom + H/2];
+}
+
+function draw() {
+  animTime += 0.016;
+
+  // Smooth camera
+  camX += (targetCamX - camX) * camSmooth;
+  camY += (targetCamY - camY) * camSmooth;
+  camZoom += (targetCamZoom - camZoom) * camSmooth;
+
+  // Animate node scales
+  nodes.forEach(n => {
+    const a = nodeAnim[n.id];
+    a.scale += (a.targetScale - a.scale) * 0.08;
+    if (Math.abs(a.scale - a.targetScale) < 0.001) a.scale = a.targetScale;
+  });
+
+  // Update particles
+  particles = particles.filter(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.97;
+    p.vy *= 0.97;
+    p.life -= p.decay;
+    return p.life > 0;
+  });
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background glow
+  const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H) * 0.6);
+  grad.addColorStop(0, 'rgba(124, 111, 240, 0.03)');
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(W/2, H/2);
+  ctx.scale(camZoom, camZoom);
+  ctx.translate(-camX, -camY);
+
+  const nodeMap = {};
+  nodes.forEach(n => nodeMap[n.id] = n);
+
+  // Draw edges (organic bezier curves)
+  edges.forEach(e => {
+    const from = nodeMap[e.from];
+    const to = nodeMap[e.to];
+    const aFrom = nodeAnim[from.id];
+    const aTo = nodeAnim[to.id];
+    const alpha = Math.min(aFrom.scale, aTo.scale);
+    if (alpha < 0.01) return;
+
+    const [r, g, b] = hexToRgb(e.color);
+
+    ctx.beginPath();
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    // Organic bezier: control points offset perpendicular
+    const mx = (from.x + to.x) / 2;
+    const my = (from.y + to.y) / 2;
+    const nx = -dy / dist;
+    const ny = dx / dist;
+    const wobble = Math.sin(animTime * 0.5 + from.id) * 8;
+    const cpx = mx + nx * wobble;
+    const cpy = my + ny * wobble;
+
+    ctx.moveTo(from.x, from.y);
+    ctx.quadraticCurveTo(cpx, cpy, to.x, to.y);
+
+    ctx.strokeStyle = `rgba(${r},${g},${b},${alpha * 0.25})`;
+    ctx.lineWidth = to.depth <= 1 ? 2.5 : (to.depth === 2 ? 1.5 : 1);
+    ctx.stroke();
+  });
+
+  // Draw nodes
+  nodes.forEach(n => {
+    const a = nodeAnim[n.id];
+    if (a.scale < 0.01) return;
+
+    const s = a.scale;
+    const r = n.r * s;
+    const [cr, cg, cb] = hexToRgb(n.color);
+    const isHov = hoveredNode && hoveredNode.id === n.id;
+
+    // Glow
+    if (n.type !== 'bullet' || isHov) {
+      const glowR = r * (isHov ? 4 : 2.5);
+      const glow = ctx.createRadialGradient(n.x, n.y, r * 0.5, n.x, n.y, glowR);
+      glow.addColorStop(0, `rgba(${cr},${cg},${cb},${s * (isHov ? 0.25 : 0.12)})`);
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.fillRect(n.x - glowR, n.y - glowR, glowR * 2, glowR * 2);
+    }
+
+    // Node circle
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${cr},${cg},${cb},${s * (isHov ? 0.9 : 0.7)})`;
+    ctx.fill();
+
+    // Border ring
+    if (n.type === 'root' || n.type === 'section' || isHov) {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r + 1.5, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${cr},${cg},${cb},${s * 0.5})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Pulse ring for change-added nodes at current step
+    if (n.changeIdx !== undefined && n.changeIdx === currentStep - 1) {
+      const pulse = (Math.sin(animTime * 3) + 1) * 0.5;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r + 4 + pulse * 6, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${cr},${cg},${cb},${0.3 + pulse * 0.3})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    // Labels
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (n.type === 'root') {
+      ctx.font = `700 ${14 * s}px 'JetBrains Mono', monospace`;
+      ctx.fillStyle = `rgba(255,255,255,${s})`;
+      ctx.fillText(n.label, n.x, n.y);
+    } else if (n.type === 'section') {
+      ctx.font = `500 ${11 * s}px 'JetBrains Mono', monospace`;
+      ctx.fillStyle = `rgba(255,255,255,${s * 0.9})`;
+      ctx.fillText(n.label, n.x, n.y + r + 14);
+    } else if (n.type === 'subsection' && camZoom > 0.5) {
+      ctx.font = `400 ${9 * s}px 'DM Sans', sans-serif`;
+      ctx.fillStyle = `rgba(200,200,216,${s * 0.7})`;
+      const maxW = 100;
+      ctx.fillText(n.label.length > 18 ? n.label.slice(0, 16) + '…' : n.label, n.x, n.y + r + 12);
+    }
+  });
+
+  // Particles
+  particles.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${p.life * 0.6})`;
+    ctx.fill();
+  });
+
+  ctx.restore();
+  requestAnimationFrame(draw);
+}
+
+canvas.addEventListener('mousedown', e => {
+  isDragging = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  camStartX = camX;
+  camStartY = camY;
+  document.body.classList.add('dragging');
+});
+window.addEventListener('mousemove', e => {
+  if (isDragging) {
+    const nx = camStartX - (e.clientX - dragStartX) / camZoom;
+    const ny = camStartY - (e.clientY - dragStartY) / camZoom;
+    camX = targetCamX = nx;
+    camY = targetCamY = ny;
+  }
+
+  // Hover detection
+  const [wx, wy] = screenToWorld(e.clientX, e.clientY);
+  let found = null;
+  // Check in reverse (top nodes last drawn = on top)
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    const a = nodeAnim[n.id];
+    if (a.scale < 0.1) continue;
+    const dx = wx - n.x;
+    const dy = wy - n.y;
+    const hitR = Math.max(n.r * a.scale, 10);
+    if (dx*dx + dy*dy < hitR * hitR) {
+      found = n;
+      break;
+    }
+  }
+
+  hoveredNode = found;
+  const tooltip = document.getElementById('tooltip');
+  if (found && (found.type === 'bullet' || found.type === 'subsection')) {
+    tooltip.classList.add('show');
+    tooltip.style.left = (e.clientX + 16) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+    // Clamp
+    if (e.clientX + 340 > W) tooltip.style.left = (e.clientX - 330) + 'px';
+    if (e.clientY + 80 > H) tooltip.style.top = (e.clientY - 60) + 'px';
+
+    const tagEl = document.getElementById('tt-tag');
+    const secEl = document.getElementById('tt-section');
+    const textEl = document.getElementById('tt-text');
+
+    if (found.tag) {
+      tagEl.textContent = found.tag;
+      tagEl.className = 'tt-tag ' + found.tag.toLowerCase();
+      tagEl.style.display = '';
+    } else {
+      tagEl.style.display = 'none';
+    }
+    secEl.textContent = (found.section || '') + (found.subsection ? ' › ' + found.subsection : '');
+    textEl.textContent = found.label;
+  } else {
+    tooltip.classList.remove('show');
+  }
+});
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+  document.body.classList.remove('dragging');
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 0.9 : 1.1;
+  const [wx, wy] = screenToWorld(e.clientX, e.clientY);
+  camZoom *= factor;
+  camZoom = Math.max(0.15, Math.min(5, camZoom));
+  camX = wx - (e.clientX - W/2) / camZoom;
+  camY = wy - (e.clientY - H/2) / camZoom;
+  targetCamX = camX;
+  targetCamY = camY;
+  targetCamZoom = camZoom;
+}, { passive: false });
+
+let lastTouchDist = 0;
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    isDragging = true;
+    dragStartX = e.touches[0].clientX;
+    dragStartY = e.touches[0].clientY;
+    camStartX = camX;
+    camStartY = camY;
+  } else if (e.touches.length === 2) {
+    isDragging = false;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+  }
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && isDragging) {
+    const nx = camStartX - (e.touches[0].clientX - dragStartX) / camZoom;
+    const ny = camStartY - (e.touches[0].clientY - dragStartY) / camZoom;
+    camX = targetCamX = nx;
+    camY = targetCamY = ny;
+  } else if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (lastTouchDist > 0) {
+      const factor = dist / lastTouchDist;
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const [wx, wy] = screenToWorld(mx, my);
+      camZoom *= factor;
+      camZoom = Math.max(0.15, Math.min(5, camZoom));
+      camX = wx - (mx - W/2) / camZoom;
+      camY = wy - (my - H/2) / camZoom;
+      targetCamX = camX;
+      targetCamY = camY;
+      targetCamZoom = camZoom;
+    }
+    lastTouchDist = dist;
+  }
+}, { passive: false });
+canvas.addEventListener('touchend', e => {
+  isDragging = false;
+  lastTouchDist = 0;
+});
+
+const stepLabel = document.getElementById('step-label');
+
+function setStep(s) {
+  currentStep = s;
+  slider.value = s;
+  setVisibility();
+  if (s === 0) {
+    stepLabel.textContent = 'origin';
+  } else {
+    const c = DATA.changes[s - 1];
+    stepLabel.textContent = (c.timestamp || '').slice(11, 16) || '#' + s;
+  }
+}
+
+slider.oninput = () => setStep(parseInt(slider.value));
+
+// Play
+let playing = false;
+let playTimer = null;
+document.getElementById('btn-play').onclick = () => {
+  const btn = document.getElementById('btn-play');
+  if (playing) {
+    clearInterval(playTimer);
+    playing = false;
+    btn.textContent = '▶';
+    btn.classList.remove('active');
+    return;
+  }
+  playing = true;
+  btn.textContent = '⏸';
+  btn.classList.add('active');
+
+  // Start at origin: all base nodes visible, no changes applied
+  setStep(0);
+
+  // Instantly grow all base (non-change) nodes with a quick stagger
+  nodes.forEach(n => {
+    const a = nodeAnim[n.id];
+    if (n.changeIdx === undefined && a.visible) {
+      setTimeout(() => { a.targetScale = 1; }, n.growStep * 25);
+    }
+  });
+
+  // Fit tight on the base tree first
+  setTimeout(() => fitToVisible(false), 200);
+
+  // After base tree is grown, play changes one by one at uniform pace
+  const baseGrowTime = Math.min(maxGrowStep * 25 + 400, 1500);
+  const changePause = 2000; // 2 seconds per change
+
+  let changeIdx = 0;
+  setTimeout(() => {
+    if (!playing) return;
+    // Fit to base tree before changes start
+    fitToVisible(false);
+
+    playTimer = setInterval(() => {
+      changeIdx++;
+      if (changeIdx <= DATA.changes.length) {
+        setStep(changeIdx);
+        // Smoothly zoom out to include the new node
+        fitToVisible(false);
+        // Celebrate the new node
+        const c = DATA.changes[changeIdx - 1];
+        if (c && c.after) {
+          const match = nodes.find(n => n.raw && n.raw.trim() === c.after.trim());
+          if (match) {
+            spawnParticles(match.x, match.y, match.color);
+            const toast = document.getElementById('change-toast');
+            document.getElementById('ct-text').textContent =
+              c.after.replace(/\\s*\\[(CORE|MUTABLE)\\]\\s*/g, '').replace(/^- /, '').slice(0, 120);
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), changePause - 300);
+          }
+        }
+      } else {
+        clearInterval(playTimer);
+        playing = false;
+        btn.textContent = '▶';
+        btn.classList.remove('active');
+      }
+    }, changePause);
+  }, baseGrowTime);
+};
+
+document.getElementById('btn-reset').onclick = () => {
+  if (playing) {
+    clearInterval(playTimer);
+    playing = false;
+    document.getElementById('btn-play').textContent = '▶';
+    document.getElementById('btn-play').classList.remove('active');
+  }
+  // Reset all scales to 0, then grow
+  nodes.forEach(n => {
+    nodeAnim[n.id].scale = 0;
+    nodeAnim[n.id].targetScale = 0;
+  });
+  setStep(0);
+  // Quick regrow
+  setTimeout(() => {
+    nodes.forEach(n => {
+      if (!n.raw || !getVisibleGrowStep(0).has(n.raw.trim())) {
+        setTimeout(() => { nodeAnim[n.id].targetScale = 1; }, n.growStep * 40);
+      }
+    });
+    fitToVisible(false);
+  }, 200);
+};
+
+// Fit camera to visible nodes, always centered on SOUL (0,0)
+function fitToVisible(instant) {
+  let maxDist = 0;
+  nodes.forEach(n => {
+    if (nodeAnim[n.id].scale > 0.1 || nodeAnim[n.id].targetScale > 0.5) {
+      const dist = Math.sqrt(n.x * n.x + n.y * n.y) + n.r + 40;
+      if (dist > maxDist) maxDist = dist;
+    }
+  });
+  maxDist = Math.max(maxDist, 80); // minimum extent
+  const padding = 1.15;
+  const halfExtent = maxDist * padding;
+  const zoom = Math.min(W / (halfExtent * 2), H / (halfExtent * 2), 2.5);
+
+  targetCamX = 0;
+  targetCamY = 0;
+  targetCamZoom = zoom;
+  if (instant) {
+    camX = targetCamX;
+    camY = targetCamY;
+    camZoom = targetCamZoom;
+  }
+}
+
+document.getElementById('btn-fit').onclick = () => fitToVisible(false);
+
+// Legend
+document.getElementById('legend').innerHTML = [
+  { c: '#e05050', l: 'CORE' },
+  { c: '#50c878', l: 'MUTABLE' },
+  ...Object.entries(SECTION_COLORS).map(([k, v]) => ({ c: v, l: k })),
+].map(i => `<div class="l-item"><div class="l-dot" style="background:${i.c}"></div>${i.l}</div>`).join('');
+
+// Init
+// Start fully grown
+nodes.forEach(n => {
+  nodeAnim[n.id].scale = nodeAnim[n.id].targetScale;
+});
+setStep(DATA.changes.length);
+setTimeout(() => fitToVisible(true), 100);
+draw();
+</script>
+</body>
+</html>"""

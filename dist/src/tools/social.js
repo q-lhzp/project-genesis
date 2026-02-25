@@ -3,6 +3,14 @@
 // ---------------------------------------------------------------------------
 import { Type } from "@sinclair/typebox";
 import { readJson, writeJson, generateId } from "../utils/persistence.js";
+import { execFile } from "node:child_process";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+// Get directory paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PROJECT_ROOT = join(__dirname, "..", "..");
+const MEMORY_DIR = join(PROJECT_ROOT, "memory", "reality");
 export function registerSocialTools(api, paths, modules) {
     // Tool: reality_socialize
     api.registerTool({
@@ -77,6 +85,79 @@ export function registerSocialTools(api, paths, modules) {
                 return { content: [{ type: "text", text: `Added: ${params.name}` }] };
             }
             return { content: [{ type: "text", text: "Use: reality_network(action: 'search', query: '...')" }] };
+        },
+    });
+    // Tool: reality_generate_npc_portrait (Visual Lab)
+    api.registerTool({
+        name: "reality_generate_npc_portrait",
+        description: "Generate a portrait for an NPC contact using AI image generation.",
+        parameters: Type.Object({
+            name: Type.String({ description: "NPC name (must exist in social network)" }),
+            style: Type.Optional(Type.String({ description: "Style: photorealistic | anime | cyberpunk | illustration" })),
+            regenerate: Type.Optional(Type.Boolean({ description: "Regenerate even if portrait exists" })),
+        }),
+        async execute(_id, params) {
+            if (!modules.social)
+                return { content: [{ type: "text", text: "Social module not enabled." }] };
+            const socialState = await readJson(paths.social);
+            if (!socialState)
+                return { content: [{ type: "text", text: "social.json not found." }] };
+            const entity = socialState.entities.find(e => e.name.toLowerCase() === params.name.toLowerCase());
+            if (!entity)
+                return { content: [{ type: "text", text: `Contact not found: ${params.name}` }] };
+            // Check if portrait already exists
+            if (!params.regenerate && entity.portrait_url) {
+                return { content: [{ type: "text", text: `Portrait already exists for ${entity.name}: ${entity.portrait_url}` }] };
+            }
+            // Build prompt from visual_description or generate default
+            let prompt = entity.visual_description || `A portrait of ${entity.name}, ${entity.relationship_type}`;
+            const style = (params.style || entity.portrait_style || "photorealistic");
+            // Add style to prompt
+            const stylePrompts = {
+                photorealistic: "photorealistic portrait, 8k, professional lighting",
+                anime: "anime style illustration, manga, vibrant colors",
+                cyberpunk: "cyberpunk style, neon lights, futuristic",
+                illustration: "digital illustration, artistic, colorful"
+            };
+            prompt += `, ${stylePrompts[style] || stylePrompts.photorealistic}`;
+            // Generate image using generate_image.py
+            const timestamp = Date.now();
+            const portraitsDir = join(MEMORY_DIR, "portraits");
+            // Ensure portraits directory exists
+            const fs = await import("node:fs/promises");
+            await fs.mkdir(portraitsDir, { recursive: true });
+            const outputPath = join(portraitsDir, `${entity.id}_${timestamp}.png`);
+            return new Promise((resolve) => {
+                execFile("python3", [
+                    join(PROJECT_ROOT, "skills", "soul-evolution", "tools", "vision", "generate_image.py"),
+                    "--prompt", prompt,
+                    "--output", outputPath,
+                    "--provider", "auto"
+                ], { timeout: 120000 }, (error, stdout, stderr) => {
+                    if (error) {
+                        resolve({ content: [{ type: "text", text: `Image generation failed: ${error.message}` }] });
+                        return;
+                    }
+                    // Parse output for image path
+                    const match = stdout.match(/MEDIA: (.+)/);
+                    const imagePath = match ? match[1] : outputPath;
+                    // Update entity with portrait info
+                    entity.portrait_url = imagePath;
+                    entity.face_template_id = entity.id;
+                    entity.generated_at = new Date().toISOString();
+                    entity.portrait_style = style;
+                    // Save state
+                    writeJson(paths.social, socialState).then(() => {
+                        resolve({
+                            content: [
+                                { type: "text", text: `Portrait generated for ${entity.name}` },
+                                { type: "text", text: `Style: ${style}` },
+                                { type: "text", text: `Path: ${imagePath}` }
+                            ]
+                        });
+                    });
+                });
+            });
         },
     });
 }

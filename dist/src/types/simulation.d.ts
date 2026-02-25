@@ -143,6 +143,9 @@ export interface SocialEntity {
     visual_description?: string;
     portrait_url?: string;
     is_external?: boolean;
+    face_template_id?: string;
+    generated_at?: string;
+    portrait_style?: "photorealistic" | "anime" | "cyberpunk" | "illustration";
 }
 export interface SocialState {
     entities: SocialEntity[];

@@ -309,6 +309,162 @@ async function runDiagnosticCheck(workspacePath) {
         }
         results.push(result);
     }
+    // Phase 50: Alpaca API Credentials Check
+    const modelConfigPath = join(workspacePath, "memory", "reality", "model_config.json");
+    const alpacaResult = {
+        check: "vault:alpaca_credentials",
+        status: "PASS",
+        message: "",
+    };
+    try {
+        if (existsSync(modelConfigPath)) {
+            const config = await readJson(modelConfigPath);
+            const hasApiKey = !!config.vault_api_key;
+            const hasSecret = !!config.vault_api_secret;
+            if (!hasApiKey || !hasSecret) {
+                alpacaResult.status = "WARN";
+                alpacaResult.message = "Alpaca API keys not configured (Paper trading only)";
+                warnings++;
+            }
+            else {
+                alpacaResult.message = "Alpaca API credentials configured";
+                passed++;
+            }
+        }
+        else {
+            alpacaResult.status = "WARN";
+            alpacaResult.message = "model_config.json not found (Paper trading only)";
+            warnings++;
+        }
+    }
+    catch (e) {
+        alpacaResult.status = "FAIL";
+        alpacaResult.message = `Error checking Alpaca credentials: ${e}`;
+        failed++;
+    }
+    results.push(alpacaResult);
+    // Phase 50: BlendShape Keys Verification (52+ required)
+    const avatarStatePath = join(workspacePath, "memory", "reality", "avatar_state.json");
+    const blendResult = {
+        check: "avatar:blendshape_keys",
+        status: "PASS",
+        message: "",
+    };
+    const REQUIRED_BLENDSHAPES = [
+        "joy", "angry", "sad", "fear", "surprise", "neutral", "relaxed", "disgusted",
+        "blinkLeft", "blinkRight", "blink", "lookUp", "lookDown", "lookLeft", "lookRight",
+        "eyeWiden", "eyeSquint", "eyeClose",
+        "browUp", "browDown", "browOuterUp", "browInnerUp", "browLeft", "browRight",
+        "noseSneer", "noseWrinkle",
+        "mouthOpen", "mouthClose", "jawOpen", "jawClose", "jawLeft", "jawRight",
+        "mouthFunnel", "mouthPucker", "mouthLeft", "mouthRight",
+        "mouthSmileLeft", "mouthSmileRight", "mouthFrownLeft", "mouthFrownRight",
+        "mouthGrimace", "mouthLaugh", "mouthShrugUpper", "mouthShrugLower", "mouthRoll", "tongueOut",
+        "cheekPuff", "cheekSquintLeft", "cheekSquintRight", "cheekSuck",
+        "chinUp", "chinDown", "chinSideLeft", "chinSideRight",
+        "sleeping", "breathing", "yawning", "swallowing"
+    ];
+    try {
+        if (existsSync(avatarStatePath)) {
+            const avatar = await readJson(avatarStatePath);
+            const currentShapes = avatar.blendShapes || {};
+            const currentKeys = Object.keys(currentShapes);
+            const missingKeys = REQUIRED_BLENDSHAPES.filter(k => !currentKeys.includes(k));
+            if (missingKeys.length > 10) {
+                blendResult.status = "WARN";
+                blendResult.message = `${missingKeys.length} BlendShape keys missing (using defaults)`;
+                warnings++;
+            }
+            else if (currentKeys.length < 40) {
+                blendResult.status = "WARN";
+                blendResult.message = `Only ${currentKeys.length} BlendShapes defined (52+ recommended)`;
+                warnings++;
+            }
+            else {
+                blendResult.message = `${currentKeys.length} BlendShape keys verified`;
+                passed++;
+            }
+        }
+        else {
+            blendResult.status = "WARN";
+            blendResult.message = "avatar_state.json not found (will use defaults)";
+            warnings++;
+        }
+    }
+    catch (e) {
+        blendResult.status = "FAIL";
+        blendResult.message = `Error checking BlendShapes: ${e}`;
+        failed++;
+    }
+    results.push(blendResult);
+    // Phase 50: Portrait Storage Limit Check
+    const portraitsDir = join(workspacePath, "memory", "reality", "portraits");
+    const portraitResult = {
+        check: "visual:portrait_storage",
+        status: "PASS",
+        message: "",
+    };
+    try {
+        if (existsSync(portraitsDir)) {
+            const files = await import("node:fs/promises");
+            const dirFiles = await files.readdir(portraitsDir);
+            const portraitFiles = dirFiles.filter(f => f.endsWith(".png"));
+            const totalSize = await files.stat(portraitsDir).then(() => 0).catch(() => 0);
+            // Calculate total size
+            let size = 0;
+            for (const file of portraitFiles) {
+                try {
+                    const stats = await files.stat(join(portraitsDir, file));
+                    size += stats.size;
+                }
+                catch { /* ignore */ }
+            }
+            const sizeMB = (size / (1024 * 1024)).toFixed(2);
+            if (portraitFiles.length > 100) {
+                portraitResult.status = "WARN";
+                portraitResult.message = `${portraitFiles.length} portraits (${sizeMB}MB) - consider cleanup`;
+                warnings++;
+            }
+            else {
+                portraitResult.message = `${portraitFiles.length} portraits (${sizeMB}MB) - OK`;
+                passed++;
+            }
+        }
+        else {
+            portraitResult.message = "portraits directory not yet created";
+            passed++;
+        }
+    }
+    catch (e) {
+        portraitResult.status = "WARN";
+        portraitResult.message = `Could not check portrait storage: ${e}`;
+        warnings++;
+    }
+    results.push(portraitResult);
+    // Phase 50: Image Bridge Check
+    const imageBridgePath = join(workspacePath, "skills", "soul-evolution", "tools", "vision", "generate_image.py");
+    const imageBridgeResult = {
+        check: "visual:image_bridge",
+        status: "PASS",
+        message: "",
+    };
+    try {
+        if (!existsSync(imageBridgePath)) {
+            imageBridgeResult.status = "FAIL";
+            imageBridgeResult.message = "generate_image.py not found";
+            failed++;
+        }
+        else {
+            imageBridgeResult.message = "Image generation bridge available";
+            passed++;
+        }
+    }
+    catch (e) {
+        imageBridgeResult.status = "FAIL";
+        imageBridgeResult.message = `Error checking image bridge: ${e}`;
+        failed++;
+    }
+    results.push(imageBridgeResult);
     // Determine overall status
     let overallStatus;
     if (failed === 0 && warnings === 0) {
@@ -322,7 +478,7 @@ async function runDiagnosticCheck(workspacePath) {
     }
     return {
         timestamp: new Date().toISOString(),
-        version: "5.2.0",
+        version: "5.5.0",
         workspacePath,
         overallStatus,
         results,

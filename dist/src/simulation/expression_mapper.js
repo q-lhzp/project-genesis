@@ -8,6 +8,7 @@ import { join } from "node:path";
  * Default BlendShape weights (all neutral)
  */
 export const DEFAULT_BLENDSHAPES = {
+    // Core emotions
     joy: 0,
     angry: 0,
     sad: 0,
@@ -15,6 +16,8 @@ export const DEFAULT_BLENDSHAPES = {
     surprise: 0,
     neutral: 1,
     relaxed: 0,
+    disgusted: 0,
+    // Eye states
     blinkLeft: 0,
     blinkRight: 0,
     blink: 0,
@@ -22,7 +25,55 @@ export const DEFAULT_BLENDSHAPES = {
     lookDown: 0,
     lookLeft: 0,
     lookRight: 0,
+    eyeWiden: 0,
+    eyeSquint: 0,
+    eyeClose: 0,
+    // Eyebrows
+    browUp: 0,
+    browDown: 0,
+    browOuterUp: 0,
+    browInnerUp: 0,
+    browLeft: 0,
+    browRight: 0,
+    // Nose
+    noseSneer: 0,
+    noseWrinkle: 0,
+    // Mouth
+    mouthOpen: 0,
+    mouthClose: 1,
+    jawOpen: 0,
+    jawClose: 1,
+    jawLeft: 0,
+    jawRight: 0,
+    mouthFunnel: 0,
+    mouthPucker: 0,
+    mouthLeft: 0,
+    mouthRight: 0,
+    mouthSmileLeft: 0,
+    mouthSmileRight: 0,
+    mouthFrownLeft: 0,
+    mouthFrownRight: 0,
+    mouthGrimace: 0,
+    mouthLaugh: 0,
+    mouthShrugUpper: 0,
+    mouthShrugLower: 0,
+    mouthRoll: 0,
+    tongueOut: 0,
+    // Cheeks
+    cheekPuff: 0,
+    cheekSquintLeft: 0,
+    cheekSquintRight: 0,
+    cheekSuck: 0,
+    // Chin
+    chinUp: 0,
+    chinDown: 0,
+    chinSideLeft: 0,
+    chinSideRight: 0,
+    // Special states
     sleeping: 0,
+    breathing: 0,
+    yawning: 0,
+    swallowing: 0,
 };
 const DEFAULT_CONFIG = {
     stressJoyThreshold: 20, // Low stress = happy
@@ -58,7 +109,10 @@ export function mapNeedsToBlendShapes(needs, config = DEFAULT_CONFIG, isDreaming
         weights.blinkLeft = 1.0;
         weights.blinkRight = 1.0;
         weights.blink = 1.0;
+        weights.eyeClose = 1.0;
         weights.sleeping = 1.0;
+        weights.mouthClose = 1.0;
+        weights.jawClose = 1.0;
         return weights;
     }
     // Phase 28: RESEARCH STATE - Concentrated/Focused expression
@@ -166,6 +220,10 @@ export function mapNeedsToBlendShapes(needs, config = DEFAULT_CONFIG, isDreaming
         const needsSatisfaction = (hunger + thirst + hygiene) / 3;
         if (needsSatisfaction > 50) {
             weights.joy = Math.min(1, (100 - stress) / 100 * energy / 100 * needsSatisfaction / 100 + 0.2);
+            weights.mouthSmileLeft = weights.joy * 0.8;
+            weights.mouthSmileRight = weights.joy * 0.8;
+            weights.cheekSquintLeft = weights.joy * 0.3;
+            weights.cheekSquintRight = weights.joy * 0.3;
             weights.neutral = 0;
         }
     }
@@ -173,6 +231,9 @@ export function mapNeedsToBlendShapes(needs, config = DEFAULT_CONFIG, isDreaming
     // Conditions: Very high stress (> 80)
     if (stress > config.stressHighThreshold) {
         weights.angry = Math.min(1, (stress - config.stressHighThreshold) / 20);
+        weights.browDown = weights.angry * 0.8;
+        weights.noseSneer = weights.angry * 0.5;
+        weights.mouthGrimace = weights.angry * 0.4;
         weights.neutral = 0;
     }
     // === SAD / GRIEF ===
@@ -180,6 +241,9 @@ export function mapNeedsToBlendShapes(needs, config = DEFAULT_CONFIG, isDreaming
     if (stress > 60 && energy < 40) {
         const sadnessIntensity = Math.min(1, (stress - 40) / 60 * (40 - energy) / 40);
         weights.sad = Math.max(weights.sad, sadnessIntensity);
+        weights.browOuterUp = weights.sad * 0.6;
+        weights.mouthFrownLeft = weights.sad * 0.5;
+        weights.mouthFrownRight = weights.sad * 0.5;
         weights.neutral = 0;
     }
     // === TIRED / EXHAUSTED ===
@@ -187,28 +251,51 @@ export function mapNeedsToBlendShapes(needs, config = DEFAULT_CONFIG, isDreaming
     if (energy < config.energyLowThreshold) {
         const tiredness = 1 - (energy / config.energyLowThreshold);
         weights.sad = Math.max(weights.sad, tiredness * 0.5);
-        // Heavy lids - this would affect eye blend shapes in a full VRM
         weights.blink = tiredness * 0.3; // Partially closed eyes
+        weights.eyeSquint = tiredness * 0.4;
+        weights.cheekSuck = tiredness * 0.3;
         weights.neutral = 0;
     }
     // === SURPRISE ===
     // Conditions: Sudden need drop (thirst or hunger very low)
     if (thirst < 10 || hunger < 10) {
         weights.surprise = Math.min(1, Math.max(weights.surprise, 0.5));
+        weights.eyeWiden = weights.surprise * 0.7;
+        weights.browUp = weights.surprise * 0.6;
+        weights.mouthOpen = weights.surprise * 0.4;
+        weights.jawOpen = weights.surprise * 0.3;
         weights.neutral = 0;
     }
     // === FEAR / WORRY ===
     // Conditions: Very low hygiene + high stress
     if (hygiene < config.hygieneLowThreshold && stress > 40) {
         weights.fear = Math.min(1, (config.hygieneLowThreshold - hygiene) / 50 * stress / 100);
+        weights.browUp = Math.max(weights.browUp, weights.fear * 0.5);
+        weights.eyeWiden = weights.fear * 0.4;
+        weights.mouthOpen = weights.fear * 0.3;
+        weights.neutral = 0;
+    }
+    // === DISGUST (new) ===
+    // Conditions: Very low hygiene + moderate stress
+    if (hygiene < 20 && stress > 30) {
+        weights.disgusted = Math.min(1, (20 - hygiene) / 20 * stress / 100);
+        weights.noseSneer = Math.max(weights.noseSneer, weights.disgusted * 0.7);
+        weights.noseWrinkle = weights.disgusted * 0.5;
+        weights.mouthFunnel = weights.disgusted * 0.3;
+        weights.browDown = Math.max(weights.browDown, weights.disgusted * 0.4);
         weights.neutral = 0;
     }
     // === BLUSH / EXCITED (if eros active) ===
-    // Note: Actual blush requires VRM-specific blend shape
-    // This would set a blush-specific morph target in full implementation
     if (arousal > config.arousalHighThreshold) {
-        // In a full VRM implementation, this would trigger a blush morph
-        // weights.blush = (arousal - config.arousalHighThreshold) / 40;
+        const blushIntensity = (arousal - config.arousalHighThreshold) / 40;
+        weights.cheekSquintLeft = Math.max(weights.cheekSquintLeft, blushIntensity * 0.5);
+        weights.cheekSquintRight = Math.max(weights.cheekSquintRight, blushIntensity * 0.5);
+        weights.eyeWiden = Math.max(weights.eyeWiden, blushIntensity * 0.3);
+    }
+    // === BREATHING (idle animation) ===
+    // Subtle breathing when awake
+    if (!isDreaming && energy > 20) {
+        weights.breathing = 0.1;
     }
     // === NEUTRAL (fallback if nothing else) ===
     if (weights.joy < 0.1 && weights.angry < 0.1 && weights.sad < 0.1 &&

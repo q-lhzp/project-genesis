@@ -10,29 +10,89 @@ import type { SimulationPaths } from "../types/paths.js";
 
 /**
  * BlendShape weights for VRM expressions (0-1 range)
+ * Extended from 16 to 52+ expressions for comprehensive facial animation
  */
 export interface BlendShapeWeights {
+  // Core emotions (8)
   joy: number;           // Happy/Smile
-  angry: number;          // Angry expression
-  sad: number;            // Sad/Grief expression
-  fear: number;           // Fear expression
-  surprise: number;       // Surprised expression
-  neutral: number;        // Neutral face
-  relaxed: number;        // Relaxed
-  blinkLeft: number;      // Left eye blink
-  blinkRight: number;     // Right eye blink
-  blink: number;          // Both eyes blink
-  lookUp: number;         // Eyes looking up
-  lookDown: number;       // Eyes looking down
-  lookLeft: number;       // Eyes looking left
-  lookRight: number;      // Eyes looking right
-  sleeping: number;       // Sleep state (0=awake, 1=fully asleep)
+  angry: number;        // Angry expression
+  sad: number;          // Sad/Grief expression
+  fear: number;         // Fear expression
+  surprise: number;     // Surprised expression
+  neutral: number;      // Neutral face
+  relaxed: number;      // Relaxed
+  disgusted: number;    // Disgust expression
+
+  // Eye states (10)
+  blinkLeft: number;    // Left eye blink
+  blinkRight: number;   // Right eye blink
+  blink: number;        // Both eyes blink
+  lookUp: number;       // Eyes looking up
+  lookDown: number;     // Eyes looking down
+  lookLeft: number;     // Eyes looking left
+  lookRight: number;    // Eyes looking right
+  eyeWiden: number;     // Eyes widen (surprise/delight)
+  eyeSquint: number;     // Squinting (concentration/pain)
+  eyeClose: number;      // Eyes fully closed
+
+  // Eyebrow expressions (6)
+  browUp: number;       // Brows raised
+  browDown: number;     // Brows furrowed
+  browOuterUp: number;  // Outer brow raise
+  browInnerUp: number;  // Inner brow raise
+  browLeft: number;     // Brows to left
+  browRight: number;    // Brows to right
+
+  // Nose expressions (2)
+  noseSneer: number;    // Nose sneer
+  noseWrinkle: number;  // Nose wrinkle
+
+  // Mouth expressions (20)
+  mouthOpen: number;    // Mouth open
+  mouthClose: number;   // Mouth closed
+  jawOpen: number;      // Jaw open
+  jawClose: number;     // Jaw close
+  jawLeft: number;      // Jaw to left
+  jawRight: number;     // Jaw to right
+  mouthFunnel: number;  // Mouth funnel (kissing)
+  mouthPucker: number;  // Puckered lips
+  mouthLeft: number;    // Mouth to left
+  mouthRight: number;   // Mouth to right
+  mouthSmileLeft: number;   // Smile left side
+  mouthSmileRight: number;  // Smile right side
+  mouthFrownLeft: number;   // Frown left side
+  mouthFrownRight: number;  // Frown right side
+  mouthGrimace: number;     // Grimace
+  mouthLaugh: number;       // Laughing
+  mouthShrugUpper: number;  // Upper lip shrug
+  mouthShrugLower: number;  // Lower lip shrug
+  mouthRoll: number;        // Tongue rolling
+  tongueOut: number;        // Tongue out
+
+  // Cheek expressions (4)
+  cheekPuff: number;    // Cheeks puffed
+  cheekSquintLeft: number;  // Left cheek raise
+  cheekSquintRight: number; // Right cheek raise
+  cheekSuck: number;     // Cheeks sucked in
+
+  // Chin expressions (4)
+  chinUp: number;       // Chin up
+  chinDown: number;     // Chin down
+  chinSideLeft: number; // Chin to left
+  chinSideRight: number;// Chin to right
+
+  // Special states (4)
+  sleeping: number;     // Sleep state (0=awake, 1=fully asleep)
+  breathing: number;    // Breathing animation
+  yawning: number;      // Yawning
+  swallowing: number;   // Swallowing
 }
 
 /**
  * Default BlendShape weights (all neutral)
  */
 export const DEFAULT_BLENDSHAPES: BlendShapeWeights = {
+  // Core emotions
   joy: 0,
   angry: 0,
   sad: 0,
@@ -40,6 +100,8 @@ export const DEFAULT_BLENDSHAPES: BlendShapeWeights = {
   surprise: 0,
   neutral: 1,
   relaxed: 0,
+  disgusted: 0,
+  // Eye states
   blinkLeft: 0,
   blinkRight: 0,
   blink: 0,
@@ -47,7 +109,55 @@ export const DEFAULT_BLENDSHAPES: BlendShapeWeights = {
   lookDown: 0,
   lookLeft: 0,
   lookRight: 0,
+  eyeWiden: 0,
+  eyeSquint: 0,
+  eyeClose: 0,
+  // Eyebrows
+  browUp: 0,
+  browDown: 0,
+  browOuterUp: 0,
+  browInnerUp: 0,
+  browLeft: 0,
+  browRight: 0,
+  // Nose
+  noseSneer: 0,
+  noseWrinkle: 0,
+  // Mouth
+  mouthOpen: 0,
+  mouthClose: 1,
+  jawOpen: 0,
+  jawClose: 1,
+  jawLeft: 0,
+  jawRight: 0,
+  mouthFunnel: 0,
+  mouthPucker: 0,
+  mouthLeft: 0,
+  mouthRight: 0,
+  mouthSmileLeft: 0,
+  mouthSmileRight: 0,
+  mouthFrownLeft: 0,
+  mouthFrownRight: 0,
+  mouthGrimace: 0,
+  mouthLaugh: 0,
+  mouthShrugUpper: 0,
+  mouthShrugLower: 0,
+  mouthRoll: 0,
+  tongueOut: 0,
+  // Cheeks
+  cheekPuff: 0,
+  cheekSquintLeft: 0,
+  cheekSquintRight: 0,
+  cheekSuck: 0,
+  // Chin
+  chinUp: 0,
+  chinDown: 0,
+  chinSideLeft: 0,
+  chinSideRight: 0,
+  // Special states
   sleeping: 0,
+  breathing: 0,
+  yawning: 0,
+  swallowing: 0,
 };
 
 /**
@@ -109,7 +219,10 @@ export function mapNeedsToBlendShapes(
     weights.blinkLeft = 1.0;
     weights.blinkRight = 1.0;
     weights.blink = 1.0;
+    weights.eyeClose = 1.0;
     weights.sleeping = 1.0;
+    weights.mouthClose = 1.0;
+    weights.jawClose = 1.0;
     return weights;
   }
 
@@ -226,6 +339,10 @@ export function mapNeedsToBlendShapes(
     const needsSatisfaction = (hunger + thirst + hygiene) / 3;
     if (needsSatisfaction > 50) {
       weights.joy = Math.min(1, (100 - stress) / 100 * energy / 100 * needsSatisfaction / 100 + 0.2);
+      weights.mouthSmileLeft = weights.joy * 0.8;
+      weights.mouthSmileRight = weights.joy * 0.8;
+      weights.cheekSquintLeft = weights.joy * 0.3;
+      weights.cheekSquintRight = weights.joy * 0.3;
       weights.neutral = 0;
     }
   }
@@ -234,6 +351,9 @@ export function mapNeedsToBlendShapes(
   // Conditions: Very high stress (> 80)
   if (stress > config.stressHighThreshold) {
     weights.angry = Math.min(1, (stress - config.stressHighThreshold) / 20);
+    weights.browDown = weights.angry * 0.8;
+    weights.noseSneer = weights.angry * 0.5;
+    weights.mouthGrimace = weights.angry * 0.4;
     weights.neutral = 0;
   }
 
@@ -242,6 +362,9 @@ export function mapNeedsToBlendShapes(
   if (stress > 60 && energy < 40) {
     const sadnessIntensity = Math.min(1, (stress - 40) / 60 * (40 - energy) / 40);
     weights.sad = Math.max(weights.sad, sadnessIntensity);
+    weights.browOuterUp = weights.sad * 0.6;
+    weights.mouthFrownLeft = weights.sad * 0.5;
+    weights.mouthFrownRight = weights.sad * 0.5;
     weights.neutral = 0;
   }
 
@@ -250,8 +373,9 @@ export function mapNeedsToBlendShapes(
   if (energy < config.energyLowThreshold) {
     const tiredness = 1 - (energy / config.energyLowThreshold);
     weights.sad = Math.max(weights.sad, tiredness * 0.5);
-    // Heavy lids - this would affect eye blend shapes in a full VRM
     weights.blink = tiredness * 0.3; // Partially closed eyes
+    weights.eyeSquint = tiredness * 0.4;
+    weights.cheekSuck = tiredness * 0.3;
     weights.neutral = 0;
   }
 
@@ -259,6 +383,10 @@ export function mapNeedsToBlendShapes(
   // Conditions: Sudden need drop (thirst or hunger very low)
   if (thirst < 10 || hunger < 10) {
     weights.surprise = Math.min(1, Math.max(weights.surprise, 0.5));
+    weights.eyeWiden = weights.surprise * 0.7;
+    weights.browUp = weights.surprise * 0.6;
+    weights.mouthOpen = weights.surprise * 0.4;
+    weights.jawOpen = weights.surprise * 0.3;
     weights.neutral = 0;
   }
 
@@ -266,15 +394,35 @@ export function mapNeedsToBlendShapes(
   // Conditions: Very low hygiene + high stress
   if (hygiene < config.hygieneLowThreshold && stress > 40) {
     weights.fear = Math.min(1, (config.hygieneLowThreshold - hygiene) / 50 * stress / 100);
+    weights.browUp = Math.max(weights.browUp, weights.fear * 0.5);
+    weights.eyeWiden = weights.fear * 0.4;
+    weights.mouthOpen = weights.fear * 0.3;
+    weights.neutral = 0;
+  }
+
+  // === DISGUST (new) ===
+  // Conditions: Very low hygiene + moderate stress
+  if (hygiene < 20 && stress > 30) {
+    weights.disgusted = Math.min(1, (20 - hygiene) / 20 * stress / 100);
+    weights.noseSneer = Math.max(weights.noseSneer, weights.disgusted * 0.7);
+    weights.noseWrinkle = weights.disgusted * 0.5;
+    weights.mouthFunnel = weights.disgusted * 0.3;
+    weights.browDown = Math.max(weights.browDown, weights.disgusted * 0.4);
     weights.neutral = 0;
   }
 
   // === BLUSH / EXCITED (if eros active) ===
-  // Note: Actual blush requires VRM-specific blend shape
-  // This would set a blush-specific morph target in full implementation
   if (arousal > config.arousalHighThreshold) {
-    // In a full VRM implementation, this would trigger a blush morph
-    // weights.blush = (arousal - config.arousalHighThreshold) / 40;
+    const blushIntensity = (arousal - config.arousalHighThreshold) / 40;
+    weights.cheekSquintLeft = Math.max(weights.cheekSquintLeft, blushIntensity * 0.5);
+    weights.cheekSquintRight = Math.max(weights.cheekSquintRight, blushIntensity * 0.5);
+    weights.eyeWiden = Math.max(weights.eyeWiden, blushIntensity * 0.3);
+  }
+
+  // === BREATHING (idle animation) ===
+  // Subtle breathing when awake
+  if (!isDreaming && energy > 20) {
+    weights.breathing = 0.1;
   }
 
   // === NEUTRAL (fallback if nothing else) ===
