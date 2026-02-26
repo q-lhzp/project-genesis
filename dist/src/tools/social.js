@@ -122,14 +122,15 @@ export function registerSocialTools(api, paths, modules) {
             prompt += `, ${stylePrompts[style] || stylePrompts.photorealistic}`;
             // Generate image using generate_image.py
             const timestamp = Date.now();
-            const portraitsDir = join(MEMORY_DIR, "portraits");
+            const portraitsDir = paths.portraits;
             // Ensure portraits directory exists
             const fs = await import("node:fs/promises");
             await fs.mkdir(portraitsDir, { recursive: true });
             const outputPath = join(portraitsDir, `${entity.id}_${timestamp}.png`);
+            const scriptPath = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills", "soul-evolution", "tools", "vision", "generate_image.py");
             return new Promise((resolve) => {
                 execFile("python3", [
-                    join(PROJECT_ROOT, "skills", "soul-evolution", "tools", "vision", "generate_image.py"),
+                    scriptPath,
                     "--prompt", prompt,
                     "--output", outputPath,
                     "--provider", "auto"

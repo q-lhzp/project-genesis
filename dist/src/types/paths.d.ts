@@ -36,6 +36,7 @@ export interface SimulationPaths {
     interior: string;
     inventory: string;
     media: string;
+    portraits: string;
     devManifest: string;
     devProjects: string;
     soulState: string;

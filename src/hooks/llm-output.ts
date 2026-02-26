@@ -49,7 +49,7 @@ export function registerLlmOutputHook(api: OpenClawPluginApi, paths: SimulationP
 
     // Phase 12: Mark social events as processed
     const socialEvents = await readJson<{ pending: SocialEvent[] }>(paths.socialEvents);
-    if (socialEvents && socialEvents.pending.some(e => !e.processed)) {
+    if (socialEvents?.pending?.some(e => !e.processed)) {
       socialEvents.pending.forEach(e => e.processed = true);
       await writeJson(paths.socialEvents, socialEvents);
     }

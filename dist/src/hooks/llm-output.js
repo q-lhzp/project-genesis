@@ -32,7 +32,7 @@ export function registerLlmOutputHook(api, paths, modules) {
         await appendJsonl(expPath, entry);
         // Phase 12: Mark social events as processed
         const socialEvents = await readJson(paths.socialEvents);
-        if (socialEvents && socialEvents.pending.some(e => !e.processed)) {
+        if (socialEvents?.pending?.some(e => !e.processed)) {
             socialEvents.pending.forEach(e => e.processed = true);
             await writeJson(paths.socialEvents, socialEvents);
         }

@@ -9,7 +9,8 @@ import {
   readJson,
   writeJson,
   withFileLock,
-  resolvePath
+  resolvePath,
+  readMarkdownTail
 } from "../utils/persistence.js";
 import {
   updateMetabolism,
@@ -60,12 +61,13 @@ export function registerBeforePromptHook(
   ws: string, 
   lang: "de" | "en"
 ) {
-  api.on("before_prompt_build", async (_event: unknown, ctx: unknown) => {
+  api.on("llm_input", async (event: any, ctx: any) => {
+    const agentId = ctx?.agentId || ctx?.agent?.id || "persona";
+    api.logger.info(`[genesis] llm_input hook fired for agent: ${agentId}`);
     const isDe = lang === "de";
-    const promptCtx = ctx as PromptBuildCtx;
-    const agentId = promptCtx?.agent?.id ?? promptCtx?.agent?.name ?? "persona";
     const roleMapping = cfg?.roleMapping;
     const agentRole = detectAgentRole(agentId, roleMapping);
+    api.logger.info(`[genesis] Detected Role: ${agentRole}`);
 
     // Clean up expired memos (daily)
     const memoTTL = cfg?.memoTTL ?? 7;
@@ -193,7 +195,7 @@ export function registerBeforePromptHook(
     let activeSocialEvent: SocialEvent | null = null;
     if (modules.social && socialState && socialState.entities.length > 0) {
       const events = await readJson<{ pending: SocialEvent[] }>(paths.socialEvents);
-      activeSocialEvent = events?.pending.find(e => !e.processed) || null;
+      activeSocialEvent = events?.pending?.find(e => !e.processed) || null;
 
       if (!activeSocialEvent && Math.random() < 0.15) {
         const entity = socialState.entities[Math.floor(Math.random() * socialState.entities.length)];
@@ -220,7 +222,7 @@ export function registerBeforePromptHook(
           processed: false
         };
 
-        const allEvents = events || { pending: [] };
+        const allEvents = (events && events.pending) ? events : { pending: [] };
         allEvents.pending.push(activeSocialEvent);
         await writeJson(paths.socialEvents, allEvents);
       }
@@ -241,15 +243,17 @@ export function registerBeforePromptHook(
       return rep;
     });
 
-    // Load world news state
     const newsState = await readJson<{ headlines: any[] }>(paths.news);
     (globalThis as any)._newsState = newsState;
 
     const cycleProfile = await readJson<CycleProfile>(paths.cycleProfile);
-    const emotionState = await fs.readFile(paths.emotions, "utf-8").catch(() => "");
+    const growthLimit = cfg?.growthContextEntries ?? 10;
+    
+    const emotionState = await readMarkdownTail(paths.emotions, 10);
     const desireState = await fs.readFile(paths.desires, "utf-8").catch(() => "");
     const identityLine = await fs.readFile(paths.identity, "utf-8").catch(() => "");
-    const growthCtx = await fs.readFile(paths.growth, "utf-8").catch(() => "");
+    const growthCtx = await readMarkdownTail(paths.growth, growthLimit);
+    
     const dreamState = await readJson<DreamState>(paths.dreamState);
     const hobbySuggestion = await fs.readFile(paths.hobbies, "utf-8").catch(() => "");
     const skillState = await readJson<SkillState>(paths.skills);
@@ -290,7 +294,7 @@ export function registerBeforePromptHook(
 
     let finalContext: string;
     if (modules.multi_model_optimization) {
-      if (agentRole === "persona") finalContext = roleContext + enrichedContext + selfDevContext;
+      if (agentRole === "persona") finalContext = roleContext + defaultContext + enrichedContext + selfDevContext;
       else if (agentRole === "limbic") finalContext = roleContext + memoContext + enrichedContext + selfDevContext;
       else if (agentRole === "world_engine") finalContext = roleContext;
       else if (agentRole === "analyst") finalContext = roleContext + defaultContext + memoContext + enrichedContext;
@@ -312,6 +316,11 @@ ${memories}
       }
     }
 
-    return { prependContext: finalContext };
+    if (finalContext) {
+      api.logger.info(`[genesis] Injecting ${finalContext.length} chars of context into prompt.`);
+      event.prompt = finalContext + "\n" + (event.prompt || "");
+    } else {
+      api.logger.warn(`[genesis] finalContext is empty, nothing injected.`);
+    }
   });
 }

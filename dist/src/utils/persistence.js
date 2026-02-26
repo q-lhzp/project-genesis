@@ -67,4 +67,24 @@ export async function readJsonl(path) {
         return [];
     }
 }
+/**
+ * Read the header and the last N sections (starting with ###) from a markdown file.
+ */
+export async function readMarkdownTail(path, maxSections = 10) {
+    try {
+        const content = await fs.readFile(path, "utf-8");
+        const parts = content.split(/\n### /);
+        if (parts.length <= 1)
+            return content;
+        const header = parts[0];
+        const sections = parts.slice(1).map(s => "### " + s);
+        if (sections.length <= maxSections)
+            return content;
+        const tail = sections.slice(-maxSections);
+        return header + "\n" + tail.join("\n");
+    }
+    catch {
+        return "";
+    }
+}
 //# sourceMappingURL=persistence.js.map

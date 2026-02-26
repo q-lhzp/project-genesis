@@ -61,6 +61,7 @@ export interface SimulationPaths {
   interior: string;
   inventory: string;
   media: string;
+  portraits: string;
 
   // Development
   devManifest: string;
