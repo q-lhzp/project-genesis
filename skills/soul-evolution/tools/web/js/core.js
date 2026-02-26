@@ -100,6 +100,7 @@ function switchTab(tabId) {
   }
   if (tabId === 'diagnostics' && typeof loadDiagnostics === 'function') { loadDiagnostics(); }
   if (tabId === 'godmode' && typeof initGodMode === 'function') { initGodMode(); }
+  if (tabId === 'avatar' && typeof initAvatar === 'function') { initAvatar(); }
   
   if (tabId === 'stream' && typeof startPresencePolling === 'function') startPresencePolling();
   if (tabId === 'analytics' && typeof loadAnalyticsData === 'function') loadAnalyticsData();
@@ -347,5 +348,6 @@ async function loadLogStream() {
 
 window.loadDiagnostics = loadDiagnostics;
 window.loadLogStream = loadLogStream;
+window.initDashboard = initDashboard;
 
 

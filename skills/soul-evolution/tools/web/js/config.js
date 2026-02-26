@@ -1,6 +1,27 @@
 /**
- * Project Genesis Dashboard - Configuration & Tuning (v5.7.0)
+ * Project Genesis Dashboard - Configuration & Tuning (v5.7.1)
+ * Audit-Fixed: Null-safe DOM access & Event listeners
  */
+
+// Helper for safe DOM updates
+const setVal = (id, val) => {
+  const el = document.getElementById(id);
+  if (el) {
+    if (el.type === 'checkbox') el.checked = !!val;
+    else el.value = val || '';
+  }
+};
+
+const getVal = (id) => {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  return el.type === 'checkbox' ? el.checked : el.value;
+};
+
+const setText = (id, txt) => {
+  const el = document.getElementById(id);
+  if (el) el.textContent = txt;
+};
 
 async function loadClawModels() {
   try {
@@ -11,7 +32,7 @@ async function loadClawModels() {
     selects.forEach(select => {
       const currentVal = select.value;
       select.innerHTML = '<option value="">-- Select Model --</option>';
-      data.models.forEach(m => {
+      (data.models || []).forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
         opt.textContent = m.name;
@@ -35,80 +56,91 @@ async function loadConfig() {
     const modelCfg = await modelResp.json();
     const assignments = modelCfg.mac_assignments || {};
 
-    if (assignments.persona) document.getElementById('config-model-persona').value = assignments.persona;
-    if (assignments.limbic) document.getElementById('config-model-limbic').value = assignments.limbic;
-    if (assignments.analyst) document.getElementById('config-model-analyst').value = assignments.analyst;
-    if (assignments.developer) document.getElementById('config-model-developer').value = assignments.developer;
+    // Apply Assignments
+    setVal('config-model-persona', assignments.persona);
+    setVal('config-model-limbic', assignments.limbic);
+    setVal('config-model-analyst', assignments.analyst);
+    setVal('config-model-developer', assignments.developer);
 
-    if (modelCfg.api_key) document.getElementById('config-key-openai').value = modelCfg.api_key;
-    if (modelCfg.key_anthropic) document.getElementById('config-key-anthropic').value = modelCfg.key_anthropic;
-    if (modelCfg.key_gemini) document.getElementById('config-key-gemini').value = modelCfg.key_gemini;
-    if (modelCfg.key_xai) document.getElementById('config-key-xai').value = modelCfg.key_xai;
-    if (modelCfg.key_minimax) document.getElementById('config-key-minimax').value = modelCfg.key_minimax;
-    if (modelCfg.local_url) document.getElementById('config-local-url').value = modelCfg.local_url;
+    // Apply Keys
+    setVal('config-key-openai', modelCfg.api_key);
+    setVal('config-key-anthropic', modelCfg.key_anthropic);
+    setVal('config-key-gemini', modelCfg.key_gemini);
+    setVal('config-key-xai', modelCfg.key_xai);
+    setVal('config-key-minimax', modelCfg.key_minimax);
+    setVal('config-local-url', modelCfg.local_url);
 
-    if (modelCfg.image_provider) document.getElementById('config-provider-image').value = modelCfg.image_provider;
-    if (modelCfg.vision_provider) document.getElementById('config-provider-vision').value = modelCfg.vision_provider;
-    if (modelCfg.key_venice) document.getElementById('config-key-venice').value = modelCfg.key_venice;
-    if (modelCfg.key_fal) document.getElementById('config-key-fal').value = modelCfg.key_fal;
+    // Providers
+    setVal('config-provider-image', modelCfg.image_provider);
+    setVal('config-provider-vision', modelCfg.vision_provider);
+    setVal('config-key-venice', modelCfg.key_venice);
+    setVal('config-key-fal', modelCfg.key_fal);
 
-    if (config.character) document.getElementById('config-character-name').value = config.character.name || 'Q';
+    if (config.character) setVal('config-character-name', config.character.name);
 
     if (config.metabolism) {
-      document.getElementById('config-hunger-rate').value = config.metabolism.hunger_rate || 0.5;
-      document.getElementById('config-thirst-rate').value = config.metabolism.thirst_rate || 0.5;
-      document.getElementById('config-energy-rate').value = config.metabolism.energy_rate || 0.5;
-      document.getElementById('config-stress-rate').value = config.metabolism.stress_accumulation || 0.3;
+      setVal('config-hunger-rate', config.metabolism.hunger_rate);
+      setVal('config-thirst-rate', config.metabolism.thirst_rate);
+      setVal('config-energy-rate', config.metabolism.energy_rate);
+      setVal('config-stress-rate', config.metabolism.stress_accumulation);
+      
+      // Update display labels
+      ['hunger-rate', 'thirst-rate', 'energy-rate', 'stress-rate'].forEach(k => {
+        setText('config-' + k + '-val', config.metabolism[k.replace('-', '_')] || 0.5);
+      });
     }
 
     if (config.connectivity) {
-      document.getElementById('config-vmc-enabled').checked = config.connectivity.vmc_enabled === true;
-      document.getElementById('config-osc-enabled').checked = config.connectivity.osc_enabled === true;
-      document.getElementById('config-vmc-ip').value = config.connectivity.vmc_ip || '127.0.0.1';
-      document.getElementById('config-vmc-port').value = config.connectivity.vmc_port || 8000;
+      setVal('config-vmc-enabled', config.connectivity.vmc_enabled);
+      setVal('config-osc-enabled', config.connectivity.osc_enabled);
+      setVal('config-vmc-ip', config.connectivity.vmc_ip);
+      setVal('config-vmc-port', config.connectivity.vmc_port);
     }
   } catch (e) { console.log('Config load error:', e); }
 }
 
 async function saveAllConfig() {
   const simConfig = {
-    character: { name: document.getElementById('config-character-name').value },
+    character: { name: getVal('config-character-name') },
     metabolism: {
-      hunger_rate: parseFloat(document.getElementById('config-hunger-rate').value),
-      thirst_rate: parseFloat(document.getElementById('config-thirst-rate').value),
-      energy_rate: parseFloat(document.getElementById('config-energy-rate').value),
-      stress_accumulation: parseFloat(document.getElementById('config-stress-rate').value)
+      hunger_rate: parseFloat(getVal('config-hunger-rate')),
+      thirst_rate: parseFloat(getVal('config-thirst-rate')),
+      energy_rate: parseFloat(getVal('config-energy-rate')),
+      stress_accumulation: parseFloat(getVal('config-stress-rate'))
     },
     connectivity: {
-      vmc_enabled: document.getElementById('config-vmc-enabled').checked,
-      osc_enabled: document.getElementById('config-osc-enabled').checked,
-      vmc_ip: document.getElementById('config-vmc-ip').value,
-      vmc_port: parseInt(document.getElementById('config-vmc-port').value)
+      vmc_enabled: getVal('config-vmc-enabled'),
+      osc_enabled: getVal('config-osc-enabled'),
+      vmc_ip: getVal('config-vmc-ip'),
+      vmc_port: parseInt(getVal('config-vmc-port'))
     }
   };
 
   const modelConfig = {
     mac_assignments: {
-      persona: document.getElementById('config-model-persona').value,
-      limbic: document.getElementById('config-model-limbic').value,
-      analyst: document.getElementById('config-model-analyst').value,
-      developer: document.getElementById('config-model-developer').value
+      persona: getVal('config-model-persona'),
+      limbic: getVal('config-model-limbic'),
+      analyst: getVal('config-model-analyst'),
+      developer: getVal('config-model-developer')
     },
-    api_key: document.getElementById('config-key-openai').value,
-    key_anthropic: document.getElementById('config-key-anthropic').value,
-    key_gemini: document.getElementById('config-key-gemini').value,
-    key_xai: document.getElementById('config-key-xai').value,
-    key_minimax: document.getElementById('config-key-minimax').value,
-    local_url: document.getElementById('config-local-url').value,
-    image_provider: document.getElementById('config-provider-image').value,
-    vision_provider: document.getElementById('config-provider-vision').value,
-    key_venice: document.getElementById('config-key-venice').value,
-    key_fal: document.getElementById('config-key-fal').value
+    api_key: getVal('config-key-openai'),
+    key_anthropic: getVal('config-key-anthropic'),
+    key_gemini: getVal('config-key-gemini'),
+    key_xai: getVal('config-key-xai'),
+    key_minimax: getVal('config-key-minimax'),
+    local_url: getVal('config-local-url'),
+    image_provider: getVal('config-provider-image'),
+    vision_provider: getVal('config-provider-vision'),
+    key_venice: getVal('config-key-venice'),
+    key_fal: getVal('config-key-fal')
   };
 
   try {
     const statusEl = document.getElementById('config-save-status');
-    if (statusEl) statusEl.textContent = 'Saving...';
+    if (statusEl) {
+      statusEl.textContent = 'Saving...';
+      statusEl.style.color = 'var(--accent)';
+    }
 
     const [simResp, modelResp] = await Promise.all([
       fetch('/api/config/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(simConfig) }),
@@ -120,16 +152,23 @@ async function saveAllConfig() {
       statusEl.style.color = 'var(--growth)';
       setTimeout(() => { statusEl.textContent = ''; }, 3000);
     }
-  } catch (e) { console.error(e); }
+  } catch (e) { 
+    console.error(e);
+    setText('config-save-status', '✗ Save failed');
+  }
 }
 
+// Add listeners for sliders
+document.addEventListener('input', (e) => {
+  if (e.target.id && e.target.id.startsWith('config-') && e.target.type === 'range') {
+    const valEl = document.getElementById(e.target.id + '-val');
+    if (valEl) valEl.textContent = e.target.value;
+  }
+});
+
 async function loadConfigs() {
-  try {
-    const res = await fetch('/api/config/simulation');
-    const config = await res.json();
-    if (config.hunger_rate) document.getElementById('tune-hunger-rate').value = config.hunger_rate;
-    // ... other tuning sliders
-  } catch (e) {}
+  // Backwards compatibility for other tabs calling this
+  await loadConfig();
 }
 
 window.loadClawModels = loadClawModels;
@@ -144,11 +183,11 @@ async function loadProfiles() {
     const profiles = await response.json();
     const container = document.getElementById('profile-list');
     if (container && profiles) {
-      container.innerHTML = profiles.map(p => `
-        <div style="background:var(--bg);padding:0.5rem;border-radius:4px;display:flex;justify-content:space-between;align-items:center;">
+      container.innerHTML = profiles.length ? profiles.map(p => `
+        <div style="background:var(--bg);padding:0.5rem;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
           <span><strong>${p}</strong></span>
           <button onclick="loadProfile('${p}')" style="background:var(--growth);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;">Load</button>
-        </div>`).join('');
+        </div>`).join('') : '<p style="color:var(--text-dim);font-size:0.8rem;">No profiles found.</p>';
     }
   } catch (e) { console.log('Could not load profiles:', e); }
 }
@@ -159,18 +198,18 @@ async function loadBackups() {
     const backups = await response.json();
     const container = document.getElementById('backup-list');
     if (container && backups) {
-      container.innerHTML = backups.map(b => `
+      container.innerHTML = backups.length ? backups.map(b => `
         <div style="background:var(--bg);padding:0.5rem;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
           <span><strong>${b}</strong></span>
           <button onclick="rollbackTo('${b}')" style="background:var(--accent);color:#fff;border:none;padding:0.25rem 0.5rem;border-radius:4px;cursor:pointer;">Rollback</button>
-        </div>`).join('');
+        </div>`).join('') : '<p style="color:var(--text-dim);font-size:0.8rem;">No backups found.</p>';
     }
   } catch (e) { console.log('Could not load backups:', e); }
 }
 
 // Genesis Lab
 async function runGenesis() {
-  const promptText = document.getElementById('genesis-prompt').value.trim();
+  const promptText = getVal('genesis-prompt');
   if (!promptText || !confirm('DANGER: This will overwrite your entire simulation. Proceed?')) return;
   try {
     const response = await fetch('/api/genesis/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: promptText }) });
@@ -194,4 +233,3 @@ window.loadProfiles = loadProfiles;
 window.loadBackups = loadBackups;
 window.runGenesis = runGenesis;
 window.loadGenesisStatus = loadGenesisStatus;
-
