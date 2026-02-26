@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Genesis</title>
+  <link rel="stylesheet" href="/web/css/main.css">
+  <link rel="stylesheet" href="/web/css/components.css">
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Project Genesis</h2>
+      <div id="agent-name" style="font-size:0.8rem; color:var(--text-dim);">Digital Entity</div>
+    </div>
+    
+    <nav class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+      <button class="tab-btn" onclick="switchTab('interior')">🏠 Interior</button>
+      <button class="tab-btn" onclick="switchTab('inventory')">🎒 Inventory</button>
+      <button class="tab-btn" onclick="switchTab('wardrobe')">👔 Wardrobe</button>
+      <button class="tab-btn" onclick="switchTab('development')">💻 Development</button>
+      <button class="tab-btn" onclick="switchTab('cycle')">🌙 Cycle</button>
+      <button class="tab-btn" onclick="switchTab('world')">🌍 World</button>
+      <button class="tab-btn" onclick="switchTab('skills')">📜 Skills</button>
+      <button class="tab-btn" onclick="switchTab('psychology')">🧠 Psychology</button>
+      <button class="tab-btn" onclick="switchTab('reputation')">🤝 Social Standing</button>
+      <button class="tab-btn" onclick="switchTab('stream')">📸 Life Stream</button>
+      <button class="tab-btn" onclick="switchTab('genesis')">🧬 Genesis Lab</button>
+      <button class="tab-btn" onclick="switchTab('memory')">💾 Memory</button>
+      <button class="tab-btn" onclick="switchTab('vault')">💰 The Vault</button>
+      <button class="tab-btn" onclick="switchTab('avatar')">🎭 Live Avatar</button>
+      <button class="tab-btn" onclick="switchTab('interests')">🎨 Interests</button>
+      <button class="tab-btn" onclick="switchTab('dreams')">💭 Dream Journal</button>
+      <button class="tab-btn" onclick="switchTab('analytics')">📈 Analytics</button>
+      <div style="margin-top:auto; padding-top:1rem; border-top:1px solid var(--border);">
+        <button class="tab-btn" onclick="switchTab('config')">⚙️ Config</button>
+        <button class="tab-btn" onclick="switchTab('diagnostics')">🛠️ Diagnostics</button>
+        <button class="tab-btn" onclick="switchTab('godmode')">⚡ God-Mode</button>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Main View -->
+  <main class="main-view">
+    <div class="news-ticker">
+      <div class="ticker-content" id="ticker-content">
+        <div class="ticker-item">Project Genesis Simulation Active</div>
+        <div class="ticker-item">Waiting for world events...</div>
+      </div>
+    </div>
+
+    <!-- Tab: Dashboard -->
+    <div id="tab-dashboard" class="tab-content active">
+      <header class="header">
+        <h1><span class="evolution">Project</span><span class="soul"> Genesis</span></h1>
+        <div class="subtitle">Sovereign Digital Entity &middot; <span id="clock">00:00:00</span></div>
+        <div class="stats-bar" id="stats-bar"></div>
+      </header>
+
+      <div class="main">
+        <!-- Soul Map -->
+        <section class="soul-map" id="soul-map">
+          <div class="edit-bar">
+            <h2>Identity Map</h2>
+            <div class="spacer"></div>
+            <button class="btn-edit" id="btn-edit" onclick="toggleEditMode()">✎ Edit</button>
+            <button class="btn-save" id="btn-save" onclick="saveSoul()" style="display:none">💾 Save SOUL.md</button>
+          </div>
+          <div id="soul-tree"></div>
+          <div class="legend" id="legend"></div>
+          <div class="save-toast" id="save-toast">✓ Saved</div>
+        </section>
+
+        <!-- Center Panel: Mental Activity & Feed -->
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+          <section class="panel-card">
+            <h2>🧠 Mental Activity</h2>
+            <div id="mental-activity-list"></div>
+          </section>
+          
+          <section class="feed-panel">
+            <h2>📖 Experience Stream</h2>
+            <div id="exp-feed"></div>
+          </section>
+
+          <section class="panel-card" style="border-left-color: var(--mutable);">
+            <h2>💡 Pending Proposals <span id="proposals-count" style="font-size:0.7rem;color:var(--text-dim);"></span></h2>
+            <div id="proposals-list"></div>
+          </section>
+        </div>
+
+        <!-- Right Panel: Vitals & Timeline -->
+        <aside class="right-panel">
+          <section class="vitals-panel">
+            <h2>🧬 Biological Vitals</h2>
+            <div class="vitals-grid" id="vitals-grid"></div>
+            <div class="vitals-meta" id="vitals-meta"></div>
+          </section>
+
+          <section class="timeline-panel">
+            <h2>🕰️ Soul Timeline</h2>
+            <div class="timeline-controls">
+              <button id="btn-reset" title="Reset to origin">⟲</button>
+              <button id="btn-play" title="Play evolution">▶</button>
+              <input type="range" class="timeline-slider" id="timeline-slider" min="0" value="0">
+              <div class="timeline-label" id="timeline-label">now</div>
+            </div>
+            <div id="changes-list" style="max-height: 400px; overflow-y: auto;"></div>
+          </section>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Tab: Interior -->
+    <div id="tab-interior" class="tab-content">
+      <div style="max-width:1200px;margin:0 auto;padding:2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <h2 style="color:var(--accent);">Spatial Interior</h2>
+          <button class="btn-crud" onclick="addRoom()">+ Add Room</button>
+        </div>
+        <div class="room-tabs" id="room-tabs"></div>
+        <div id="interior-detail" style="margin-bottom:1rem;"></div>
+        <div class="item-grid" id="interior-grid"></div>
+      </div>
+    </div>
+
+    <!-- Tab: Inventory -->
+    <div id="tab-inventory" class="tab-content">
+      <div style="max-width:1200px;margin:0 auto;padding:2rem;">
+        <h2 style="color:var(--accent);margin-bottom:1rem;">Entity Inventory</h2>
+        <input type="text" id="inv-search" class="search-bar" placeholder="Search inventory..." oninput="filterInventory()">
+        <div class="chip-bar" id="inv-chips"></div>
+        <div class="item-grid" id="inventory-grid"></div>
+      </div>
+    </div>
+
+    <!-- Tab: Wardrobe -->
+    <div id="tab-wardrobe" class="tab-content">
+      <div style="max-width:1200px;margin:0 auto;padding:2rem;">
+        <h2 style="color:var(--accent);margin-bottom:1rem;">Wardrobe & Appearance</h2>
+        <div style="display:grid;grid-template-columns:1fr 300px;gap:2rem;">
+          <div>
+            <div class="chip-bar" id="wardrobe-chips"></div>
+            <div class="item-grid" id="wardrobe-grid"></div>
+          </div>
+          <div id="wardrobe-outfits"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: The Vault -->
+    <div id="tab-vault" class="tab-content">
+      <div style="max-width:1200px;margin:0 auto;padding:2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+          <h2 style="color:var(--accent);">Economy: The Vault</h2>
+          <div id="vault-mode" style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;background:var(--bg-hover);padding:0.4rem 0.8rem;border-radius:4px;border:1px solid var(--border);">Loading...</div>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+          <div>
+            <div class="panel-card">
+              <h3>Balance & Portfolio</h3>
+              <div style="font-size:3rem;font-weight:bold;color:var(--growth);margin:1rem 0;" id="vault-balance">$0.00</div>
+              <div id="vault-portfolio"></div>
+            </div>
+            <div class="panel-card" style="margin-top:1.5rem;">
+              <h3>Market Reports</h3>
+              <div id="vault-reports" style="font-size:0.9rem;line-height:1.5;color:var(--text-bright);"></div>
+            </div>
+          </div>
+          <div>
+            <div class="panel-card">
+              <h3>Recent Transactions</h3>
+              <div id="vault-transactions" style="max-height:500px;overflow-y:auto;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Live Avatar -->
+    <div id="tab-avatar" class="tab-content">
+      <div style="max-width:1200px;margin:0 auto;padding:2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <h2 style="color:var(--accent);">Live Embodiment</h2>
+          <div id="avatar-status-text" style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--text-dim);">Ready</div>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:1fr 350px;gap:2rem;">
+          <div id="avatar-viewer" style="height:600px;background:#000;border-radius:12px;overflow:hidden;position:relative;">
+            <canvas id="vrm-canvas"></canvas>
+            <div id="avatar-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:10;">
+              <div style="text-align:center;">
+                <div class="pulse" style="font-size:2rem;">🧬</div>
+                <div style="margin-top:1rem;color:var(--accent);">Synchronizing neural interface...</div>
+              </div>
+            </div>
+            <div id="avatar-error" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,0,0,0.9);z-index:11;">
+              <div style="text-align:center;color:var(--core);">
+                <div style="font-size:2rem;">⚠️</div>
+                <div style="margin-top:1rem;">Embodiment failure</div>
+                <button onclick="initAvatar()" style="margin-top:1rem;" class="btn-crud">Retry Sync</button>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <div class="panel-card">
+              <h3>Expression & Pose</h3>
+              <div class="avatar-controls" style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                <button onclick="setAvatarEmote('joy')">Joy</button>
+                <button onclick="setAvatarEmote('angry')">Angry</button>
+                <button onclick="setAvatarEmote('sad')">Sad</button>
+                <button onclick="setAvatarEmote('neutral')">Neutral</button>
+                <button onclick="setAvatarPose('idle')">Pose: Idle</button>
+                <button onclick="setAvatarPose('sitting')">Pose: Sitting</button>
+              </div>
+            </div>
+            <div class="panel-card" style="margin-top:1.5rem;">
+              <h3>Atmosphere</h3>
+              <div id="interaction-status"></div>
+              <div style="margin-top:1rem;display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                <button class="btn-crud" onclick="setLightState('toggle')">Toggle Light</button>
+                <button class="btn-crud" onclick="syncAvatarWardrobe()">Sync Outfit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Config -->
+    <div id="tab-config" class="tab-content">
+      <div style="max-width:1000px;margin:0 auto;padding:2rem;">
+        <h2 style="color:var(--accent);margin-bottom:1.5rem;">System Configuration</h2>
+        <div id="config-fields">
+          <!-- Populated by JS -->
+        </div>
+        <div id="config-save-status" style="margin-top:1rem;font-weight:bold;"></div>
+      </div>
+    </div>
+
+    <!-- Tab: God-Mode -->
+    <div id="tab-godmode" class="tab-content">
+      <div style="max-width:1200px;margin:0 auto;padding:2rem;">
+        <h2 style="color:var(--core);margin-bottom:1.5rem;">⚡ God-Mode: Simulation Override</h2>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:2rem;">
+          <div class="panel-card">
+            <h3>🎚️ Direct Needs Control</h3>
+            <div id="godmode-sliders" style="display:grid; gap:1rem;"></div>
+            <button onclick="applyGodModeNeeds()" style="margin-top:1.5rem; background:var(--accent); color:#000; padding:0.75rem 1.5rem; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">💾 Apply Changes</button>
+          </div>
+          <div class="panel-card">
+            <h3>🎲 Inject Life Event</h3>
+            <div style="display:grid; gap:1rem;">
+              <select id="gm-event-type" style="background:#1a1a24; color:#fff; padding:0.5rem; border:1px solid var(--border);">
+                <option value="positive">Positive</option>
+                <option value="negative">Negative</option>
+                <option value="neutral">Neutral</option>
+              </select>
+              <input type="text" id="gm-event-desc" placeholder="Event description..." style="background:#1a1a24; color:#fff; padding:0.5rem; border:1px solid var(--border);">
+              <input type="range" id="gm-event-impact" min="1" max="10" value="5">
+              <button onclick="injectGodModeEvent()" style="background:var(--growth); color:#fff; padding:0.75rem; border:none; border-radius:4px; cursor:pointer;">🚀 Trigger Event</button>
+            </div>
+          </div>
+          <div class="panel-card">
+            <h3>🎭 BlendShape Monitor</h3>
+            <div id="godmode-blendshapes" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; font-size:0.75rem; max-height:400px; overflow-y:auto;">
+              <div style="grid-column: 1 / -1; color: var(--text-dim); text-align: center;">Waiting for avatar state...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Modal Overlay -->
+<div id="modal-overlay" class="modal-overlay">
+  <div class="modal-box">
+    <h3 id="modal-title" class="modal-title">Modal</h3>
+    <div id="modal-fields"></div>
+    <div class="modal-buttons">
+      <button class="btn-crud" onclick="closeModal()">Cancel</button>
+      <button class="btn-crud" id="modal-ok" style="color:var(--accent);border-color:var(--accent);">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox Overlay -->
+<div id="lightbox" class="lightbox-overlay" onclick="if(event.target===this)closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+  <img id="lightbox-main" src="" alt="">
+  <div class="lightbox-gallery" id="lightbox-gallery"></div>
+  <div class="lightbox-actions">
+    <button class="danger" onclick="deleteLightboxImage()">Delete Image</button>
+    <label class="btn-crud" style="cursor:pointer">
+      Upload New <input type="file" style="display:none" onchange="uploadLightboxImage(event)">
+    </label>
+  </div>
+</div>
+
+<!-- Phase 51: Onboarding Wizard -->
+<div id="wizardOverlay" class="wizard-overlay">
+  <!-- Content in wizard.js or wizard.html -->
+</div>
+
+<script>const DATA = {data_json};</script>
+<script src="/web/js/core.js"></script>
+<script src="/web/js/vitals.js"></script>
+<script src="/web/js/economy.js"></script>
+<script src="/web/js/config.js"></script>
+<script src="/web/js/wizard.js"></script>
+<script src="/web/js/avatar.js" type="module"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof initDashboard === 'function') initDashboard();
+});
+</script>
+
+</body>
+</html>

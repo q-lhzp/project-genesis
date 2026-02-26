@@ -1,0 +1,182 @@
+.wizard-overlay {
+  position: fixed; inset: 0;
+  background: rgba(10, 10, 15, 0.95);
+  z-index: 10000;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  font-family: 'DM Sans', sans-serif;
+}
+.wizard-overlay.active { display: flex; }
+.wizard-container {
+  background: #12121a;
+  border: 1px solid #2a2a40;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  padding: 2.5rem;
+  box-shadow: 0 0 60px rgba(124, 111, 240, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.wizard-content { 
+  margin: 1.5rem 0; 
+  overflow-y: auto; 
+  padding-right: 0.5rem;
+}
+.wizard-header { text-align: center; margin-bottom: 2rem; }
+.wizard-header h2 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.8rem;
+  color: #eeeef4;
+  margin-bottom: 0.5rem;
+}
+.wizard-header p { color: #6a6a80; }
+.wizard-progress {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  position: relative;
+}
+.wizard-progress::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: #2a2a40;
+}
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.wizard-step-num {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: #1a1a28;
+  border: 2px solid #2a2a40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #6a6a80;
+  transition: all 0.3s;
+}
+.wizard-step.active .wizard-step-num,
+.wizard-step.done .wizard-step-num {
+  background: #7c6ff0;
+  border-color: #7c6ff0;
+  color: #fff;
+}
+.wizard-step-label {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #6a6a80;
+}
+.wizard-step.active .wizard-step-label { color: #7c6ff0; }
+.wizard-content { margin: 2rem 0; min-height: 200px; }
+.wizard-step-view { display: none; }
+.wizard-step-view.active { display: block; }
+.wizard-step-view h3 {
+  color: #eeeef4;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+.wizard-input-group { margin-bottom: 1rem; }
+.wizard-input-group label {
+  display: block;
+  color: #c8c8d8;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+.wizard-input-group input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #1a1a28;
+  border: 1px solid #2a2a40;
+  border-radius: 8px;
+  color: #eeeef4;
+  font-size: 0.95rem;
+}
+.wizard-input-group input:focus {
+  outline: none;
+  border-color: #7c6ff0;
+}
+.wizard-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  font-size: 0.95rem;
+}
+.wizard-btn-primary {
+  background: #7c6ff0;
+  color: #fff;
+}
+.wizard-btn-primary:hover { background: #6a5ce0; }
+.wizard-btn-secondary {
+  background: transparent;
+  border: 1px solid #2a2a40;
+  color: #c8c8d8;
+}
+.wizard-btn-secondary:hover { background: #1a1a28; }
+.wizard-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+}
+.wizard-status {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  display: none;
+}
+.wizard-status.success { background: rgba(80, 200, 120, 0.1); border: 1px solid rgba(80, 200, 120, 0.3); color: #50c878; }
+.wizard-status.error { background: rgba(224, 80, 80, 0.1); border: 1px solid rgba(224, 80, 80, 0.3); color: #e05050; }
+.wizard-status.loading { background: rgba(124, 111, 240, 0.1); border: 1px solid rgba(124, 111, 240, 0.3); color: #7c6ff0; }
+.wizard-bridge-list {
+  background: #1a1a28;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.wizard-bridge-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #2a2a40;
+}
+.wizard-bridge-item:last-child { border-bottom: none; }
+.wizard-bridge-item .ok { color: #50c878; }
+.wizard-bridge-item .fail { color: #e05050; }
+.wizard-slider-container { margin: 1rem 0; }
+.wizard-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: #2a2a40;
+  outline: none;
+}
+.wizard-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #7c6ff0;
+  cursor: pointer;
+}
+.wizard-slider-value {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #7c6ff0;
+  margin: 1rem 0;
+}
