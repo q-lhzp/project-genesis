@@ -134,6 +134,23 @@ def collect_data(workspace: str) -> dict:
         for fp in sorted(glob.glob(os.path.join(exp_dir, "*.jsonl"))):
             experiences.extend(load_jsonl(fp))
 
+    # Phase 6: Sync Activity Logs from Telemetry into Experiences Feed
+    telemetry_dir = os.path.join(memory_dir, "telemetry")
+    if os.path.exists(telemetry_dir):
+        for i in range(30):
+            date = datetime.now() - timedelta(days=i)
+            date_str = date.strftime("%Y-%m-%d")
+            activity_file = os.path.join(telemetry_dir, f"activity_{date_str}.jsonl")
+            if os.path.exists(activity_file):
+                # Add activity logs to experiences for feed visibility
+                activity_logs = load_jsonl(activity_file)
+                for log in activity_logs:
+                    # Map activity log to experience format if needed
+                    if "agent_id" in log and "action" in log:
+                        log["source"] = "agent_activity"
+                        log["content"] = f"{log.get('agent_id')} performed {log.get('action')}: {log.get('message', '')}"
+                    experiences.append(log)
+
     # Reflections
     reflections = []
     ref_dir = os.path.join(memory_dir, "reflections")
@@ -199,7 +216,19 @@ def collect_data(workspace: str) -> dict:
     psychology = load_json(os.path.join(memory_dir, "reality", "psychology.json"))
     reputation = load_json(os.path.join(memory_dir, "reality", "reputation.json"))
     news = load_json(os.path.join(memory_dir, "reality", "news.json"))
-    internal_comm = load_json(os.path.join(memory_dir, "reality", "internal_comm.json"))
+    # Support both old and new internal_comm path
+    internal_comm_path_legacy = os.path.join(memory_dir, "internal_comm")
+    internal_comm_path_modular = os.path.join(memory_dir, "reality", "internal_comm.json")
+    
+    if os.path.isfile(internal_comm_path_modular):
+        internal_comm = load_json(internal_comm_path_modular)
+    elif os.path.isdir(internal_comm_path_legacy):
+        # Read from directory (legacy v4 behavior)
+        internal_comm = {"memos": []}
+        for fp in glob.glob(os.path.join(internal_comm_path_legacy, "*.json")):
+             internal_comm["memos"].append(load_json(fp))
+    else:
+        internal_comm = {"memos": []}
     social_events = load_json(os.path.join(memory_dir, "reality", "social_events.json"))
     vault_state = load_json(os.path.join(memory_dir, "reality", "vault_state.json"))
 
@@ -2433,112 +2462,6 @@ body::after {
         </label>
       </div>
       <div id="voice-status" style="font-size:0.8rem;margin-top:0.5rem;"></div>
-
-      <!-- Model Configuration -->
-      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;">
-        <strong>Model Configuration</strong>
-        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Select AI models for different roles (Multi-Model Cluster)</p>
-
-        <!-- Model Selection per Role -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
-          <div>
-            <label style="font-size:0.8rem;">Persona Model</label>
-            <select id="model-persona" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="gpt-4o-mini">GPT-4o Mini</option>
-              <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
-              <option value="claude-haiku-3-20250514">Claude Haiku 3</option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:0.8rem;">Limbic Model (Lightweight)</label>
-            <select id="model-limbic" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
-              <option value="gpt-4o-mini">GPT-4o Mini (Recommended)</option>
-              <option value="claude-haiku-3-20250514">Claude Haiku 3</option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:0.8rem;">Analyst Model</label>
-            <select id="model-analyst" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:0.8rem;">World Engine (Lightweight)</label>
-            <select id="model-world" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
-              <option value="gpt-4o-mini">GPT-4o Mini (Recommended)</option>
-              <option value="claude-haiku-3-20250514">Claude Haiku 3</option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- API Key -->
-        <div style="margin-top:0.75rem;">
-          <label style="font-size:0.8rem;">Default API Key (OpenAI/Base)</label>
-          <input type="password" id="api-key" placeholder="sk-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
-          <label style="font-size:0.8rem;margin-top:0.5rem;display:block;">Anthropic API Key</label>
-          <input type="password" id="key-anthropic" placeholder="sk-ant-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem;margin-top:0.25rem;">
-          <p style="font-size:0.7rem;color:var(--text-dim);margin:0.25rem 0 0 0;">Your API keys are stored locally and never sent to external servers.</p>
-        </div>
-
-        <!-- Save Button -->
-        <button onclick="saveModelConfig()" style="margin-top:0.5rem;background:var(--core);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Save Model Config</button>
-        <span id="model-config-status" style="margin-left:0.5rem;font-size:0.8rem;"></span>
-      </div>
-
-      <!-- Advanced Providers (Image & Vision) -->
-      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg);border-radius:4px;border-left:4px solid var(--growth);">
-        <strong>Visual & Identity Providers</strong>
-        <p style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0.5rem 0;">Configure Image Generation and Visual Analysis</p>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
-          <div>
-            <label style="font-size:0.8rem;">Image Provider (Photography)</label>
-            <select id="provider-image" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
-              <option value="nano">Nano Banana (Imagen 3)</option>
-              <option value="venice">Venice.ai</option>
-              <option value="dalle">DALL-E 3</option>
-              <option value="gemini">Gemini Image</option>
-              <option value="grok">Grok Imagine</option>
-              <option value="flux">Flux (via fal.ai)</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:0.8rem;">Vision AI (Screen Analysis)</label>
-            <select id="provider-vision" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
-              <option value="gpt-4o">GPT-4o Vision</option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Vision</option>
-              <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
-            </select>
-          </div>
-        </div>
-
-        <div style="margin-top:0.75rem;display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-          <div>
-            <label style="font-size:0.8rem;">Venice.ai API Key</label>
-            <input type="password" id="key-venice" placeholder="sk-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.2rem;">
-          </div>
-          <div>
-            <label style="font-size:0.8rem;">Fal.ai (Flux) Key</label>
-            <input type="password" id="key-fal" placeholder="Key..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.2rem;">
-          </div>
-          <div>
-            <label style="font-size:0.8rem;">xAI Key (Grok)</label>
-            <input type="password" id="key-xai" placeholder="xai-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.2rem;">
-          </div>
-          <div>
-            <label style="font-size:0.8rem;">Google Image Key</label>
-            <input type="password" id="key-gemini-img" placeholder="AI Studio Key..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.2rem;">
-          </div>
-        </div>
-
-        <button onclick="saveAdvancedConfig()" style="margin-top:0.75rem;background:var(--growth);color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;">💾 Save Visual Config</button>
-        <span id="adv-config-status" style="margin-left:0.5rem;font-size:0.8rem;"></span>
-      </div>
     </div>
 
     <!-- Voice Lab - Phase 20 -->
@@ -3289,25 +3212,132 @@ body::after {
       </div>
     </div>
 
-    <!-- Connectivity -->
-    <div class="panel-card" style="border-left:4px solid var(--warning);">
-      <h3>🔗 Connectivity (VMC/OSC)</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem;">
-        <div style="display:flex;align-items:center;gap:0.5rem;">
+    <!-- Multi-Model Cluster (MAC) Configuration -->
+    <div class="panel-card" style="margin-bottom:1rem; border-left:4px solid var(--accent);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+        <h3>🧠 Multi-Model Cluster (MAC)</h3>
+        <button onclick="loadClawModels()" style="background:var(--bg); border:1px solid var(--border); color:var(--accent); cursor:pointer; font-size:0.7rem; padding:0.25rem 0.5rem; border-radius:4px;">🔄 Refresh Models</button>
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">Assign AI models to specialized cognitive roles from OpenClaw.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>
+          <label style="font-size:0.8rem; font-weight:bold; color:var(--accent);">Persona Model</label>
+          <select id="config-model-persona" class="mac-select-main" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.8rem; font-weight:bold; color:var(--core);">Limbic Model</label>
+          <select id="config-model-limbic" class="mac-select-main" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.8rem; font-weight:bold; color:#50b8e0;">Analyst Model</label>
+          <select id="config-model-analyst" class="mac-select-main" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.8rem; font-weight:bold; color:var(--mutable);">Developer Model</label>
+          <select id="config-model-developer" class="mac-select-main" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:1.5rem; border-top:1px solid var(--border); padding-top:1rem;">
+        <h4 style="font-size:0.85rem; margin-bottom:0.75rem;">🔑 Provider API Keys</h4>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div>
+            <label style="font-size:0.75rem;">OpenAI / Base Key</label>
+            <input type="password" id="config-key-openai" placeholder="sk-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;">Anthropic Key</label>
+            <input type="password" id="config-key-anthropic" placeholder="sk-ant-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;">Google Gemini Key</label>
+            <input type="password" id="config-key-gemini" placeholder="AI Studio Key..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;">xAI Grok Key</label>
+            <input type="password" id="config-key-xai" placeholder="xai-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;">MiniMax API Key</label>
+            <input type="password" id="config-key-minimax" placeholder="sk-..." style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;">Local / Ollama URL</label>
+            <input type="text" id="config-local-url" placeholder="http://localhost:11434" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visual & Identity Providers -->
+    <div class="panel-card" style="margin-bottom:1rem; border-left:4px solid var(--growth);">
+      <h3>📸 Visual & Identity Providers</h3>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">Configure Image Generation and Visual Analysis</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>
+          <label style="font-size:0.8rem;">Image Provider</label>
+          <select id="config-provider-image" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+            <option value="nano">Nano Banana (Imagen 3)</option>
+            <option value="venice">Venice.ai</option>
+            <option value="dalle">DALL-E 3</option>
+            <option value="gemini">Gemini Image</option>
+            <option value="grok">Grok Imagine</option>
+            <option value="flux">Flux (via fal.ai)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.8rem;">Vision AI</label>
+          <select id="config-provider-vision" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.4rem;margin-top:0.25rem;">
+            <option value="gpt-4o">GPT-4o Vision</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Vision</option>
+            <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem; display:grid; grid-template-columns:repeat(2, 1fr); gap:0.75rem;">
+        <div>
+          <label style="font-size:0.75rem;">Venice.ai Key</label>
+          <input type="password" id="config-key-venice" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.35rem;">
+        </div>
+        <div>
+          <label style="font-size:0.75rem;">Fal.ai Key</label>
+          <input type="password" id="config-key-fal" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.35rem;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Connectivity (VMC/OSC) -->
+    <div class="panel-card" style="margin-bottom:1rem; border-left:4px solid #f59e0b;">
+      <h3>🌐 Connectivity (VMC/OSC)</h3>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">External integration for 3D avatars and external tracking.</p>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
           <input type="checkbox" id="config-vmc-enabled">
-          <label style="font-size:0.9rem;">Enable VMC</label>
+          <label style="font-size:0.9rem;">Enable VMC Stream</label>
         </div>
-        <div style="display:flex;align-items:center;gap:0.5rem;">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
           <input type="checkbox" id="config-osc-enabled">
-          <label style="font-size:0.9rem;">Enable OSC</label>
+          <label style="font-size:0.9rem;">Enable OSC Support</label>
         </div>
         <div>
-          <label style="font-size:0.8rem;">VMC IP</label>
-          <input type="text" id="config-vmc-ip" value="127.0.0.1" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+          <label style="font-size:0.75rem;">VMC Target IP</label>
+          <input type="text" id="config-vmc-ip" placeholder="127.0.0.1" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.35rem;margin-top:0.25rem;">
         </div>
         <div>
-          <label style="font-size:0.8rem;">VMC Port</label>
-          <input type="number" id="config-vmc-port" value="8000" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.25rem;">
+          <label style="font-size:0.75rem;">VMC Sync Port</label>
+          <input type="number" id="config-vmc-port" placeholder="8000" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.35rem;margin-top:0.25rem;">
         </div>
       </div>
     </div>
@@ -3326,7 +3356,7 @@ body::after {
         ⚠️ <strong>WARNING:</strong> Manual overrides bypass biological autonomy.
     </div>
 
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem;">
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:2rem;">
         <div class="panel-card">
             <h3>🎚️ Direct Needs Control</h3>
             <div id="godmode-sliders" style="display:grid; gap:1rem;">
@@ -3346,6 +3376,14 @@ body::after {
                 <input type="text" id="gm-event-desc" placeholder="Event description..." style="background:#1a1a24; color:#fff; padding:0.5rem; border:1px solid var(--border);">
                 <input type="range" id="gm-event-impact" min="1" max="10" value="5">
                 <button onclick="injectGodModeEvent()" style="background:var(--growth); color:#fff; padding:0.75rem; border:none; border-radius:4px; cursor:pointer;">🚀 Trigger Event</button>
+            </div>
+        </div>
+
+        <div class="panel-card">
+            <h3>🎭 BlendShape Monitor</h3>
+            <div id="godmode-blendshapes" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; font-size:0.75rem; max-height:400px; overflow-y:auto;">
+                <!-- Weights generated by JS -->
+                <div style="grid-column: 1 / -1; color: var(--text-dim); text-align: center;">Waiting for avatar state...</div>
             </div>
         </div>
     </div>
@@ -4350,8 +4388,9 @@ function switchTab(tabId) {
   if (tabId === 'reputation' && !window._repRendered) { renderReputationPanel(); loadContactCRM(); loadPendingSocialEvents(); window._repRendered = true; }
   if (tabId === 'reputation') { loadPendingSocialEvents(); }
   if (tabId === 'stream' && !window._streamRendered) { renderPhotoStream(); window._streamRendered = true; }
-  if (tabId === 'genesis' && !window._genesisRendered) { window._genesisRendered = true; loadGenesisStatus(); loadConfigs(); }
+  if (tabId === 'genesis' && !window._genesisRendered) { window._genesisRendered = true; loadGenesisStatus(); loadConfigs(); loadClawModels(); }
   if (tabId === 'genesis') { refreshSpatialState(); }
+  if (tabId === 'config') { loadConfig(); loadClawModels(); }
   if (tabId === 'vault' && !window._vaultRendered) { window._vaultRendered = true; loadVaultData(); }
   if (tabId === 'diagnostics') { loadDiagnostics(); }
 }
@@ -6133,8 +6172,35 @@ async function loadAnalyticsData() {
 // Config Tab (v5.1.0)
 async function loadConfig() {
   try {
+    // 1. Ensure models are loaded first
+    await loadClawModels();
+
     const response = await fetch('/api/config/all');
     const config = await response.json();
+
+    // 2. Load model assignments from model_config.json
+    const modelResp = await fetch('/api/model/config');
+    const modelCfg = await modelResp.json();
+    const assignments = modelCfg.mac_assignments || {};
+
+    if (assignments.persona) document.getElementById('config-model-persona').value = assignments.persona;
+    if (assignments.limbic) document.getElementById('config-model-limbic').value = assignments.limbic;
+    if (assignments.analyst) document.getElementById('config-model-analyst').value = assignments.analyst;
+    if (assignments.developer) document.getElementById('config-model-developer').value = assignments.developer;
+
+    // Keys
+    if (modelCfg.api_key) document.getElementById('config-key-openai').value = modelCfg.api_key;
+    if (modelCfg.key_anthropic) document.getElementById('config-key-anthropic').value = modelCfg.key_anthropic;
+    if (modelCfg.key_gemini) document.getElementById('config-key-gemini').value = modelCfg.key_gemini;
+    if (modelCfg.key_xai) document.getElementById('config-key-xai').value = modelCfg.key_xai;
+    if (modelCfg.key_minimax) document.getElementById('config-key-minimax').value = modelCfg.key_minimax;
+    if (modelCfg.local_url) document.getElementById('config-local-url').value = modelCfg.local_url;
+
+    // Visual Providers
+    if (modelCfg.image_provider) document.getElementById('config-provider-image').value = modelCfg.image_provider;
+    if (modelCfg.vision_provider) document.getElementById('config-provider-vision').value = modelCfg.vision_provider;
+    if (modelCfg.key_venice) document.getElementById('config-key-venice').value = modelCfg.key_venice;
+    if (modelCfg.key_fal) document.getElementById('config-key-fal').value = modelCfg.key_fal;
 
     // Character
     if (config.character) {
@@ -6183,10 +6249,9 @@ async function loadConfig() {
 }
 
 async function saveAllConfig() {
-  const config = {
-    character: {
-      name: document.getElementById('config-character-name').value
-    },
+  // 1. Save Main Simulation Config
+  const simConfig = {
+    character: { name: document.getElementById('config-character-name').value },
     metabolism: {
       hunger_rate: parseFloat(document.getElementById('config-hunger-rate').value),
       thirst_rate: parseFloat(document.getElementById('config-thirst-rate').value),
@@ -6214,23 +6279,48 @@ async function saveAllConfig() {
     }
   };
 
+  // 2. Save MAC Model Config
+  const modelConfig = {
+    mac_assignments: {
+      persona: document.getElementById('config-model-persona').value,
+      limbic: document.getElementById('config-model-limbic').value,
+      analyst: document.getElementById('config-model-analyst').value,
+      developer: document.getElementById('config-model-developer').value
+    },
+    api_key: document.getElementById('config-key-openai').value,
+    key_anthropic: document.getElementById('config-key-anthropic').value,
+    key_gemini: document.getElementById('config-key-gemini').value,
+    key_xai: document.getElementById('config-key-xai').value,
+    key_minimax: document.getElementById('config-key-minimax').value,
+    local_url: document.getElementById('config-local-url').value,
+    image_provider: document.getElementById('config-provider-image').value,
+    vision_provider: document.getElementById('config-provider-vision').value,
+    key_venice: document.getElementById('config-key-venice').value,
+    key_fal: document.getElementById('config-key-fal').value
+  };
+
   try {
-    const response = await fetch('/api/config/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config)
-    });
-    const result = await response.json();
     const statusEl = document.getElementById('config-save-status');
-    if (result.success) {
-      statusEl.textContent = '✓ Saved!';
+    statusEl.textContent = 'Saving...';
+
+    const [simResp, modelResp] = await Promise.all([
+      fetch('/api/config/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(simConfig) }),
+      fetch('/api/model/config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(modelConfig) })
+    ]);
+
+    const res1 = await simResp.json();
+    const res2 = await modelResp.json();
+
+    if (res1.success && res2.success) {
+      statusEl.textContent = '✓ All Settings Saved!';
       statusEl.style.color = 'var(--growth)';
       setTimeout(() => { statusEl.textContent = ''; }, 3000);
     } else {
-      statusEl.textContent = '✗ Error: ' + result.error;
+      statusEl.textContent = '✗ Error saving settings';
       statusEl.style.color = 'var(--danger)';
     }
   } catch (e) {
+    console.error(e);
     document.getElementById('config-save-status').textContent = '✗ Error: ' + e.message;
   }
 }
@@ -6341,17 +6431,48 @@ async function loadGenesisStatus() {
   }
 }
 
+async function loadClawModels() {
+  try {
+    const resp = await fetch('/api/openclaw/models');
+    const data = await resp.json();
+    const selects = document.querySelectorAll('.mac-select-main');
+    
+    selects.forEach(select => {
+      const currentVal = select.value;
+      select.innerHTML = '<option value="">-- Select Model --</option>';
+      data.models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        if (currentVal === m.id) opt.selected = true;
+        select.appendChild(opt);
+      });
+    });
+    return data.models;
+  } catch(e) {
+    console.error("Failed to load models:", e);
+  }
+}
+
 async function loadModelConfig() {
   try {
+    // 1. First ensure models are loaded in dropdowns
+    const availableModels = await loadClawModels();
+    
+    // 2. Load current config
     const response = await fetch('/api/model/config');
     const config = await response.json();
 
-    if (config.models) {
-      if (config.models.persona) document.getElementById('model-persona').value = config.models.persona;
-      if (config.models.limbic) document.getElementById('model-limbic').value = config.models.limbic;
-      if (config.models.analyst) document.getElementById('model-analyst').value = config.models.analyst;
-      if (config.models.world_engine) document.getElementById('model-world').value = config.models.world_engine;
+    // Use mac_assignments from new structure or fallback to old models structure
+    const assignments = config.mac_assignments || config.models || {};
+
+    if (assignments) {
+      if (assignments.persona) document.getElementById('model-persona').value = assignments.persona;
+      if (assignments.limbic) document.getElementById('model-limbic').value = assignments.limbic;
+      if (assignments.analyst) document.getElementById('model-analyst').value = assignments.analyst;
+      if (assignments.developer) document.getElementById('model-developer').value = assignments.developer;
     }
+    
     if (config.image_provider) document.getElementById('provider-image').value = config.image_provider;
     if (config.vision_provider) document.getElementById('provider-vision').value = config.vision_provider;
     
@@ -6396,19 +6517,19 @@ async function saveAdvancedConfig() {
 
 async function saveModelConfig() {
   try {
-    const models = {
+    const assignments = {
       persona: document.getElementById('model-persona').value,
       limbic: document.getElementById('model-limbic').value,
       analyst: document.getElementById('model-analyst').value,
-      world_engine: document.getElementById('model-world').value,
+      developer: document.getElementById('model-developer').value,
     };
-    const apiKey = document.getElementById('model-api-key').value;
+    const apiKey = document.getElementById('api-key').value;
     const keyAnthropic = document.getElementById('key-anthropic').value;
 
     const response = await fetch('/api/model/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ models, api_key: apiKey, key_anthropic: keyAnthropic })
+      body: JSON.stringify({ mac_assignments: assignments, api_key: apiKey, key_anthropic: keyAnthropic })
     });
     const result = await response.json();
 
@@ -7419,6 +7540,19 @@ function startAvatarPolling() {
           // Set target blend shapes for smooth interpolation
           targetBlendShapes = { ...DEFAULT_BLENDSHAPES, ...state.blendShapes };
           console.log('Expression update:', targetBlendShapes);
+          
+          // God-Mode Monitor Update
+          const bsContainer = document.getElementById('godmode-blendshapes');
+          if (bsContainer) {
+            bsContainer.innerHTML = Object.entries(state.blendShapes)
+              .sort((a, b) => b[1] - a[1]) // Sort by weight
+              .map(([key, val]) => `
+                <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border); padding:2px 0;">
+                  <span style="color:var(--text-dim);">${key}</span>
+                  <span style="color:${val > 0.5 ? 'var(--accent)' : 'var(--text)'}; font-weight:bold;">${val.toFixed(3)}</span>
+                </div>
+              `).join('');
+          }
         }
         // Phase 24: Handle voice playback requests
         else if (state.action === 'voice' && state.audioUrl) {
@@ -8483,8 +8617,7 @@ if (document.getElementById('tab-avatar').classList.contains('active')) {
 </script>
 </body>
 </html>"""
-    return html.replace("{data_json}", data_json).replace("{", "{").replace("}", "}")
-    return html.replace("{data_json}", data_json).replace("{", "{").replace("}", "}")
+    return html.replace("{data_json}", data_json)
 
 
 def generate_mindmap_html(data: dict) -> str:
@@ -9632,8 +9765,13 @@ draw();
 
       <!-- Step 2: Cognitive Matrix (MAC Role Assignment) -->
       <div class="wizard-step-view" data-step="2">
-        <h3>🧠 Multi-Agent Cluster (MAC)</h3>
-        <p style="color: #6a6a80; margin-bottom: 1.5rem;">Assign AI models to specialized cognitive roles. Models are loaded from your global OpenClaw configuration.</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+          <div>
+            <h3>🧠 Multi-Agent Cluster (MAC)</h3>
+            <p style="color: #6a6a80;">Assign AI models to specialized cognitive roles.</p>
+          </div>
+          <button onclick="handleRefreshModels()" id="btn-refresh-models" style="background:var(--bg-hover); color:#fff; border:1px solid var(--border); padding:0.5rem 0.75rem; border-radius:4px; cursor:pointer; font-size:0.75rem; display:flex; align-items:center; gap:0.4rem;">🔄 Refresh Models</button>
+        </div>
         
         <div style="display:grid; grid-template-columns: 1fr; gap:1.25rem;" id="mac-assignments">
           <!-- Role: Persona -->
@@ -9834,21 +9972,33 @@ draw();
   // Save keys from step 2
   async function initMacStep() {
     try {
-      const resp = await fetch('/api/openclaw/models');
-      const data = await resp.json();
+      // 1. Load available models from OpenClaw
+      const modelsResp = await fetch('/api/openclaw/models');
+      const modelsData = await modelsResp.json();
+      
+      // 2. Load current assignments from project-genesis
+      const configResp = await fetch('/api/model/config');
+      const configData = await configResp.json();
+      const assignments = configData.mac_assignments || {};
+
       const selects = document.querySelectorAll('.mac-select');
       
       selects.forEach(select => {
+        const role = select.id.replace('mac-model-', '');
         select.innerHTML = '<option value="">-- Select Model --</option>';
-        data.models.forEach(m => {
+        
+        modelsData.models.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m.id;
           opt.textContent = m.name;
+          if (assignments[role] === m.id) {
+            opt.selected = true;
+          }
           select.appendChild(opt);
         });
       });
     } catch(e) {
-      console.error("Failed to load models:", e);
+      console.error("Failed to load models or config:", e);
     }
   }
 
@@ -10039,6 +10189,31 @@ draw();
     if (currentStep > 1) loadStep(currentStep - 1);
   });
 
+  // Handle manual model refresh
+  window.handleRefreshModels = async function() {
+    const btn = document.getElementById('btn-refresh-models');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '🔄 Refreshing...';
+    
+    try {
+      await initMacStep();
+      const statusEl = document.getElementById('step2Status');
+      statusEl.style.display = 'block';
+      statusEl.className = 'wizard-status success';
+      statusEl.textContent = 'Models synchronized from OpenClaw!';
+      setTimeout(() => statusEl.style.display = 'none', 3000);
+    } catch(e) {
+      console.error(e);
+      const statusEl = document.getElementById('step2Status');
+      statusEl.className = 'wizard-status error';
+      statusEl.textContent = 'Refresh failed: ' + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  };
+
   // Stress slider
   document.getElementById('stressSlider').addEventListener('input', (e) => {
     const val = e.target.value;
@@ -10228,48 +10403,60 @@ def main():
                         self.send_error(500, str(e))
                 elif self.path == "/api/openclaw/models":
                     try:
-                        config_path = os.path.expanduser("~/.openclaw/openclaw.json")
+                        import subprocess
                         models = []
-                        if os.path.exists(config_path):
-                            with open(config_path, "r") as f:
-                                config = json.load(f)
-                                # Extract providers and their models from the correct path
-                                model_section = config.get("models", {})
-                                providers = model_section.get("providers", {})
-                                
-                                for provider_id, pdata in providers.items():
-                                    # Handle both list and dict formats for models
-                                    model_list = pdata.get("models", [])
-                                    if isinstance(model_list, list):
-                                        for m in model_list:
-                                            m_id = m.get("id")
-                                            m_name = m.get("name", m_id)
+                        try:
+                            # Use the official CLI to get the current configured models
+                            result = subprocess.run(["openclaw", "models", "list", "--json"], capture_output=True, text=True, timeout=5)
+                            
+                            if result.returncode == 0:
+                                try:
+                                    data = json.loads(result.stdout)
+                                    raw_models = data.get("models", [])
+                                    for m in raw_models:
+                                        if m.get("key"):
                                             models.append({
-                                                "id": f"{provider_id}/{m_id}",
-                                                "name": f"{provider_id.upper()} - {m_name}"
+                                                "id": m.get("key"),
+                                                "name": f"{m.get('key').split('/')[0].upper()} - {m.get('name', m.get('key'))}"
                                             })
-                                    elif isinstance(model_list, dict):
-                                        for m_id in model_list.keys():
-                                            models.append({
-                                                "id": f"{provider_id}/{m_id}",
-                                                "name": f"{provider_id.upper()} - {m_id}"
-                                            })
+                                except json.JSONDecodeError:
+                                    pass
+                        except Exception as e:
+                            print(f"  ⚠ OpenClaw CLI error: {e}")
                         
-                        # Also add common defaults if list is empty
+                        # Add Local Models check if not in CLI list
+                        try:
+                            config_path = os.path.expanduser("~/.openclaw/openclaw.json")
+                            if os.path.exists(config_path):
+                                with open(config_path, "r") as f:
+                                    full_config = json.load(f)
+                                    providers = full_config.get("models", {}).get("providers", {})
+                                    for p_id, p_data in providers.items():
+                                        if p_id in ["ollama", "llama-cpp", "local"]:
+                                            for lm in p_data.get("models", []):
+                                                lm_id = lm.get("id")
+                                                models.append({
+                                                    "id": f"{p_id}/{lm_id}",
+                                                    "name": f"LOCAL - {lm_id} ({p_id})"
+                                                })
+                        except: pass
+
+                        # Fallback if list is empty
                         if not models:
                             models = [
-                                {"id": "openai/gpt-4o", "name": "OPENAI - gpt-4o"},
-                                {"id": "anthropic/claude-3-5-sonnet-latest", "name": "ANTHROPIC - claude-3.5-sonnet"}
+                                {"id": "anthropic/claude-3-5-sonnet-latest", "name": "ANTHROPIC - Claude 3.5 Sonnet"},
+                                {"id": "minimax/MiniMax-M2.5", "name": "MINIMAX - M2.5 (Fallback)"}
                             ]
 
                         self.send_response(200)
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
                         self.wfile.write(json.dumps({"models": models}).encode())
-                        return
                     except Exception as e:
-                        self.send_error(500, str(e))
-                        return
+                        self.send_response(200) # Send empty success on error to prevent UI crash
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"models": [], "error": str(e)}).encode())
 
                 elif self.path == "/api/genesis/status":
                     # Return genesis enabled status
@@ -10293,7 +10480,7 @@ def main():
 
                     if self.command == 'GET':
                         # Return current config
-                        config = {"models": {}}
+                        config = {"mac_assignments": {}, "api_key": ""}
                         if os.path.exists(model_config_path):
                             try:
                                 with open(model_config_path) as f:
@@ -10301,9 +10488,17 @@ def main():
                             except:
                                 pass
                         
-                        # Return config with placeholder for existing keys
+                        # Support legacy "models" key
+                        if "models" in config and not config.get("mac_assignments"):
+                            config["mac_assignments"] = config.pop("models")
+
+                        # Return config with placeholder for existing keys (Security)
                         config_ui = config.copy()
-                        for key in ["api_key", "key_anthropic", "key_venice", "key_fal", "key_xai", "key_gemini_img"]:
+                        sensitive_keys = [
+                            "api_key", "key_anthropic", "key_venice", "key_fal", 
+                            "key_xai", "key_gemini_img", "key_gemini", "key_minimax"
+                        ]
+                        for key in sensitive_keys:
                             if config.get(key):
                                 config_ui[key] = "****"
                         
@@ -10327,9 +10522,14 @@ def main():
                             # Update with new data (Handle empty values carefully)
                             for k, v in new_data.items():
                                 if v == "****": continue # Don't overwrite with placeholder
-                                if k == "models" and isinstance(v, dict):
-                                    if "models" not in config: config["models"] = {}
-                                    config["models"].update(v)
+                                
+                                if k == "mac_assignments" and isinstance(v, dict):
+                                    if "mac_assignments" not in config: config["mac_assignments"] = {}
+                                    config["mac_assignments"].update(v)
+                                elif k == "models" and isinstance(v, dict):
+                                    # Still support legacy key for save
+                                    if "mac_assignments" not in config: config["mac_assignments"] = {}
+                                    config["mac_assignments"].update(v)
                                 else:
                                     config[k] = v
 
@@ -10346,7 +10546,7 @@ def main():
                             self.send_response(500)
                             self.send_header("Content-Type", "application/json")
                             self.end_headers()
-                            self.wfile.write(json.dumps({"success": False, "message": str(e)}).encode())
+                            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
                 elif self.path == "/api/genesis/request-status":
                     request_path = os.path.join(workspace, "memory", "reality", "genesis_request.json")
@@ -10738,6 +10938,217 @@ def main():
                     self.end_headers()
                     self.wfile.write(json.dumps(data).encode())
                     return
+
+                elif self.path == "/api/hardware/resonance":
+                    try:
+                        resonance_state_path = os.path.join(workspace, "memory", "reality", "hardware_resonance.json")
+                        if os.path.exists(resonance_state_path):
+                            with open(resonance_state_path, "r") as f:
+                                state = json.load(f)
+                        else:
+                            state = {
+                                "isActive": False,
+                                "currentCpuLoad": 0,
+                                "currentMemoryUsage": 0,
+                                "currentTemp": None,
+                                "isAudioPlaying": False,
+                                "resonanceLevel": "calm",
+                                "totalResonanceEvents": 0
+                            }
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(state).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                elif self.path == "/api/telemetry/vitals":
+                    try:
+                        tel_dir = os.path.join(workspace, "memory", "telemetry")
+                        entries = []
+                        if os.path.exists(tel_dir):
+                            for f in os.listdir(tel_dir):
+                                if f.startswith("vitality_") and f.endswith(".jsonl"):
+                                    with open(os.path.join(tel_dir, f), "r") as fp:
+                                        for line in fp:
+                                            try:
+                                                entries.append(json.loads(line))
+                                            except:
+                                                pass
+                        entries.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(entries[:100]).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                elif self.path == "/api/telemetry/hardware":
+                    try:
+                        tel_path = os.path.join(workspace, "memory", "telemetry", "hardware.jsonl")
+                        entries = []
+                        if os.path.exists(tel_path):
+                            with open(tel_path, "r") as f:
+                                for line in f:
+                                    try:
+                                        entries.append(json.loads(line))
+                                    except:
+                                        pass
+                        entries.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(entries[:100]).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+
+                elif self.path == "/api/economy/state":
+                    try:
+                        econ_path = os.path.join(workspace, "memory", "reality", "economy_state.json")
+                        if os.path.exists(econ_path):
+                            with open(econ_path, "r") as f:
+                                state = json.load(f)
+                        else:
+                            state = {"balances": {"USD": 1000.0, "BTC": 0.0}, "positions": {}, "history": []}
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(state).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                elif self.path == "/api/presence/state":
+                    try:
+                        presence_path = os.path.join(workspace, "memory", "reality", "presence.json")
+                        if os.path.exists(presence_path):
+                            with open(presence_path, "r") as f:
+                                state = json.load(f)
+                        else:
+                            state = {"location": "The Void", "status": "Offline", "last_active": None}
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(state).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                elif self.path == "/api/config/all":
+                    try:
+                        config_path = os.path.join(workspace, "memory", "reality", "simulation_config.json")
+                        if os.path.exists(config_path):
+                            with open(config_path, "r") as f:
+                                config = json.load(f)
+                        else:
+                            config = {"version": "5.1.0", "character": {"name": "Q"}}
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(config).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                elif self.path == "/api/model/config":
+                    # GET part: Return current config
+                    model_config_path = os.path.join(workspace, "memory", "reality", "model_config.json")
+                    config = {"mac_assignments": {}, "api_key": ""}
+                    if os.path.exists(model_config_path):
+                        try:
+                            with open(model_config_path) as f:
+                                config = json.load(f)
+                        except:
+                            pass
+                    
+                    # Support legacy "models" key
+                    if "models" in config and not config.get("mac_assignments"):
+                        config["mac_assignments"] = config.pop("models")
+
+                    # Return config with placeholder for existing keys (Security)
+                    config_ui = config.copy()
+                    sensitive_keys = [
+                        "api_key", "key_anthropic", "key_venice", "key_fal", 
+                        "key_xai", "key_gemini_img", "key_gemini", "key_minimax"
+                    ]
+                    for key in sensitive_keys:
+                        if config.get(key):
+                            config_ui[key] = "****"
+                    
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps(config_ui).encode())
+
+                elif self.path.startswith("/api/logs/recent"):
+                    try:
+                        from urllib.parse import urlparse, parse_qs
+                        query = parse_qs(urlparse(self.path).query)
+                        count = int(query.get("count", [100])[0])
+                        level_filter = query.get("level", [""])[0]
+                        module_filter = query.get("module", [""])[0]
+
+                        log_path = os.path.join(workspace, "memory", "genesis_debug.jsonl")
+                        entries = []
+                        if os.path.exists(log_path):
+                            with open(log_path, "r") as f:
+                                lines = f.readlines()
+                                for line in reversed(lines[-1000:]):
+                                    try:
+                                        entry = json.loads(line)
+                                        if level_filter and entry.get("level") != level_filter:
+                                            continue
+                                        if module_filter and entry.get("module") != module_filter:
+                                            continue
+                                        entries.append(entry)
+                                        if len(entries) >= count:
+                                            break
+                                    except:
+                                        pass
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(entries).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                elif self.path == "/api/vault/status":
+                    try:
+                        vault_path = os.path.join(workspace, "memory", "reality", "vault_state.json")
+                        if os.path.exists(vault_path):
+                            with open(vault_path, "r") as f:
+                                state = json.load(f)
+                        else:
+                            state = {"balances": {"USD": 0.0}, "positions": {}, "transactions": []}
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps(state).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 else:
                     super().do_GET()
@@ -11436,154 +11847,7 @@ def main():
                         self.end_headers()
                         self.wfile.write(json.dumps({"error": str(e)}).encode())
 
-                # Phase 40: Hardware Resonance State
-                elif self.path == "/api/hardware/resonance":
-                    try:
-                        resonance_state_path = os.path.join(workspace, "memory", "reality", "hardware_resonance.json")
-                        if os.path.exists(resonance_state_path):
-                            with open(resonance_state_path, "r") as f:
-                                state = json.load(f)
-                        else:
-                            state = {
-                                "isActive": False,
-                                "currentCpuLoad": 0,
-                                "currentMemoryUsage": 0,
-                                "currentTemp": None,
-                                "isAudioPlaying": False,
-                                "resonanceLevel": "calm",
-                                "totalResonanceEvents": 0
-                            }
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps(state).encode())
-                    except Exception as e:
-                        self.send_response(500)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
-                # v5.1.0: Centralized Config API
-                elif self.path == "/api/config/all":
-                    try:
-                        config_path = os.path.join(workspace, "memory", "reality", "simulation_config.json")
-                        if os.path.exists(config_path):
-                            with open(config_path, "r") as f:
-                                config = json.load(f)
-                        else:
-                            config = {"version": "5.1.0", "character": {"name": "Q"}}
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps(config).encode())
-                    except Exception as e:
-                        self.send_response(500)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"error": str(e)}).encode())
-
-                elif self.path == "/api/config/save":
-                    try:
-                        length = int(self.headers.get("Content-Length", 0))
-                        body = self.rfile.read(length).decode("utf-8")
-                        data = json.loads(body)
-                        config_path = os.path.join(workspace, "memory", "reality", "simulation_config.json")
-                        os.makedirs(os.path.dirname(config_path), exist_ok=True)
-                        data["last_updated"] = datetime.now().isoformat()
-                        with open(config_path, "w") as f:
-                            json.dump(data, f, indent=2)
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"success": True}).encode())
-                    except Exception as e:
-                        self.send_response(500)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
-
-                # v5.1.0: Telemetry API
-                elif self.path == "/api/telemetry/vitals":
-                    try:
-                        tel_dir = os.path.join(workspace, "memory", "telemetry")
-                        entries = []
-                        if os.path.exists(tel_dir):
-                            for f in os.listdir(tel_dir):
-                                if f.startswith("vitality_") and f.endswith(".jsonl"):
-                                    with open(os.path.join(tel_dir, f), "r") as fp:
-                                        for line in fp:
-                                            try:
-                                                entries.append(json.loads(line))
-                                            except:
-                                                pass
-                        entries.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps(entries[:100]).encode())
-                    except Exception as e:
-                        self.send_response(500)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"error": str(e)}).encode())
-
-                elif self.path == "/api/telemetry/hardware":
-                    try:
-                        tel_path = os.path.join(workspace, "memory", "telemetry", "hardware.jsonl")
-                        entries = []
-                        if os.path.exists(tel_path):
-                            with open(tel_path, "r") as f:
-                                for line in f:
-                                    try:
-                                        entries.append(json.loads(line))
-                                    except:
-                                        pass
-                        entries.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps(entries[:100]).encode())
-                    except Exception as e:
-                        self.send_response(500)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"error": str(e)}).encode())
-
-                # Phase 41: Debug Logs API
-                elif self.path == "/api/logs/recent":
-                    try:
-                        log_path = os.path.join(workspace, "memory", "genesis_debug.jsonl")
-                        entries = []
-                        count = int(self.path_query.get("count", 100))
-                        level_filter = self.path_query.get("level", "")
-                        module_filter = self.path_query.get("module", "")
-
-                        if os.path.exists(log_path):
-                            with open(log_path, "r") as f:
-                                lines = f.readlines()
-                                # Read in reverse to get most recent
-                                for line in reversed(lines[-1000:]):
-                                    try:
-                                        entry = json.loads(line)
-                                        if level_filter and entry.get("level") != level_filter:
-                                            continue
-                                        if module_filter and entry.get("module") != module_filter:
-                                            continue
-                                        entries.append(entry)
-                                        if len(entries) >= count:
-                                            break
-                                    except:
-                                        pass
-
-                        self.send_response(200)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps(entries).encode())
-                    except Exception as e:
-                        self.send_response(500)
-                        self.send_header("Content-Type", "application/json")
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"error": str(e)}).encode())
 
                 elif self.path == "/api/mem0/config":
                     try:
@@ -12576,6 +12840,73 @@ def main():
                         self.send_header("Content-Type", "application/json")
                         self.end_headers()
                         self.wfile.write(json.dumps({"error": str(e)}).encode())
+
+                elif self.path == "/api/model/config":
+                    # POST part: Save config (Merge with existing)
+                    model_config_path = os.path.join(workspace, "memory", "reality", "model_config.json")
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(length).decode("utf-8")
+                    try:
+                        new_data = json.loads(body)
+                        config = {}
+                        if os.path.exists(model_config_path):
+                            with open(model_config_path, "r") as f:
+                                config = json.load(f)
+                        
+                        for k, v in new_data.items():
+                            if v == "****": continue
+                            if k == "mac_assignments" and isinstance(v, dict):
+                                if "mac_assignments" not in config: config["mac_assignments"] = {}
+                                config["mac_assignments"].update(v)
+                            elif k == "models" and isinstance(v, dict):
+                                # Support legacy "models" key in save payload
+                                if "mac_assignments" not in config: config["mac_assignments"] = {}
+                                config["mac_assignments"].update(v)
+                            else:
+                                config[k] = v
+
+                        os.makedirs(os.path.dirname(model_config_path), exist_ok=True)
+                        with open(model_config_path, "w") as f:
+                            json.dump(config, f, indent=2)
+
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+
+                elif self.path == "/api/config/save":
+                    try:
+                        length = int(self.headers.get("Content-Length", 0))
+                        body = self.rfile.read(length).decode("utf-8")
+                        data = json.loads(body)
+                        config_path = os.path.join(workspace, "memory", "reality", "simulation_config.json")
+                        
+                        # Merge with existing
+                        current = {}
+                        if os.path.exists(config_path):
+                            with open(config_path, "r") as f:
+                                current = json.load(f)
+                        
+                        current.update(data)
+                        current["last_updated"] = datetime.now().isoformat()
+                        
+                        with open(config_path, "w") as f:
+                            json.dump(current, f, indent=2)
+                            
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": True}).encode())
+                    except Exception as e:
+                        self.send_response(500)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
 
                 else:
                     self.send_response(404)

@@ -18,10 +18,12 @@ STORAGE_STATE = os.path.abspath("memory/reality/browser_session.json")
 
 async def browse(action: str, query: str, duration: int = 5):
     """
-    Opens a visible browser, performs action, saves session, and closes.
+    Opens a browser, performs action, saves session, and closes.
     """
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        # Default to headless=True for compatibility, allow override via env
+        headless = os.environ.get("BROWSER_HEADLESS", "true").lower() == "true"
+        browser = await p.chromium.launch(headless=headless)
         
         # Load existing session if available
         context_args = {}

@@ -1,8 +1,19 @@
 {
   "mac_assignments": {
-    "persona": "xai/grok-4",
-    "analyst": "minimax/MiniMax-M2.5",
-    "developer": "google/gemini-3-flash-preview",
-    "limbic": "google/gemini-3-flash-preview"
-  }
+    "persona": "",
+    "analyst": "",
+    "developer": "",
+    "limbic": ""
+  },
+  "api_key": "",
+  "key_anthropic": "",
+  "key_venice": "",
+  "key_xai": "",
+  "key_gemini_img": "",
+  "key_fal": "",
+  "key_gemini": "",
+  "key_minimax": "",
+  "local_url": "",
+  "image_provider": "nano",
+  "vision_provider": "gpt-4o"
 }

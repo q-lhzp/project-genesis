@@ -52,13 +52,13 @@ interface PromptBuildCtx {
 }
 
 export function registerBeforePromptHook(
-  api: OpenClawPluginApi, 
-  paths: SimulationPaths, 
-  cfg: Partial<PluginConfig> | undefined, 
-  modules: ToolModules, 
-  rates: any, 
-  reflexThreshold: number, 
-  ws: string, 
+  api: OpenClawPluginApi,
+  paths: SimulationPaths,
+  cfg: Partial<PluginConfig> | undefined,
+  modules: ToolModules,
+  rates: any,
+  reflexThreshold: number,
+  ws: string,
   lang: "de" | "en"
 ) {
   api.on("llm_input", async (event: any, ctx: any) => {
@@ -142,6 +142,8 @@ export function registerBeforePromptHook(
 
     // Phase 1: Chronos - Log vitality telemetry (every tick)
     if (lifecycleState) {
+      // Ensure telemetry dir exists (appendJsonl does this but we'll be safe)
+      await fs.mkdir(paths.telemetry, { recursive: true });
       await logVitalityTelemetry(paths.telemetry, lifecycleState, ph.needs, ph.current_location);
     }
 
@@ -208,7 +210,7 @@ export function registerBeforePromptHook(
           message = isDe ? `Hey, wir haben noch eine Rechnung offen.` : `Hey, we have some unfinished business.`;
         } else if (bond > 50) {
           category = Math.random() < 0.5 ? "support" : "request";
-          message = category === "support" 
+          message = category === "support"
             ? (isDe ? `Ich dachte an dich, hoffe es geht dir gut!` : `Just thought of you, hope you're doing well!`)
             : (isDe ? `Kannst du mir bei einer Sache helfen?` : `Can you help me with something?`);
         }
@@ -232,12 +234,14 @@ export function registerBeforePromptHook(
     let reputationState: ReputationState | null = await withFileLock(paths.reputation, async () => {
       let rep = await readJson<ReputationState>(paths.reputation);
       if (!rep) {
-        rep = { global_score: 0, circles: [
-          { name: "Professional", score: 0 },
-          { name: "Family", score: 0 },
-          { name: "Friends", score: 0 },
-          { name: "Public", score: 0 }
-        ], events: [], last_propagation: new Date().toISOString() };
+        rep = {
+          global_score: 0, circles: [
+            { name: "Professional", score: 0 },
+            { name: "Family", score: 0 },
+            { name: "Friends", score: 0 },
+            { name: "Public", score: 0 }
+          ], events: [], last_propagation: new Date().toISOString()
+        };
         await writeJson(paths.reputation, rep);
       }
       return rep;
@@ -248,12 +252,12 @@ export function registerBeforePromptHook(
 
     const cycleProfile = await readJson<CycleProfile>(paths.cycleProfile);
     const growthLimit = cfg?.growthContextEntries ?? 10;
-    
+
     const emotionState = await readMarkdownTail(paths.emotions, 10);
     const desireState = await fs.readFile(paths.desires, "utf-8").catch(() => "");
     const identityLine = await fs.readFile(paths.identity, "utf-8").catch(() => "");
     const growthCtx = await readMarkdownTail(paths.growth, growthLimit);
-    
+
     const dreamState = await readJson<DreamState>(paths.dreamState);
     const hobbySuggestion = await fs.readFile(paths.hobbies, "utf-8").catch(() => "");
     const skillState = await readJson<SkillState>(paths.skills);
