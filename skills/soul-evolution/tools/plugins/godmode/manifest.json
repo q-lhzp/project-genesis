@@ -1,0 +1,12 @@
+{
+    "name": "God-Mode",
+    "version": "1.0.0",
+    "icon": "⚡",
+    "tab_id": "godmode",
+    "description": "Simulation override and direct needs manipulation.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css"
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "name": "Genesis Lab",
+    "version": "1.0.0",
+    "icon": "🧬",
+    "tab_id": "genesis_lab",
+    "description": "Simulation bootstrap, onboarding and life generation.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css"
+    }
+}

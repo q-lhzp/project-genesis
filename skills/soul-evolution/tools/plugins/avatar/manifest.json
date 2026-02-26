@@ -1,0 +1,13 @@
+{
+    "name": "Live Avatar",
+    "version": "1.1.0",
+    "icon": "🎭",
+    "tab_id": "avatar",
+    "description": "Three.js VRM Embodiment Engine.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css",
+        "is_module": true
+    }
+}

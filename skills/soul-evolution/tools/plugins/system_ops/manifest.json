@@ -1,0 +1,12 @@
+{
+    "name": "System Ops",
+    "version": "1.0.0",
+    "icon": "💻",
+    "tab_id": "system_ops",
+    "description": "System development, cycle management, memory and logs.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css"
+    }
+}

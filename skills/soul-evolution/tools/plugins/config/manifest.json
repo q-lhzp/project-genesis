@@ -1,0 +1,12 @@
+{
+    "name": "System Config",
+    "version": "1.0.0",
+    "icon": "⚙️",
+    "tab_id": "config",
+    "description": "System settings, MAC model assignments, and API key management.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css"
+    }
+}

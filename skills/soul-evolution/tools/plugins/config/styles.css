@@ -1,0 +1,70 @@
+/**
+ * Config Plugin Styles
+ */
+
+.config-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    padding: 1rem;
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 1rem;
+    align-items: center;
+}
+
+.config-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2rem;
+}
+
+.config-grid label, .slider-box label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.config-grid input, .config-grid select {
+    background: var(--bg-dim);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.5rem;
+    border-radius: 4px;
+    width: 100%;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.slider-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.action-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.btn-save-plugin {
+    background: var(--growth);
+    color: #fff;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-save-plugin:hover {
+    filter: brightness(1.1);
+}

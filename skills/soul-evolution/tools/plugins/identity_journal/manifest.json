@@ -1,0 +1,12 @@
+{
+    "name": "Identity Journal",
+    "version": "1.0.0",
+    "icon": "📜",
+    "tab_id": "identity_journal",
+    "description": "Entity skills, personal interests and dream journal.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css"
+    }
+}

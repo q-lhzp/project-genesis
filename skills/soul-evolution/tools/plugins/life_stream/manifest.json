@@ -1,0 +1,12 @@
+{
+    "name": "Life Stream",
+    "version": "1.0.0",
+    "icon": "📸",
+    "tab_id": "life_stream",
+    "description": "Entity presence, social feed and photo gallery.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css"
+    }
+}

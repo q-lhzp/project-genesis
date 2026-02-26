@@ -1,0 +1,12 @@
+{
+    "name": "Spatial & Items",
+    "version": "1.0.0",
+    "icon": "🏠",
+    "tab_id": "spatial",
+    "description": "Spatial interior management, inventory and wardrobe.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css"
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "name": "The Vault",
+    "version": "1.0.0",
+    "icon": "💰",
+    "tab_id": "vault",
+    "description": "Financial system and asset trading plugin.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css"
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "name": "Social & Psych",
+    "version": "1.0.0",
+    "icon": "🧠",
+    "tab_id": "social_psych",
+    "description": "Entity psychology, global reputation and social CRM.",
+    "backend_file": "backend.py",
+    "frontend": {
+        "js": "ui.js",
+        "css": "styles.css"
+    }
+}
